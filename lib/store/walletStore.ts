@@ -33,6 +33,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
       }
     } catch (error) {
       console.error('Failed to connect wallet', error);
+      throw error;
     }
   },
   disconnect: () => {

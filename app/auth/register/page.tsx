@@ -64,6 +64,8 @@ export default function RegisterPage() {
       if (address) {
         toast.success('Wallet connected! Redirecting...');
         router.push('/dashboard');
+      } else {
+        toast.error('Wallet connection was cancelled or Freighter is not installed.');
       }
     } catch (err) {
       console.error(err);

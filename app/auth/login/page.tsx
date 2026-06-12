@@ -96,6 +96,8 @@ export default function LoginPage() {
         });
         toast.success('Wallet connected & Logged in!');
         router.push('/dashboard');
+      } else {
+        toast.error('Wallet connection was cancelled or Freighter is not installed.');
       }
     } catch (err) {
       console.error(err);
