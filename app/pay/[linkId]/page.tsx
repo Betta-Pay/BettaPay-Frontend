@@ -117,8 +117,8 @@ export default function PaymentLinkPage() {
         
         {/* Merchant Branding Header */}
         <div className="flex flex-col items-center mb-8">
-          <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
-            <ShieldCheck className="w-8 h-8 text-primary" />
+          <div className="w-16 h-16 rounded-full bg-slate-900 flex items-center justify-center mb-4 overflow-hidden">
+            <img src="/logo.png" alt="BettaPay Logo" className="w-full h-full object-cover" />
           </div>
           <h1 className="text-xl font-semibold">{linkData.merchantName}</h1>
           <p className="text-muted-foreground text-sm">{linkData.label}</p>
@@ -232,8 +232,8 @@ export default function PaymentLinkPage() {
           )}
         </AnimatePresence>
 
-        <div className="mt-8 text-center text-xs text-muted-foreground">
-          Powered by <span className="font-semibold text-foreground">BettaPay</span>
+        <div className="mt-8 flex items-center justify-center gap-2 text-center text-xs text-muted-foreground">
+          Powered by <img src="/logo.png" alt="BettaPay Logo" className="w-4 h-4 object-contain rounded" /> <span className="font-semibold text-foreground">BettaPay</span>
         </div>
 
         {/* responsive footer */}

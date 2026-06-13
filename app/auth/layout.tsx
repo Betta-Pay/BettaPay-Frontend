@@ -14,9 +14,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
       <div className="w-full lg:w-[52%] flex flex-col bg-white">
         {/* Top bar */}
         <div className="flex items-center gap-2.5 px-8 py-6 border-b border-slate-100">
-          <div className="w-8 h-8 rounded-lg bg-amber-500 flex items-center justify-center">
-            <ShieldCheck className="w-5 h-5 text-white" />
-          </div>
+          <img src="/logo.png" alt="BettaPay Logo" className="w-8 h-8 rounded-lg object-contain" />
           <span className="font-bold text-slate-900 text-lg tracking-tight">BettaPay</span>
         </div>
 
@@ -43,9 +41,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         <div className="p-16 max-w-lg w-full">
           {/* Icon + brand */}
           <div className="flex items-center gap-3 mb-14">
-            <div className="w-11 h-11 rounded-xl bg-amber-500 flex items-center justify-center">
-              <ShieldCheck className="w-6 h-6 text-white" />
-            </div>
+            <img src="/logo.png" alt="BettaPay Logo" className="w-11 h-11 rounded-xl object-contain bg-slate-800" />
             <span className="text-xl font-bold text-white tracking-tight">BettaPay</span>
           </div>
 
