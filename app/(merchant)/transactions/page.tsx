@@ -8,12 +8,14 @@ import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { CopyAddress } from '@/components/shared/CopyAddress';
 import { CurrencyDisplay } from '@/components/shared/CurrencyDisplay';
-import { mockTransactions } from '@/lib/mock/transactions';
+import { mockTransactions, Transaction } from '@/lib/mock/transactions';
 import { formatDate } from '@/lib/utils/format';
 import { Search, Download, Filter } from 'lucide-react';
+import { TransactionDetail } from '@/components/transactions/TransactionDetail';
 
 export default function TransactionsPage() {
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
 
   const filteredTransactions = mockTransactions.filter(tx => 
     tx.txHash.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -77,7 +79,11 @@ export default function TransactionsPage() {
                   </TableRow>
                 ) : (
                   filteredTransactions.map((tx) => (
-                    <TableRow key={tx.id} className="border-border/50 hover:bg-muted/30">
+                    <TableRow 
+                      key={tx.id} 
+                      className="border-border/50 hover:bg-muted/30 cursor-pointer"
+                      onClick={() => setSelectedTx(tx)}
+                    >
                       <TableCell className="text-muted-foreground whitespace-nowrap">
                         {formatDate(tx.timestamp)}
                       </TableCell>
@@ -107,6 +113,12 @@ export default function TransactionsPage() {
           </div>
         </CardContent>
       </Card>
+
+      <TransactionDetail 
+        transaction={selectedTx} 
+        isOpen={!!selectedTx} 
+        onClose={() => setSelectedTx(null)} 
+      />
     </div>
   );
 }

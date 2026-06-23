@@ -1,5 +1,5 @@
 "use client";
-
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { CurrencyDisplay } from '@/components/shared/CurrencyDisplay';
@@ -8,20 +8,26 @@ import {
   ArrowDownLeft,
   Copy,
   RefreshCcw,
-  ShieldCheck,
   ExternalLink,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuthStore } from '@/lib/store/authStore';
 
-const mockTxHistory = [
-  { id: 'w1', type: 'receive', label: 'Payment from link_02', amount: 45.5, time: '2h ago' },
-  { id: 'w2', type: 'receive', label: 'Payment from link_01', amount: 750, time: '5h ago' },
-  { id: 'w3', type: 'send', label: 'Settlement to GTBank', amount: 1200, time: 'Yesterday' },
-  { id: 'w4', type: 'receive', label: 'Payment from link_03', amount: 29, time: 'Yesterday' },
-];
+import { mockTransactions, Transaction } from '@/lib/mock/transactions';
+import { formatDistanceToNow } from 'date-fns';
+import { TransactionDetail } from '@/components/transactions/TransactionDetail';
+
+const mockTxHistory = mockTransactions.slice(0, 4).map(tx => ({
+  id: tx.id,
+  type: tx.source === 'API' ? 'send' : 'receive',
+  label: tx.source === 'API' ? 'Settlement to Bank' : `Payment from ${tx.source}`,
+  amount: tx.amountUsdc,
+  time: formatDistanceToNow(new Date(tx.timestamp), { addSuffix: true }),
+  fullTx: tx,
+}));
 
 export default function WalletPage() {
+  const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
   const { user } = useAuthStore();
   const address = user?.id ?? 'GCCHHKNI7GRA5QWC7RCTT3OHO7SKAUMKQA6IBWEQEO2SXI3GF376UHDD';
   const shortAddress = `${address.substring(0, 8)}...${address.slice(-6)}`;
@@ -122,7 +128,20 @@ export default function WalletPage() {
         <CardContent>
           <div className="space-y-2">
             {mockTxHistory.map((tx) => (
-              <div key={tx.id} className="flex items-center gap-3 py-2.5 px-2 rounded-xl hover:bg-slate-50 transition-colors">
+              <div 
+                key={tx.id} 
+                className="flex items-center gap-3 py-2.5 px-2 rounded-xl hover:bg-slate-50 transition-colors cursor-pointer"
+                onClick={() => setSelectedTx(tx.fullTx)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    setSelectedTx(tx.fullTx);
+                  }
+                }}
+                tabIndex={0}
+                role="button"
+                aria-label={`View details for ${tx.label}`}
+              >
                 <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${tx.type === 'receive' ? 'bg-emerald-100' : 'bg-amber-100'}`}>
                   {tx.type === 'receive'
                     ? <ArrowDownLeft className="w-4 h-4 text-emerald-600" />
@@ -140,6 +159,12 @@ export default function WalletPage() {
           </div>
         </CardContent>
       </Card>
+
+      <TransactionDetail 
+        transaction={selectedTx} 
+        isOpen={!!selectedTx} 
+        onClose={() => setSelectedTx(null)} 
+      />
     </div>
   );
 }

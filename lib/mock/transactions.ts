@@ -12,6 +12,7 @@ export interface Transaction {
   status: PaymentStatus;
   source: 'QR Code' | 'Payment Link' | 'API';
   timestamp: string;
+  stellarOpId?: string;
 }
 
 const now = new Date();
@@ -28,6 +29,7 @@ export const mockTransactions: Transaction[] = [
     status: 'success',
     source: 'Payment Link',
     timestamp: subHours(now, 2).toISOString(),
+    stellarOpId: '1234567890123456789',
   },
   {
     id: 'tx_02',
@@ -40,6 +42,7 @@ export const mockTransactions: Transaction[] = [
     status: 'success',
     source: 'QR Code',
     timestamp: subHours(now, 5).toISOString(),
+    stellarOpId: '2345678901234567890',
   },
   {
     id: 'tx_03',
@@ -52,6 +55,7 @@ export const mockTransactions: Transaction[] = [
     status: 'pending',
     source: 'API',
     timestamp: subHours(now, 12).toISOString(),
+    stellarOpId: '3456789012345678901',
   },
   {
     id: 'tx_04',
@@ -76,5 +80,6 @@ export const mockTransactions: Transaction[] = [
     status: 'success',
     source: 'QR Code',
     timestamp: subDays(now, 2).toISOString(),
+    stellarOpId: '5678901234567890123',
   },
 ];
