@@ -10,7 +10,9 @@ import {
   RefreshCcw,
   ShieldCheck,
   ExternalLink,
+  Inbox,
 } from 'lucide-react';
+import { EmptyState } from '@/components/shared/EmptyState';
 import { toast } from 'sonner';
 import { useAuthStore } from '@/lib/store/authStore';
 
@@ -120,24 +122,32 @@ export default function WalletPage() {
           </Button>
         </CardHeader>
         <CardContent>
-          <div className="space-y-2">
-            {mockTxHistory.map((tx) => (
-              <div key={tx.id} className="flex items-center gap-3 py-2.5 px-2 rounded-xl hover:bg-slate-50 transition-colors">
-                <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${tx.type === 'receive' ? 'bg-emerald-100' : 'bg-amber-100'}`}>
-                  {tx.type === 'receive'
-                    ? <ArrowDownLeft className="w-4 h-4 text-emerald-600" />
-                    : <ArrowUpRight className="w-4 h-4 text-amber-600" />}
+          {mockTxHistory.length === 0 ? (
+            <EmptyState
+              icon={Inbox}
+              title="No wallet activity yet"
+              description="On-chain transactions will appear here once your wallet receives payments."
+            />
+          ) : (
+            <div className="space-y-2">
+              {mockTxHistory.map((tx) => (
+                <div key={tx.id} className="flex items-center gap-3 py-2.5 px-2 rounded-xl hover:bg-slate-50 transition-colors">
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${tx.type === 'receive' ? 'bg-emerald-100' : 'bg-amber-100'}`}>
+                    {tx.type === 'receive'
+                      ? <ArrowDownLeft className="w-4 h-4 text-emerald-600" />
+                      : <ArrowUpRight className="w-4 h-4 text-amber-600" />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-slate-800">{tx.label}</p>
+                    <p className="text-xs text-slate-400">{tx.time}</p>
+                  </div>
+                  <span className={`text-sm font-semibold ${tx.type === 'receive' ? 'text-emerald-600' : 'text-slate-700'}`}>
+                    {tx.type === 'receive' ? '+' : '-'}{tx.amount.toFixed(2)} USDC
+                  </span>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-slate-800">{tx.label}</p>
-                  <p className="text-xs text-slate-400">{tx.time}</p>
-                </div>
-                <span className={`text-sm font-semibold ${tx.type === 'receive' ? 'text-emerald-600' : 'text-slate-700'}`}>
-                  {tx.type === 'receive' ? '+' : '-'}{tx.amount.toFixed(2)} USDC
-                </span>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

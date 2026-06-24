@@ -12,7 +12,9 @@ import {
   Banknote,
   ChevronRight,
   Download,
+  Receipt,
 } from 'lucide-react';
+import { EmptyState } from '@/components/shared/EmptyState';
 
 const mockSettlements = [
   { id: 'stl_01', amount: 12450.00, amountNgn: 19297500, status: 'completed', date: '2024-01-10', bank: 'GTBank', accountNo: '012****567' },
@@ -81,24 +83,32 @@ export default function SettlementPage() {
           </Button>
         </CardHeader>
         <CardContent>
-          <div className="space-y-3">
-            {mockSettlements.map((s) => (
-              <div key={s.id} className="flex items-center gap-4 p-4 rounded-xl border border-slate-100 hover:border-slate-200 hover:bg-slate-50/50 transition-all">
-                <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center flex-shrink-0">
-                  <Building2 className="w-5 h-5 text-slate-500" />
+          {mockSettlements.length === 0 ? (
+            <EmptyState
+              icon={Receipt}
+              title="No settlements yet"
+              description="Your USDC → NGN conversion history will appear here once you initiate a settlement."
+            />
+          ) : (
+            <div className="space-y-3">
+              {mockSettlements.map((s) => (
+                <div key={s.id} className="flex items-center gap-4 p-4 rounded-xl border border-slate-100 hover:border-slate-200 hover:bg-slate-50/50 transition-all">
+                  <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center flex-shrink-0">
+                    <Building2 className="w-5 h-5 text-slate-500" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-slate-800">{s.bank} · {s.accountNo}</p>
+                    <p className="text-xs text-slate-400">{s.date}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm font-bold text-slate-900"><CurrencyDisplay amount={s.amount} /></p>
+                    <p className="text-xs text-slate-400">₦{s.amountNgn.toLocaleString()}</p>
+                  </div>
+                  <StatusBadge status={s.status as 'completed' | 'pending' | 'failed'} />
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-slate-800">{s.bank} · {s.accountNo}</p>
-                  <p className="text-xs text-slate-400">{s.date}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm font-bold text-slate-900"><CurrencyDisplay amount={s.amount} /></p>
-                  <p className="text-xs text-slate-400">₦{s.amountNgn.toLocaleString()}</p>
-                </div>
-                <StatusBadge status={s.status as 'completed' | 'pending' | 'failed'} />
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
 

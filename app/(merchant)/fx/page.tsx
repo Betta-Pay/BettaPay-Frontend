@@ -58,10 +58,10 @@ export default function FxRatesPage() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
             <div>
               <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Primary Rate · USDC/NGN</p>
-              <p className="text-5xl font-bold text-slate-900">₦1,550</p>
+              <p className="text-3xl sm:text-5xl font-bold text-slate-900">₦1,550</p>
               <p className="text-slate-400 text-sm mt-1">Updated {lastRefresh}</p>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 px-4 py-2 rounded-xl">
                 <TrendingUp className="w-4 h-4 text-emerald-600" />
                 <span className="text-emerald-700 font-bold text-sm">+1.6% today</span>
@@ -127,10 +127,10 @@ export default function FxRatesPage() {
       </div>
 
       <Card className="border border-blue-200 bg-blue-50/50">
-        <CardContent className="flex items-start gap-3 p-5">
-          <Info className="w-5 h-5 text-blue-500 mt-0.5 flex-shrink-0" />
+        <CardContent className="flex items-start gap-3 p-3 sm:p-5">
+          <Info className="w-4 h-4 sm:w-5 sm:h-5 text-blue-500 mt-0.5 flex-shrink-0" />
           <div>
-            <p className="text-sm font-semibold text-blue-800">Rates sourced from SEP-24 Anchor</p>
+            <p className="text-xs sm:text-sm font-semibold text-blue-800">Rates sourced from SEP-24 Anchor</p>
             <p className="text-xs text-blue-600 mt-0.5">Exchange rates are fetched in real-time from the BettaPay SEP-24 compliant anchor and may vary at the time of settlement.</p>
           </div>
         </CardContent>

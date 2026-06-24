@@ -6,13 +6,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { CopyAddress } from '@/components/shared/CopyAddress';
-import { Plus, MoreHorizontal, QrCode } from 'lucide-react';
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogDescription, 
-  DialogHeader, 
-  DialogTitle, 
+import { EmptyState } from '@/components/shared/EmptyState';
+import { Plus, MoreHorizontal, QrCode, Link2 } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
   DialogTrigger,
   DialogFooter
 } from '@/components/ui/dialog';
@@ -43,10 +44,10 @@ export default function PaymentsPage() {
             Create and manage links to accept crypto payments.
           </p>
         </div>
-        
+
         <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
           <DialogTrigger render={
-            <Button>
+            <Button className="w-full sm:w-auto">
               <Plus className="w-4 h-4 mr-2" />
               New Payment Link
             </Button>
@@ -63,7 +64,7 @@ export default function PaymentsPage() {
                 <Label htmlFor="label">Label</Label>
                 <Input id="label" placeholder="e.g. Consulting Retainer" className="bg-background/50 border-border/50 focus-visible:ring-brand-accent" required />
               </div>
-              
+
               <div className="space-y-2">
                 <Label>Payment Type</Label>
                 <Select defaultValue="open">
@@ -98,36 +99,48 @@ export default function PaymentsPage() {
         </Dialog>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {mockLinks.map((link) => (
-          <Card key={link.id} className="bg-brand-surface border-border/50 shadow-sm hover:border-brand-accent/50 transition-colors group">
-            <CardHeader className="flex flex-row items-start justify-between pb-2">
-              <div>
-                <CardTitle className="text-base font-medium text-brand-text-primary line-clamp-1">{link.label}</CardTitle>
-                <CardDescription className="mt-1">
-                  {link.type === 'fixed' ? `${link.amount} ${link.currency}` : 'Open amount'}
-                </CardDescription>
-              </div>
-              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground -mt-2 -mr-2">
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center gap-2 mt-4">
-                <div className="flex-1 overflow-hidden">
-                  <div className="text-xs text-muted-foreground truncate bg-muted/50 p-2 rounded border border-border/50 font-mono">
-                    {link.url}
+      {mockLinks.length === 0 ? (
+        <EmptyState
+          icon={Link2}
+          title="No payment links yet"
+          description="Create your first payment link to start accepting crypto payments."
+          action={{ label: 'New Payment Link', onClick: () => setIsCreateOpen(true) }}
+        />
+      ) : (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {mockLinks.map((link) => (
+            <Card key={link.id} className="bg-brand-surface border-border/50 shadow-sm hover:border-brand-accent/50 transition-colors group">
+              <CardHeader className="flex flex-row items-start justify-between pb-2">
+                <div>
+                  <CardTitle className="text-base font-medium text-brand-text-primary line-clamp-1">{link.label}</CardTitle>
+                  <CardDescription className="mt-1">
+                    {link.type === 'fixed' ? `${link.amount} ${link.currency}` : 'Open amount'}
+                    <span className="hidden sm:inline"> · Created {link.created}</span>
+                  </CardDescription>
+                </div>
+                <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground -mt-2 -mr-2">
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-col gap-2 mt-4 sm:flex-row sm:items-center">
+                  <div className="flex-1 overflow-hidden min-w-0">
+                    <div className="text-xs text-muted-foreground truncate max-w-[180px] sm:max-w-full bg-muted/50 p-2 rounded border border-border/50 font-mono">
+                      {link.url}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <CopyAddress address={link.url} showIconOnly truncate={false} />
+                    <Button variant="outline" size="icon" className="h-8 w-8 border-border/50 bg-background/50 text-muted-foreground hover:text-brand-text-primary">
+                      <QrCode className="h-4 w-4" />
+                    </Button>
                   </div>
                 </div>
-                <CopyAddress address={link.url} showIconOnly truncate={false} />
-                <Button variant="outline" size="icon" className="h-8 w-8 border-border/50 bg-background/50 text-muted-foreground hover:text-brand-text-primary">
-                  <QrCode className="h-4 w-4" />
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
