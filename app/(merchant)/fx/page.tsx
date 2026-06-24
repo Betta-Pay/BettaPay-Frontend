@@ -3,9 +3,19 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { RefreshCcw, TrendingUp, TrendingDown, Info } from 'lucide-react';
+import { RefreshCcw, TrendingUp, TrendingDown, Info, Bell, BellRing, Trash2, Plus, ArrowRight, X } from 'lucide-react';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Input } from '@/components/ui/input';
+import { useEffect } from 'react';
 
 const fxHistory = [
   { date: 'Jan 7', rate: 1480 },
@@ -36,8 +46,92 @@ const FxTooltip = ({ active, payload, label }: FxTooltipProps) => {
   return null;
 };
 
+interface RateAlert {
+  id: string;
+  pair: string;
+  condition: 'above' | 'below';
+  target: number;
+  enabled: boolean;
+}
+
 export default function FxRatesPage() {
   const [lastRefresh] = useState('Just now');
+  const [alerts, setAlerts] = useState<RateAlert[]>([]);
+  const [newPair, setNewPair] = useState('USDC/NGN');
+  const [newCondition, setNewCondition] = useState<'above' | 'below'>('above');
+  const [newTarget, setNewTarget] = useState('');
+
+  // Load alerts from localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem('bettapay_rate_alerts');
+    if (saved) {
+      try {
+        setAlerts(JSON.parse(saved));
+      } catch (e) {
+        console.error('Failed to parse alerts', e);
+      }
+    }
+  }, []);
+
+  // Save alerts to localStorage
+  useEffect(() => {
+    localStorage.setItem('bettapay_rate_alerts', JSON.stringify(alerts));
+  }, [alerts]);
+
+  // Simulate rate checking
+  useEffect(() => {
+    const currentRate = 1550; // Current mock rate
+    const interval = setInterval(() => {
+      alerts.forEach(alert => {
+        if (alert.enabled) {
+          const isTriggered = alert.condition === 'above' 
+            ? currentRate >= alert.target 
+            : currentRate <= alert.target;
+          
+          if (isTriggered) {
+            toast('Rate Alert Triggered!', {
+              description: `${alert.pair} is ${alert.condition} ₦${alert.target.toLocaleString()}. Current rate: ₦1,550`,
+              icon: <BellRing className="w-4 h-4 text-amber-500" />,
+              duration: 5000,
+            });
+            
+            // Disable alert after triggering once to avoid spamming
+            setAlerts(prev => prev.map(a => a.id === alert.id ? { ...a, enabled: false } : a));
+          }
+        }
+      });
+    }, 10000); // Check every 10 seconds
+
+    return () => clearInterval(interval);
+  }, [alerts]);
+
+  const handleCreateAlert = () => {
+    if (!newTarget || isNaN(Number(newTarget))) {
+      toast.error('Please enter a valid target rate');
+      return;
+    }
+
+    const alert: RateAlert = {
+      id: Math.random().toString(36).substr(2, 9),
+      pair: newPair,
+      condition: newCondition,
+      target: Number(newTarget),
+      enabled: true,
+    };
+
+    setAlerts([...alerts, alert]);
+    setNewTarget('');
+    toast.success('Rate alert created');
+  };
+
+  const toggleAlert = (id: string) => {
+    setAlerts(alerts.map(a => a.id === id ? { ...a, enabled: !a.enabled } : a));
+  };
+
+  const deleteAlert = (id: string) => {
+    setAlerts(alerts.filter(a => a.id !== id));
+    toast.info('Alert removed');
+  };
 
   return (
     <div className="space-y-8 pb-8">
@@ -122,6 +216,128 @@ export default function FxRatesPage() {
                 </div>
               ))}
             </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Rate Alerts Section */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card className="border border-slate-200 bg-white shadow-sm h-full">
+          <CardHeader>
+            <CardTitle className="text-base font-semibold text-slate-900 flex items-center gap-2">
+              <Bell className="w-4 h-4 text-amber-500" /> Create Rate Alert
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-slate-700">Currency Pair</label>
+                <Select value={newPair} onValueChange={setNewPair}>
+                  <SelectTrigger className="h-10 border-slate-200 rounded-xl bg-slate-50">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="USDC/NGN">USDC/NGN</SelectItem>
+                    <SelectItem value="XLM/NGN">XLM/NGN</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-slate-700">Condition</label>
+                <Select value={newCondition} onValueChange={(v: any) => setNewCondition(v)}>
+                  <SelectTrigger className="h-10 border-slate-200 rounded-xl bg-slate-50">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="above">Goes Above</SelectItem>
+                    <SelectItem value="below">Goes Below</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-slate-700">Target Rate (₦)</label>
+              <div className="relative">
+                <Input 
+                  type="number"
+                  placeholder="e.g. 1600"
+                  value={newTarget}
+                  onChange={(e) => setNewTarget(e.target.value)}
+                  className="h-10 pl-8 border-slate-200 rounded-xl bg-slate-50"
+                />
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-semibold mt-0.5">₦</span>
+              </div>
+            </div>
+            <Button 
+              onClick={handleCreateAlert}
+              className="w-full bg-amber-500 hover:bg-amber-600 text-white rounded-xl h-10 font-semibold"
+            >
+              <Plus className="w-4 h-4 mr-2" /> Create Alert
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card className="border border-slate-200 bg-white shadow-sm h-full">
+          <CardHeader>
+            <CardTitle className="text-base font-semibold text-slate-900">Active Alerts</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {alerts.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-8 text-center">
+                <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center mb-3">
+                  <Bell className="w-6 h-6 text-slate-300" />
+                </div>
+                <p className="text-sm text-slate-400">No active rate alerts</p>
+                <p className="text-xs text-slate-400 mt-1">We'll notify you when rates hit your targets.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {alerts.map((alert) => (
+                  <div key={alert.id} className={cn(
+                    "flex items-center justify-between p-4 rounded-xl border transition-all",
+                    alert.enabled ? "bg-white border-slate-100" : "bg-slate-50 border-transparent opacity-60"
+                  )}>
+                    <div className="flex items-center gap-4">
+                      <div className={cn(
+                        "w-10 h-10 rounded-xl flex items-center justify-center",
+                        alert.enabled ? "bg-amber-50 text-amber-600" : "bg-slate-200 text-slate-500"
+                      )}>
+                        <BellRing className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-slate-800">
+                          {alert.pair} {alert.condition} ₦{alert.target.toLocaleString()}
+                        </p>
+                        <p className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">
+                          {alert.enabled ? 'Monitoring' : 'Paused'}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className={cn(
+                          "h-8 w-8 rounded-lg",
+                          alert.enabled ? "text-emerald-500 hover:text-emerald-600 hover:bg-emerald-50" : "text-slate-400 hover:text-slate-600 hover:bg-slate-200"
+                        )}
+                        onClick={() => toggleAlert(alert.id)}
+                      >
+                        <RefreshCcw className="w-3.5 h-3.5" />
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-8 w-8 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50"
+                        onClick={() => deleteAlert(alert.id)}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

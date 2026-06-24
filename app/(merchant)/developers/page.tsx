@@ -4,8 +4,15 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Code2, Copy, Eye, EyeOff, Plus, RefreshCcw, Key, Globe, BookOpen } from 'lucide-react';
+import { Code2, Copy, Eye, EyeOff, Plus, RefreshCcw, Key, Globe, BookOpen, Zap, CheckCircle2, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const mockKeys = [
   { id: 'key_01', name: 'Production Key', prefix: 'bp_live_', suffix: '...a4f9', created: '2024-01-01', lastUsed: '2 hours ago', type: 'live' },
@@ -32,12 +39,77 @@ const link = await client.paymentLinks.create({
 
 console.log(link.url); // https://betta.pay/pay/link_xxx`;
 
+const EVENT_TYPES = [
+  { value: 'payment.received', label: 'payment.received' },
+  { value: 'settlement.completed', label: 'settlement.completed' },
+  { value: 'payment.failed', label: 'payment.failed' },
+];
+
+const SAMPLE_PAYLOADS: Record<string, any> = {
+  'payment.received': {
+    "id": "evt_123456",
+    "type": "payment.received",
+    "data": {
+      "payment_id": "pay_987654",
+      "amount": 5000,
+      "currency": "USDC",
+      "status": "completed",
+      "customer": {
+        "email": "customer@example.com"
+      }
+    },
+    "created_at": "2024-06-24T12:00:00Z"
+  },
+  'settlement.completed': {
+    "id": "evt_234567",
+    "type": "settlement.completed",
+    "data": {
+      "settlement_id": "set_112233",
+      "amount": 4900,
+      "currency": "USDC",
+      "fee": 100,
+      "status": "processed"
+    },
+    "created_at": "2024-06-24T13:00:00Z"
+  },
+  'payment.failed': {
+    "id": "evt_345678",
+    "type": "payment.failed",
+    "data": {
+      "payment_id": "pay_failed_111",
+      "amount": 5000,
+      "currency": "USDC",
+      "status": "failed",
+      "reason": "insufficient_funds"
+    },
+    "created_at": "2024-06-24T14:00:00Z"
+  }
+};
+
 export default function DevelopersPage() {
   const [showKey, setShowKey] = useState<string | null>(null);
+  const [selectedEvent, setSelectedEvent] = useState<string>('payment.received');
+  const [isSimulating, setIsSimulating] = useState(false);
+  const [simulationResult, setSimulationResult] = useState<{ status: number; message: string } | null>(null);
 
   const handleCopy = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
     toast.success(`${label} copied`);
+  };
+
+  const handleSendTest = () => {
+    setIsSimulating(true);
+    setSimulationResult(null);
+    
+    // Simulate API delay
+    setTimeout(() => {
+      setIsSimulating(false);
+      setSimulationResult({
+        status: 200,
+        message: 'Webhook delivered successfully'
+      });
+      toast.success('Test webhook sent');
+    }, 1500);
   };
 
   return (
@@ -152,6 +224,88 @@ export default function DevelopersPage() {
           <Button className="bg-amber-500 hover:bg-amber-600 text-white rounded-xl h-10 px-4 text-sm font-semibold shrink-0">
             Save
           </Button>
+        </CardContent>
+      </Card>
+
+      {/* Test Webhook Section */}
+      <Card className="border border-slate-200 bg-white shadow-sm">
+        <CardHeader>
+          <CardTitle className="text-base font-semibold text-slate-900 flex items-center gap-2">
+            <Zap className="w-4 h-4 text-amber-500" /> Test Webhook
+          </CardTitle>
+          <p className="text-xs text-slate-400 mt-1">
+            Simulate webhook events to test your endpoint integration.
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="flex flex-col sm:flex-row gap-4 items-end">
+            <div className="flex-1 space-y-2">
+              <label className="text-xs font-semibold text-slate-700">Event Type</label>
+              <Select value={selectedEvent} onValueChange={setSelectedEvent}>
+                <SelectTrigger className="w-full h-10 border-slate-200 rounded-xl bg-slate-50">
+                  <SelectValue placeholder="Select event type" />
+                </SelectTrigger>
+                <SelectContent>
+                  {EVENT_TYPES.map((type) => (
+                    <SelectItem key={type.value} value={type.value}>
+                      {type.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <Button 
+              onClick={handleSendTest} 
+              disabled={isSimulating}
+              className="bg-slate-900 hover:bg-slate-800 text-white rounded-xl h-10 px-6 text-sm font-semibold min-w-[140px]"
+            >
+              {isSimulating ? (
+                <>
+                  <RefreshCcw className="w-3.5 h-3.5 mr-2 animate-spin" />
+                  Sending...
+                </>
+              ) : (
+                'Send Test'
+              )}
+            </Button>
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-semibold text-slate-700">Simulated Payload</label>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="h-7 text-[10px] text-slate-500 hover:text-slate-900"
+                onClick={() => handleCopy(JSON.stringify(SAMPLE_PAYLOADS[selectedEvent], null, 2), 'Payload')}
+              >
+                <Copy className="w-3 h-3 mr-1" /> Copy JSON
+              </Button>
+            </div>
+            <div className="bg-slate-950 rounded-xl p-4 overflow-x-auto border border-slate-800">
+              <pre className="text-xs text-emerald-400 font-mono leading-relaxed">
+                {JSON.stringify(SAMPLE_PAYLOADS[selectedEvent], null, 2)}
+              </pre>
+            </div>
+          </div>
+
+          {simulationResult && (
+            <div className={`p-4 rounded-xl border flex items-start gap-3 animate-in fade-in slide-in-from-top-2 duration-300 ${
+              simulationResult.status === 200 
+                ? 'bg-emerald-50 border-emerald-100 text-emerald-800' 
+                : 'bg-red-50 border-red-100 text-red-800'
+            }`}>
+              {simulationResult.status === 200 ? (
+                <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
+              ) : (
+                <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+              )}
+              <div>
+                <p className="text-sm font-semibold">Response Status: {simulationResult.status} OK</p>
+                <p className="text-xs opacity-80">{simulationResult.message}</p>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
