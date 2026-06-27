@@ -19,11 +19,15 @@ import { toast } from 'sonner';
 interface TopbarProps {
   onMenuClick?: () => void;
   title?: string;
+  unreadNotificationCount?: number;
 }
 
-export const Topbar = ({ onMenuClick, title }: TopbarProps) => {
+export const Topbar = ({ onMenuClick, title, unreadNotificationCount = 0 }: TopbarProps) => {
   const { user, logout } = useAuthStore();
   const router = useRouter();
+  const notificationLabel = unreadNotificationCount > 0
+    ? `Notifications (${unreadNotificationCount} unread)`
+    : 'Notifications';
 
   const handleLogout = () => {
     logout();
@@ -62,9 +66,19 @@ export const Topbar = ({ onMenuClick, title }: TopbarProps) => {
         </div>
 
         {/* Notifications */}
-        <Button variant="ghost" size="icon" className="relative text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl h-9 w-9">
-          <Bell className="h-4.5 w-4.5" />
-          <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-red-500 border-2 border-white"></span>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="relative text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl h-9 w-9"
+          aria-label={notificationLabel}
+        >
+          <Bell className="h-4.5 w-4.5" aria-hidden="true" />
+          {unreadNotificationCount > 0 && (
+            <span
+              className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-red-500 border-2 border-white"
+              aria-hidden="true"
+            />
+          )}
         </Button>
 
         {/* User menu */}

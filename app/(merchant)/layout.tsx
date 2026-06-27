@@ -19,7 +19,11 @@ export default function MerchantLayout({
       
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <Topbar onMenuClick={() => setMobileMenuOpen(!mobileMenuOpen)} />
-        <main className="flex-1 overflow-y-auto bg-background/50">
+        <main
+          id="main-content"
+          tabIndex={-1}
+          className="flex-1 overflow-y-auto bg-background/50 target:outline-none target:ring-2 target:ring-amber-400"
+        >
           <div className="mx-auto max-w-7xl px-4 sm:px-6 py-8">
             {children}
           </div>
