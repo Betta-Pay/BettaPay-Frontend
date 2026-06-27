@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Toggle } from '@/components/ui/toggle';
 import { Settings, User, Building2, Bell, Shield, LogOut } from 'lucide-react';
 import { useAuthStore } from '@/lib/store/authStore';
 import { useRouter } from 'next/navigation';
@@ -18,8 +19,21 @@ const tabs = [
   { id: 'security', label: 'Security', icon: Shield },
 ];
 
+const notificationOptions = [
+  { id: 'paymentReceived', label: 'Payment received', desc: 'Get notified when a payment is completed' },
+  { id: 'settlementProcessed', label: 'Settlement processed', desc: 'Notification when USDC → NGN settlement is done' },
+  { id: 'failedTransactions', label: 'Failed transactions', desc: 'Alert on failed or reversed payments' },
+  { id: 'fxRateChanges', label: 'FX rate changes', desc: 'Notify on significant rate movements (±5%)' },
+];
+
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState('profile');
+  const [notificationPreferences, setNotificationPreferences] = useState<Record<string, boolean>>({
+    paymentReceived: true,
+    settlementProcessed: true,
+    failedTransactions: true,
+    fxRateChanges: true,
+  });
   const { user, logout } = useAuthStore();
   const notify = useNotify();
 
@@ -27,6 +41,13 @@ export default function SettingsPage() {
     logout();
     notify.success('Logged out successfully');
     router.push('/auth/login');
+  };
+
+  const toggleNotificationPreference = (id: string) => {
+    setNotificationPreferences((current) => ({
+      ...current,
+      [id]: !current[id],
+    }));
   };
 
   return (
@@ -144,20 +165,17 @@ export default function SettingsPage() {
                 <CardTitle className="text-base font-semibold text-slate-900">Notification Preferences</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {[
-                  { label: 'Payment received', desc: 'Get notified when a payment is completed' },
-                  { label: 'Settlement processed', desc: 'Notification when USDC → NGN settlement is done' },
-                  { label: 'Failed transactions', desc: 'Alert on failed or reversed payments' },
-                  { label: 'FX rate changes', desc: 'Notify on significant rate movements (±5%)' },
-                ].map(({ label, desc }) => (
-                  <div key={label} className="flex items-center justify-between p-4 rounded-xl border border-slate-100 hover:bg-slate-50/50 transition-colors">
+                {notificationOptions.map(({ id, label, desc }) => (
+                  <div key={id} className="flex items-center justify-between gap-4 p-4 rounded-xl border border-slate-100 hover:bg-slate-50/50 transition-colors">
                     <div>
                       <p className="text-sm font-semibold text-slate-800">{label}</p>
                       <p className="text-xs text-slate-400">{desc}</p>
                     </div>
-                    <button className="w-11 h-6 bg-amber-500 rounded-full relative transition-colors">
-                      <span className="absolute right-1 top-1 w-4 h-4 bg-white rounded-full shadow-sm transition-transform" />
-                    </button>
+                    <Toggle
+                      checked={notificationPreferences[id]}
+                      label={label}
+                      onClick={() => toggleNotificationPreference(id)}
+                    />
                   </div>
                 ))}
               </CardContent>

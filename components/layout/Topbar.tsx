@@ -21,6 +21,7 @@ interface TopbarProps {
   onMenuClick?: () => void;
   isMenuOpen?: boolean;
   title?: string;
+  unreadNotificationCount?: number;
 }
 
 export const Topbar = ({ onMenuClick, isMenuOpen, title }: TopbarProps) => {
@@ -28,6 +29,9 @@ export const Topbar = ({ onMenuClick, isMenuOpen, title }: TopbarProps) => {
   const { user, logout } = useAuthStore();
   const notify = useNotify();
   const router = useRouter();
+  const notificationLabel = unreadNotificationCount > 0
+    ? `Notifications (${unreadNotificationCount} unread)`
+    : 'Notifications';
 
   const handleLogout = () => {
     logout();
