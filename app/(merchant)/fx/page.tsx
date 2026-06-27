@@ -318,6 +318,7 @@ export default function FxRatesPage() {
                       <Button 
                         variant="ghost" 
                         size="icon" 
+                        aria-label={alert.enabled ? "Disable alert" : "Enable alert"}
                         className={cn(
                           "h-8 w-8 rounded-lg",
                           alert.enabled ? "text-emerald-500 hover:text-emerald-600 hover:bg-emerald-50" : "text-slate-400 hover:text-slate-600 hover:bg-slate-200"
@@ -329,6 +330,7 @@ export default function FxRatesPage() {
                       <Button 
                         variant="ghost" 
                         size="icon" 
+                        aria-label="Delete alert"
                         className="h-8 w-8 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50"
                         onClick={() => deleteAlert(alert.id)}
                       >

@@ -183,13 +183,13 @@ export default function DevelopersPage() {
                   <p className="text-xs font-medium text-slate-700">{key.lastUsed}</p>
                 </div>
                 <div className="flex gap-1">
-                  <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={() => setShowKey(showKey === key.id ? null : key.id)}>
+                  <Button variant="ghost" size="icon" aria-label="Toggle visibility" className="h-8 w-8 rounded-lg" onClick={() => setShowKey(showKey === key.id ? null : key.id)}>
                     {showKey === key.id ? <EyeOff className="w-3.5 h-3.5 text-slate-400" /> : <Eye className="w-3.5 h-3.5 text-slate-400" />}
                   </Button>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={() => handleCopy(`${key.prefix}EXAMPLE${key.suffix}`, 'API key')}>
+                  <Button variant="ghost" size="icon" aria-label="Copy API key" className="h-8 w-8 rounded-lg" onClick={() => handleCopy(`${key.prefix}EXAMPLE${key.suffix}`, 'API key')}>
                     <Copy className="w-3.5 h-3.5 text-slate-400" />
                   </Button>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={() => notify.info('Key rotation coming soon')}>
+                  <Button variant="ghost" size="icon" aria-label="Rotate API key" className="h-8 w-8 rounded-lg" onClick={() => notify.info('Key rotation coming soon')}>
                     <RefreshCcw className="w-3.5 h-3.5 text-slate-400" />
                   </Button>
                 </div>

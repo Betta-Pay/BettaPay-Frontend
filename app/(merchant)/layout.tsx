@@ -18,7 +18,7 @@ export default function MerchantLayout({
       {/* Mobile nav drawer would go here, driven by mobileMenuOpen */}
       
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <Topbar onMenuClick={() => setMobileMenuOpen(!mobileMenuOpen)} />
+        <Topbar onMenuClick={() => setMobileMenuOpen(!mobileMenuOpen)} isMenuOpen={mobileMenuOpen} />
         <main className="flex-1 overflow-y-auto bg-background/50">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 py-8">
             {children}

@@ -70,13 +70,14 @@ export default function WalletPage() {
               <p className="font-mono text-sm text-white/80">{shortAddress}</p>
             </div>
             <div className="flex items-center gap-2">
-              <Button onClick={handleCopy} variant="ghost" className="h-8 w-8 p-0 rounded-lg bg-white/10 hover:bg-white/20 text-white">
+              <Button onClick={handleCopy} variant="ghost" aria-label="Copy wallet address" className="h-8 w-8 p-0 rounded-lg bg-white/10 hover:bg-white/20 text-white">
                 <Copy className="w-3.5 h-3.5" />
               </Button>
               <a
                 href={`https://stellar.expert/explorer/testnet/account/${address}`}
                 target="_blank"
                 rel="noopener noreferrer"
+                aria-label="View on Stellar Expert"
                 className="h-8 w-8 p-0 rounded-lg bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors"
               >
                 <ExternalLink className="w-3.5 h-3.5" />
@@ -119,7 +120,7 @@ export default function WalletPage() {
             <CardTitle className="text-base font-semibold text-slate-900">Wallet Activity</CardTitle>
             <CardDescription>Recent on-chain transactions</CardDescription>
           </div>
-          <Button variant="ghost" className="text-xs text-slate-500 h-7 px-2 rounded-lg">
+          <Button variant="ghost" aria-label="Refresh balances" className="text-xs text-slate-500 h-7 px-2 rounded-lg">
             <RefreshCcw className="w-3 h-3 mr-1.5" /> Refresh
           </Button>
         </CardHeader>

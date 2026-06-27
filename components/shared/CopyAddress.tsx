@@ -20,7 +20,8 @@ export const CopyAddress = ({
   className,
   truncate = true 
 }: CopyAddressProps) => {
-    const { success, error } = useNotify();
+  const [copied, setCopied] = useState(false);
+  const { success, error } = useNotify();
 
   const handleCopy = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -46,6 +47,7 @@ export const CopyAddress = ({
         className={cn('h-8 w-8 text-muted-foreground hover:text-foreground', className)}
         onClick={handleCopy}
         title="Copy address"
+        aria-label={`Copy address ${displayAddress}`}
       >
         {copied ? <Check className="h-4 w-4 text-brand-success" /> : <Copy className="h-4 w-4" />}
       </Button>

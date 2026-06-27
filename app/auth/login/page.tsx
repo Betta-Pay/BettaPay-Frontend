@@ -180,7 +180,7 @@ export default function LoginPage() {
             <Label htmlFor="password" className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
               Password
             </Label>
-            <Link href="#" className="text-xs text-slate-400 hover:text-amber-600 transition-colors">
+            <Link href="/auth/forgot-password" className="text-xs text-slate-400 hover:text-amber-600 transition-colors">
               Forgot password?
             </Link>
           </div>

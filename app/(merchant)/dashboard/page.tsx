@@ -485,11 +485,11 @@ export default function DashboardPage() {
                         <span className="text-xs text-slate-400">{link.clicks} clicks</span>
                       </div>
                       <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg" onClick={() => handleCopy(`https://${link.url}`)}>
+                        <Button variant="ghost" size="icon" aria-label="Copy payment link" className="h-7 w-7 rounded-lg" onClick={() => handleCopy(`https://${link.url}`)}>
                           <Copy className="w-3 h-3 text-slate-400" />
                         </Button>
                         <Link href={`https://${link.url}`} target="_blank">
-                          <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg">
+                          <Button variant="ghost" size="icon" aria-label="Open payment link" className="h-7 w-7 rounded-lg">
                             <ExternalLink className="w-3 h-3 text-slate-400" />
                           </Button>
                         </Link>

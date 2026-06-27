@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from 'react';
 import { Bell, Search, Menu, LogOut, Settings, KeyRound } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,16 +19,19 @@ import { useNotify } from '@/lib/hooks/useNotify';
 
 interface TopbarProps {
   onMenuClick?: () => void;
+  isMenuOpen?: boolean;
   title?: string;
 }
 
-export const Topbar = ({ onMenuClick, title }: TopbarProps) => {
-  const { success } = useNotify();
+export const Topbar = ({ onMenuClick, isMenuOpen, title }: TopbarProps) => {
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const { user, logout } = useAuthStore();
+  const notify = useNotify();
   const router = useRouter();
 
   const handleLogout = () => {
     logout();
-    success('Logged out successfully');
+    notify.success('Logged out successfully');
     router.push('/auth/login');
   };
 
@@ -43,6 +47,8 @@ export const Topbar = ({ onMenuClick, title }: TopbarProps) => {
           size="icon" 
           className="md:hidden text-slate-400 hover:text-slate-700"
           onClick={onMenuClick}
+          aria-expanded={isMenuOpen}
+          aria-label="Toggle mobile menu"
         >
           <Menu className="h-5 w-5" />
         </Button>
@@ -62,15 +68,20 @@ export const Topbar = ({ onMenuClick, title }: TopbarProps) => {
         </div>
 
         {/* Notifications */}
-        <Button variant="ghost" size="icon" className="relative text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl h-9 w-9">
+        <Button variant="ghost" size="icon" aria-label="View notifications" className="relative text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl h-9 w-9">
           <Bell className="h-4.5 w-4.5" />
           <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-red-500 border-2 border-white"></span>
         </Button>
 
         {/* User menu */}
-        <DropdownMenu>
+        <DropdownMenu open={isDropdownOpen} onOpenChange={setIsDropdownOpen}>
           <DropdownMenuTrigger render={
-            <Button variant="ghost" className="relative h-9 w-9 rounded-xl p-0 hover:bg-slate-100">
+            <Button 
+              variant="ghost" 
+              className="relative h-9 w-9 rounded-xl p-0 hover:bg-slate-100"
+              aria-expanded={isDropdownOpen}
+              aria-label="User menu"
+            >
               <Avatar className="h-8 w-8 border border-slate-200">
                 <AvatarImage src="/avatars/01.png" alt={user?.name ?? 'User'} />
                 <AvatarFallback className="bg-amber-500 text-white text-xs font-bold">{initials}</AvatarFallback>

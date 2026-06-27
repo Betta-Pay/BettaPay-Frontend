@@ -22,11 +22,19 @@ import { useNotify } from '@/lib/hooks/useNotify';
 
 export default function PaymentsPage() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [labelError, setLabelError] = useState('');
+  const [labelValue, setLabelValue] = useState('');
 
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!labelValue.trim()) {
+      setLabelError('Label is required');
+      return;
+    }
+    setLabelError('');
     notify.success('Payment link created successfully');
     setIsCreateOpen(false);
+    setLabelValue('');
   };
 
   const mockLinks = [
@@ -47,7 +55,7 @@ export default function PaymentsPage() {
 
         <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
           <DialogTrigger render={
-            <Button className="w-full sm:w-auto">
+            <Button className="w-full sm:w-auto" aria-expanded={isCreateOpen}>
               <Plus className="w-4 h-4 mr-2" />
               New Payment Link
             </Button>
@@ -62,7 +70,16 @@ export default function PaymentsPage() {
             <form onSubmit={handleCreate} className="space-y-4 py-4">
               <div className="space-y-2">
                 <Label htmlFor="label">Label</Label>
-                <Input id="label" placeholder="e.g. Consulting Retainer" className="bg-background/50 border-border/50 focus-visible:ring-brand-accent" required />
+                <Input 
+                  id="label" 
+                  placeholder="e.g. Consulting Retainer" 
+                  className="bg-background/50 border-border/50 focus-visible:ring-brand-accent"
+                  value={labelValue}
+                  onChange={(e) => setLabelValue(e.target.value)}
+                  aria-invalid={labelError ? "true" : "false"}
+                  aria-describedby={labelError ? "label-error" : undefined}
+                />
+                {labelError && <p id="label-error" className="text-xs text-red-500 mt-1">{labelError}</p>}
               </div>
 
               <div className="space-y-2">
@@ -118,7 +135,7 @@ export default function PaymentsPage() {
                     <span className="hidden sm:inline"> · Created {link.created}</span>
                   </CardDescription>
                 </div>
-                <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground -mt-2 -mr-2">
+                <Button variant="ghost" size="icon" aria-label="More options" className="h-8 w-8 text-muted-foreground -mt-2 -mr-2">
                   <MoreHorizontal className="h-4 w-4" />
                 </Button>
               </CardHeader>
@@ -131,7 +148,7 @@ export default function PaymentsPage() {
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
                     <CopyAddress address={link.url} showIconOnly truncate={false} />
-                    <Button variant="outline" size="icon" className="h-8 w-8 border-border/50 bg-background/50 text-muted-foreground hover:text-brand-text-primary">
+                    <Button variant="outline" size="icon" aria-label="Show QR code" className="h-8 w-8 border-border/50 bg-background/50 text-muted-foreground hover:text-brand-text-primary">
                       <QrCode className="h-4 w-4" />
                     </Button>
                   </div>
