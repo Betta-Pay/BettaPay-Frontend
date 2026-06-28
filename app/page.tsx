@@ -30,7 +30,7 @@ export default function LandingPage() {
       <Header />
 
       {/* Hero Section */}
-      <main className="pt-24 pb-20 lg:pt-36 lg:pb-32">
+      <main className="pt-12 pb-12 lg:pt-36 lg:pb-32">
         <div className="container mx-auto px-6 text-center">
 
           {/* Badge */}

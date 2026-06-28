@@ -13,20 +13,20 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
       {/* Left Pane — Form */}
       <div className="w-full lg:w-[52%] flex flex-col bg-white">
         {/* Top bar */}
-        <div className="flex items-center gap-2.5 px-8 py-6 border-b border-slate-100">
+        <div className="flex items-center gap-2.5 px-4 sm:px-8 py-6 border-b border-slate-100">
           <img src="/logo.png" alt="BettaPay Logo" className="w-8 h-8 rounded-lg object-contain" />
           <span className="font-bold text-slate-900 text-lg tracking-tight">BettaPay</span>
         </div>
 
         {/* Form content */}
-        <div className="flex-1 flex items-center justify-center px-8 py-12">
+        <div className="flex-1 flex items-center justify-center px-4 sm:px-8 py-12">
           <div className="w-full max-w-[420px]">
             {children}
           </div>
         </div>
 
         {/* Bottom note */}
-        <div className="px-8 py-5 border-t border-slate-100">
+        <div className="px-4 sm:px-8 py-5 border-t border-slate-100">
           <p className="text-xs text-slate-400">
             By signing in, you agree to our{' '}
             <a href="#" className="underline hover:text-slate-600">Terms of Service</a>{' '}
