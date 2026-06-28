@@ -24,6 +24,7 @@ export default function PaymentsPage() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [labelError, setLabelError] = useState('');
   const [labelValue, setLabelValue] = useState('');
+  const notify = useNotify();
 
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
@@ -70,9 +71,10 @@ export default function PaymentsPage() {
             <form onSubmit={handleCreate} className="space-y-4 py-4">
               <div className="space-y-2">
                 <Label htmlFor="label">Label</Label>
-                <Input 
-                  id="label" 
-                  placeholder="e.g. Consulting Retainer" 
+                <Input
+                  id="label"
+                  placeholder="e.g. Consulting Retainer"
+                  autoFocus
                   className="bg-background/50 border-border/50 focus-visible:ring-brand-accent"
                   value={labelValue}
                   onChange={(e) => setLabelValue(e.target.value)}

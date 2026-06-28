@@ -77,6 +77,12 @@ export default function TransactionsPage() {
         </div>
       </div>
 
+      <p role="status" className="sr-only">
+        {searchTerm
+          ? `${filteredTransactions.length} transaction${filteredTransactions.length !== 1 ? 's' : ''} found for "${searchTerm}"`
+          : `Showing ${filteredTransactions.length} transaction${filteredTransactions.length !== 1 ? 's' : ''}`}
+      </p>
+
       <Card className="bg-brand-surface border-border/50 shadow-sm">
         <CardContent className="pt-4">
           <div className="rounded-md border border-border/50 overflow-hidden">

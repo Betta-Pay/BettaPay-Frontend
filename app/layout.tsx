@@ -29,6 +29,7 @@ export default function RootLayout({
         <Providers>
           {children}
           <Toaster />
+          <div id="announcer" aria-live="polite" aria-atomic="true" className="sr-only" />
         </Providers>
       </body>
     </html>

@@ -32,12 +32,11 @@ interface TransactionDetailProps {
 }
 
 export const TransactionDetail: React.FC<TransactionDetailProps> = ({
-  // initialize notification hooks
-  const { success, info, error } = useNotify();
   transaction,
   isOpen,
   onClose,
 }) => {
+  const { success, info, error } = useNotify();
   if (!transaction) return null;
 
   const handleCopy = (text: string, label: string) => {

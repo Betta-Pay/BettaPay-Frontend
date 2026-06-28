@@ -15,7 +15,7 @@ import {
   Building2
 } from 'lucide-react';
 
-const navItems = [
+export const navItems = [
   { href: '/dashboard', label: 'Overview', icon: LayoutDashboard },
   { href: '/payments', label: 'Payments', icon: LinkIcon },
   { href: '/transactions', label: 'Transactions', icon: ListOrdered },
@@ -50,10 +50,11 @@ export const MerchantSidebar = () => {
             <Link
               key={item.href}
               href={item.href}
+              aria-current={isActive ? 'page' : undefined}
               className={cn(
                 "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all",
-                isActive 
-                  ? "bg-amber-50 text-amber-700 border border-amber-200/80" 
+                isActive
+                  ? "bg-amber-50 text-amber-700 border border-amber-200/80"
                   : "text-slate-500 hover:bg-slate-100 hover:text-slate-800"
               )}
             >

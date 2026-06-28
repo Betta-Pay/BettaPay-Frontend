@@ -1,4 +1,5 @@
 import { toast } from 'sonner';
+import { announce } from '@/lib/utils/announce';
 
 /**
  * useNotify – A custom hook that wraps the Sonner toast functions to enforce
@@ -12,14 +13,17 @@ import { toast } from 'sonner';
 export const useNotify = () => {
   const success = (message: string) => {
     toast.success(message, { duration: 3000 });
+    announce(message);
   };
 
   const error = (message: string) => {
     toast.error(message, { duration: 5000 });
+    announce(message);
   };
 
   const info = (message: string) => {
     toast.info(message, { duration: 4000 });
+    announce(message);
   };
 
   // Silent handler – can be used for background tasks that should not show UI.
