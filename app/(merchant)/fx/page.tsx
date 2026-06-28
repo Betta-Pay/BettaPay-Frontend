@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useEffect } from 'react';
+import dynamic from 'next/dynamic';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { RefreshCcw, TrendingUp, TrendingDown, Info, Bell, BellRing, Trash2, Plus, ArrowRight, X } from 'lucide-react';
-import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
+import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { useNotify } from '@/lib/hooks/useNotify';
 import {
@@ -16,34 +17,16 @@ import {
 } from "@/components/ui/select";
 import { Input } from '@/components/ui/input';
 
-const fxHistory = [
-  { date: 'Jan 7', rate: 1480 },
-  { date: 'Jan 8', rate: 1495 },
-  { date: 'Jan 9', rate: 1510 },
-  { date: 'Jan 10', rate: 1505 },
-  { date: 'Jan 11', rate: 1520 },
-  { date: 'Jan 12', rate: 1545 },
-  { date: 'Jan 13', rate: 1550 },
-];
+const FxRateChart = dynamic(() => import('@/components/charts/FxRateChart'), {
+  ssr: false,
+  loading: () => <Skeleton className="h-[240px] w-full rounded-xl" />,
+});
 
 const pairs = [
   { from: 'USDC', to: 'NGN', rate: '₦1,550', change: +1.6, trend: 'up' },
   { from: 'XLM', to: 'NGN', rate: '₦324.5', change: -0.8, trend: 'down' },
   { from: 'USDC', to: 'XLM', rate: '4.78 XLM', change: +2.3, trend: 'up' },
 ];
-
-interface FxTooltipProps { active?: boolean; payload?: { value: number }[]; label?: string; }
-const FxTooltip = ({ active, payload, label }: FxTooltipProps) => {
-  if (active && payload && payload.length) {
-    return (
-      <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-lg text-sm">
-        <p className="font-semibold text-slate-700 mb-1">{label}</p>
-        <p className="text-amber-600 font-bold">₦{payload[0]?.value?.toLocaleString()}</p>
-      </div>
-    );
-  }
-  return null;
-};
 
 interface RateAlert {
   id: string;
@@ -56,16 +39,7 @@ interface RateAlert {
 export default function FxRatesPage() {
   const [lastRefresh] = useState('Just now');
   const [alerts, setAlerts] = useState<RateAlert[]>([]);
-  const [isMobile, setIsMobile] = useState(false);
   const notify = useNotify();
-
-  useEffect(() => {
-    const mq = window.matchMedia('(max-width: 639px)');
-    setIsMobile(mq.matches);
-    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
-    mq.addEventListener('change', handler);
-    return () => mq.removeEventListener('change', handler);
-  }, []);
   const [newPair, setNewPair] = useState('USDC/NGN');
   const [newCondition, setNewCondition] = useState<'above' | 'below'>('above');
   const [newTarget, setNewTarget] = useState('');
@@ -184,17 +158,7 @@ export default function FxRatesPage() {
             <CardTitle className="text-base font-semibold text-slate-900">USDC/NGN — 7 Day Chart</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="h-[240px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={fxHistory} margin={{ top: 4, right: 4, bottom: 0, left: isMobile ? 0 : -10 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" vertical={false} />
-                  <XAxis dataKey="date" fontSize={11} tickLine={false} axisLine={false} tick={{ fill: '#94A3B8' }} />
-                  <YAxis fontSize={11} tickLine={false} axisLine={false} tickFormatter={(v) => `₦${v}`} tick={{ fill: '#94A3B8' }} domain={['auto', 'auto']} />
-                  <Tooltip content={<FxTooltip />} />
-                  <Line type="monotone" dataKey="rate" stroke="#F0A500" strokeWidth={2.5} dot={false} activeDot={{ r: 5, fill: '#F0A500', stroke: '#fff', strokeWidth: 2 }} />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
+            <FxRateChart height={240} />
           </CardContent>
         </Card>
 
