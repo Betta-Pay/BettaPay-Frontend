@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { MerchantSidebar } from "@/components/layout/MerchantSidebar";
 import { MobileNavDrawer } from "@/components/layout/MobileNavDrawer";
 import { Topbar } from "@/components/layout/Topbar";
@@ -13,10 +14,16 @@ export default function MerchantLayout({
   children: React.ReactNode;
 }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const router = useRouter();
 
   const closeMobileMenu = useCallback(() => {
     setMobileMenuOpen(false);
   }, []);
+
+  useEffect(() => {
+    router.prefetch("/transactions");
+    router.prefetch("/payments");
+  }, [router]);
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
