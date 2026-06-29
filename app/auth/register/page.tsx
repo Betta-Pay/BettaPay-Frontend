@@ -204,7 +204,7 @@ export default function RegisterPage() {
             <CardFooter className="flex flex-col space-y-6 pb-8 pt-4 px-8">
               <Button
                 type="submit"
-                className="w-full h-12 text-base font-medium bg-primary text-white hover:bg-primary/90 shadow-[0_0_20px_rgba(240,165,0,0.3)] transition-all hover:shadow-[0_0_25px_rgba(240,165,0,0.5)]"
+                className="w-full h-12 text-base font-medium bg-primary text-white hover:bg-primary/90 shadow-[0_0_20px_rgba(240,165,0,0.3)] transition-all hover:shadow-[0_0_25px_rgba(240,165,0,0.5)] scroll-mb-52"
                 disabled={isLoading || isWalletLoading}
               >
                 {isLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : null}

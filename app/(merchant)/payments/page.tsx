@@ -109,7 +109,7 @@ export default function PaymentsPage() {
               New Payment Link
             </Button>
           } />
-          <DialogContent className="sm:max-w-[425px] bg-brand-surface border-border/50">
+          <DialogContent className="sm:max-w-[425px] bg-brand-surface border-border/50 max-h-[85dvh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Create Payment Link</DialogTitle>
               <DialogDescription>
@@ -159,7 +159,7 @@ export default function PaymentsPage() {
 
               <DialogFooter className="pt-4">
                 <Button type="button" variant="ghost" onClick={() => setIsCreateOpen(false)}>Cancel</Button>
-                <Button type="submit">Create Link</Button>
+                <Button type="submit" className="scroll-mb-52">Create Link</Button>
               </DialogFooter>
             </form>
           </DialogContent>

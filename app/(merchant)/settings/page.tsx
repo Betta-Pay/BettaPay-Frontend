@@ -90,7 +90,7 @@ export default function SettingsPage() {
         </div>
 
         {/* Tab content */}
-        <div className="flex-1 min-w-0">
+        <div className="flex-1 min-w-0 overflow-y-auto">
           {activeTab === 'profile' && (
             <Card className="border border-slate-200 bg-white shadow-sm">
               <CardHeader>
@@ -121,7 +121,7 @@ export default function SettingsPage() {
                   <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Phone Number</Label>
                   <Input placeholder="+234 800 000 0000" className="h-10 border-slate-200 rounded-xl bg-white text-sm" />
                 </div>
-                <Button className="bg-amber-500 hover:bg-amber-600 text-white font-semibold rounded-xl h-10 px-6 text-sm" onClick={() => notify.success('Profile updated');}>
+                <Button className="bg-amber-500 hover:bg-amber-600 text-white font-semibold rounded-xl h-10 px-6 text-sm scroll-mb-52" onClick={() => notify.success('Profile updated');}>
                   Save Changes
                 </Button>
               </CardContent>
@@ -152,7 +152,7 @@ export default function SettingsPage() {
                     <Input placeholder="0123456789" className="h-10 border-slate-200 rounded-xl bg-white text-sm" />
                   </div>
                 </div>
-                <Button className="bg-amber-500 hover:bg-amber-600 text-white font-semibold rounded-xl h-10 px-6 text-sm" onClick={() => notify.success('Business info saved');}>
+                <Button className="bg-amber-500 hover:bg-amber-600 text-white font-semibold rounded-xl h-10 px-6 text-sm scroll-mb-52" onClick={() => notify.success('Business info saved');}>
                   Save Changes
                 </Button>
               </CardContent>
@@ -200,7 +200,7 @@ export default function SettingsPage() {
                   <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Confirm New Password</Label>
                   <Input type="password" placeholder="••••••••" className="h-10 border-slate-200 rounded-xl bg-white text-sm" />
                 </div>
-                <Button className="bg-amber-500 hover:bg-amber-600 text-white font-semibold rounded-xl h-10 px-6 text-sm" onClick={() => notify.success('Password updated');}>
+                <Button className="bg-amber-500 hover:bg-amber-600 text-white font-semibold rounded-xl h-10 px-6 text-sm scroll-mb-52" onClick={() => notify.success('Password updated');}>
                   Update Password
                 </Button>
               </CardContent>
