@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { AssetBalance } from '../types';
-import { connectFreighter } from '@/lib/stellar/freighter';
+import { connectFreighter, FreighterNotInstalledError, FreighterCancelledError, FreighterNetworkMismatchError } from '@/lib/stellar/freighter';
 
 type Connector = 'freighter' | 'walletconnect' | null;
 
@@ -15,6 +15,14 @@ function getNetwork(): 'testnet' | 'public' {
   return 'testnet';
 }
 
+interface ConnectError {
+  type: 'not_installed' | 'cancelled' | 'network_mismatch' | 'generic';
+  message: string;
+  raw?: string;
+  expectedNetwork?: string;
+  freighterNetwork?: string;
+}
+
 interface WalletState {
   address: string | null;
   isConnected: boolean;
@@ -23,8 +31,10 @@ interface WalletState {
   balances: AssetBalance[];
   loading: boolean;
   error: string | null;
+  connectError: ConnectError | null;
   connect: (connector?: Connector) => Promise<void>;
   disconnect: () => void;
+  clearConnectError: () => void;
   setNetwork: (network: 'testnet' | 'public') => void;
   refreshBalances: () => Promise<void>;
 }
@@ -40,13 +50,15 @@ export const useWalletStore = create<WalletState>((set, get) => ({
 
   connect: async (connector: Connector = 'freighter') => {
     try {
+      set({ connectError: null });
+
       if (connector === 'freighter') {
         const address = await connectFreighter();
         if (address) {
-          set({ address, isConnected: true, connector: 'freighter' });
+          set({ address, isConnected: true, connector: 'freighter', connectError: null });
           get().refreshBalances();
         } else {
-          throw new Error('Freighter connection failed or was cancelled');
+          throw new Error('Freighter connection failed');
         }
       } else if (connector === 'walletconnect') {
         const manual = typeof window !== 'undefined' ? window.prompt('Paste your Stellar public key (WalletConnect placeholder):') : null;
@@ -61,12 +73,27 @@ export const useWalletStore = create<WalletState>((set, get) => ({
       }
     } catch (error) {
       console.error('Failed to connect wallet', error);
+
+      if (error instanceof FreighterNotInstalledError) {
+        set({ connectError: { type: 'not_installed', message: error.message } });
+      } else if (error instanceof FreighterCancelledError) {
+        set({ connectError: { type: 'cancelled', message: error.message } });
+      } else if (error instanceof FreighterNetworkMismatchError) {
+        set({ connectError: { type: 'network_mismatch', message: error.message, expectedNetwork: error.expectedNetwork, freighterNetwork: error.freighterNetwork } });
+      } else {
+        set({ connectError: { type: 'generic', message: error instanceof Error ? error.message : 'An unexpected error occurred', raw: String(error) } });
+      }
+
       throw error;
     }
   },
 
   disconnect: () => {
-    set({ address: null, isConnected: false, connector: null, balances: [], loading: false, error: null });
+    set({ address: null, isConnected: false, connector: null, balances: [], loading: false, error: null, connectError: null });
+  },
+
+  clearConnectError: () => {
+    set({ connectError: null });
   },
 
   setNetwork: (network: 'testnet' | 'public') => {
