@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { AdminSidebar, adminNavItems } from '@/components/layout/AdminSidebar';
+import { PageTransition } from '@/components/shared/PageTransition';
 import { MobileNavDrawer } from '@/components/layout/MobileNavDrawer';
 import { Topbar } from '@/components/layout/Topbar';
 import Footer from '@/components/layout/Footer';
@@ -34,7 +35,7 @@ export default function AdminLayout({
         <Topbar onMenuClick={() => setMobileMenuOpen(!mobileMenuOpen)} isMenuOpen={mobileMenuOpen} title="Platform Operations" />
         <main className="flex-1 overflow-y-auto bg-background/50">
           <div className="mx-auto max-w-7xl px-3 sm:px-6 py-4 sm:py-8">
-            {children}
+            <PageTransition>{children}</PageTransition>
           </div>
         </main>
         <Footer />
