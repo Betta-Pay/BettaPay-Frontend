@@ -14,7 +14,6 @@ import {
   ArrowRight,
   X,
   ChevronRight,
-  Zap,
 } from "lucide-react";
 
 interface Step {
@@ -74,7 +73,7 @@ const STEPS: Step[] = [
 export const OnboardingWizard = () => {
   const [currentStep, setCurrentStep] = useState(0);
   const [visible, setVisible] = useState(false);
-  const { isConnected, connect } = useWalletStore();
+  const { isConnected } = useWalletStore();
 
   useEffect(() => {
     const completed = localStorage.getItem("onboardingCompleted");
@@ -114,7 +113,6 @@ export const OnboardingWizard = () => {
 
   if (!visible) return null;
 
-  const isFirstStep = currentStep === 0;
   const isLastStep = currentStep === STEPS.length - 1;
   const progressPercent = ((currentStep + 1) / STEPS.length) * 100;
   const StepIcon = STEPS[currentStep].icon;

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, memo, useMemo } from 'react';
+import { useDebounceValue } from 'usehooks-ts';
 import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
@@ -96,16 +97,17 @@ const TransactionCard = memo(function TransactionCard({ tx, onClick }: Transacti
 
 export default function TransactionsPage() {
   const [searchTerm, setSearchTerm] = useState('');
+  const debouncedSearch = useDebounceValue(searchTerm, 300);
   const [filterCount] = useState(0);
   const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
   const isOnline = useOfflineStore((s) => s.isOnline);
 
   const filteredTransactions = useMemo(() =>
     mockTransactions.filter(tx =>
-      tx.txHash.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      tx.payerAddress.toLowerCase().includes(searchTerm.toLowerCase())
+      tx.txHash.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+      tx.payerAddress.toLowerCase().includes(debouncedSearch.toLowerCase())
     ),
-    [searchTerm]
+    [debouncedSearch]
   );
 
   return (

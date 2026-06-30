@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import {
   Card,
@@ -14,7 +14,6 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { CurrencyDisplay } from "@/components/shared/CurrencyDisplay";
-import { CopyAddress } from "@/components/shared/CopyAddress";
 import {
   Table,
   TableBody,
@@ -41,8 +40,6 @@ import {
   QrCode,
   Trash2,
   Link2,
-  ExternalLink,
-  ArrowUpRight,
   CalendarDays,
   AlertTriangle,
   ChevronLeft,
@@ -148,7 +145,6 @@ function generateClickTimeline(): { date: string; clicks: number }[] {
 
 export default function PaymentLinkDetailPage() {
   const params = useParams();
-  const router = useRouter();
   const notify = useNotify();
   const linkId = params.linkId as string;
 

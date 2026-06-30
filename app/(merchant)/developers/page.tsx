@@ -1,10 +1,12 @@
 "use client";
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
+import dynamic from 'next/dynamic';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
 import { NetworkTooltip } from '@/components/ui/network-tooltip';
-import { Code2, Copy, Eye, EyeOff, Plus, RefreshCcw, Key, Globe, BookOpen, Zap, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Copy, Eye, EyeOff, Plus, RefreshCcw, Key, Globe, BookOpen, Zap, CheckCircle2, AlertCircle } from 'lucide-react';
 import { useNotify } from '@/lib/hooks/useNotify';
 import {
   Select,
@@ -15,6 +17,15 @@ import {
 } from "@/components/ui/select";
 import { useOfflineStore } from '@/lib/store/offlineStore';
 import { mockKeys, codeExample } from '@/lib/mock/developers';
+
+const CodeExample = dynamic(() => import('@/components/developers/CodeExample').then(m => ({ default: m.CodeExample })), {
+  loading: () => <Skeleton className="h-64 rounded-xl" />,
+});
+
+const mockKeys = [
+  { id: 'key_01', name: 'Production Key', prefix: 'bp_live_', suffix: '...a4f9', created: '2024-01-01', lastUsed: '2 hours ago', type: 'live' },
+  { id: 'key_02', name: 'Test Key', prefix: 'bp_test_', suffix: '...c2d8', created: '2024-01-05', lastUsed: '5 days ago', type: 'test' },
+];
 
 const EVENT_TYPES = [
   { value: 'payment.received', label: 'payment.received' },
@@ -73,10 +84,10 @@ export default function DevelopersPage() {
   const isOnline = useOfflineStore((s) => s.isOnline);
   const notify = useNotify();
 
-  const handleCopy = (text: string) => {
+  const handleCopy = useCallback((text: string) => {
     navigator.clipboard.writeText(text);
     notify.success('Copied to clipboard');
-  };
+  }, [notify]);
 
   const handleSendTest = () => {
     setIsSimulating(true);
@@ -178,23 +189,7 @@ export default function DevelopersPage() {
       </Card>
 
       {/* Quickstart code */}
-      <Card className="border border-border bg-card shadow-sm">
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="text-base font-semibold text-foreground flex items-center gap-2">
-            <Code2 className="w-4 h-4 text-primary" /> Quickstart
-          </CardTitle>
-          <Button variant="outline" className="border-border rounded-xl h-8 px-3 text-xs" onClick={() => handleCopy(codeExample)}>
-            <Copy className="w-3 h-3 mr-1.5" /> Copy
-          </Button>
-        </CardHeader>
-        <CardContent>
-          <div className="bg-foreground rounded-xl p-5 overflow-x-auto">
-            <pre className="text-sm text-muted-foreground font-mono leading-relaxed whitespace-pre-wrap break-words">
-              {codeExample}
-            </pre>
-          </div>
-        </CardContent>
-      </Card>
+      <CodeExample onCopy={handleCopy} />
 
       {/* Webhook URL config */}
       <Card className="border border-border bg-card shadow-sm">

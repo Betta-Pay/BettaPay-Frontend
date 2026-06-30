@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
-import { Bell, Search, Menu, LogOut, Settings, KeyRound, Moon, Sun } from "lucide-react";
+import { Bell, Search, Menu, LogOut, Settings, KeyRound, Moon, Sun, Repeat } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,6 +15,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useAuthStore } from "@/lib/store/authStore";
+import { useWalletStore } from "@/lib/store/walletStore";
 import { useRouter } from "next/navigation";
 import { useNotify } from "@/lib/hooks/useNotify";
 
@@ -61,6 +62,15 @@ export const Topbar = ({ onMenuClick, isMenuOpen, title, unreadNotificationCount
         .slice(0, 2)
     : "MC";
 
+  const walletNetwork = useWalletStore((s) => s.network);
+  const setNetwork = useWalletStore((s) => s.setNetwork);
+  const isTestnet = walletNetwork === 'testnet';
+  const isDev = process.env.NODE_ENV === 'development';
+
+  const handleToggleNetwork = useCallback(() => {
+    setNetwork(isTestnet ? 'public' : 'testnet');
+  }, [isTestnet, setNetwork]);
+
   return (
     <header
       role="banner"
@@ -104,6 +114,27 @@ export const Topbar = ({ onMenuClick, isMenuOpen, title, unreadNotificationCount
             className="pl-9 bg-muted border-border focus-visible:ring-ring rounded-xl h-9 text-sm placeholder:text-muted-foreground"
           />
         </form>
+
+        {/* Network Indicator */}
+        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-border bg-muted/50 text-xs font-medium">
+          <span
+            className={`w-2 h-2 rounded-full ${isTestnet ? 'bg-yellow-400' : 'bg-green-500'}`}
+            aria-hidden="true"
+          />
+          <span className="text-foreground">
+            {isTestnet ? 'Testnet' : 'Mainnet'}
+          </span>
+          {isDev && (
+            <button
+              onClick={handleToggleNetwork}
+              className="ml-1 p-0.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+              aria-label={`Switch to ${isTestnet ? 'Mainnet' : 'Testnet'}`}
+              title={`Switch to ${isTestnet ? 'Mainnet' : 'Testnet'}`}
+            >
+              <Repeat className="w-3 h-3" />
+            </button>
+          )}
+        </div>
 
         {/* Notifications */}
         <Button
