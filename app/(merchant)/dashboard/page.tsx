@@ -25,7 +25,8 @@ import {
   ArrowRight,
 } from 'lucide-react';
 import { TransactionDetail } from '@/components/transactions/TransactionDetail';
-import { Transaction, mockTransactions as realTransactions } from '@/lib/mock/transactions';
+import { Transaction } from '@/lib/mock/transactions';
+import { mockTransactions, mockPaymentLinks } from '@/lib/mock/dashboard';
 import { useAuthStore } from '@/lib/store/authStore';
 import Link from 'next/link';
 import { useNotify } from '@/lib/hooks/useNotify';
@@ -35,35 +36,6 @@ const RevenueChart = dynamic(() => import('@/components/charts/RevenueChart'), {
   ssr: false,
   loading: () => <Skeleton className="h-[260px] w-full rounded-xl" />,
 });
-
-type DashboardTransaction = Transaction & {
-  label: string;
-  amount: number;
-  time: string;
-  address: string;
-};
-
-const mockTransactions: DashboardTransaction[] = realTransactions.slice(0, 5).map((tx, i) => {
-  const oldData: Array<Pick<DashboardTransaction, 'label' | 'amount' | 'time'>> = [
-    { label: 'Consulting Retainer', amount: 750, time: '2m ago' },
-    { label: 'E-commerce Payment', amount: 45.5, time: '18m ago' },
-    { label: 'Invoice #1042', amount: 1200, time: '1h ago' },
-    { label: 'Subscription Fee', amount: 29, time: '3h ago' },
-    { label: 'Freelance Project', amount: 3500, time: '5h ago' },
-  ];
-  return {
-    ...tx,
-    ...oldData[i],
-    amountUsdc: oldData[i].amount,
-    address: tx.payerAddress.substring(0, 4) + '...' + tx.payerAddress.substring(tx.payerAddress.length - 4),
-  };
-});
-
-const mockPaymentLinks = [
-  { id: 'link_01', label: 'Consulting Retainer Q3', url: 'betta.pay/pay/link_01', clicks: 24, converted: 8 },
-  { id: 'link_02', label: 'E-commerce Checkout', url: 'betta.pay/pay/link_02', clicks: 112, converted: 47 },
-  { id: 'link_03', label: 'Donation Campaign', url: 'betta.pay/pay/link_03', clicks: 58, converted: 19 },
-];
 
 const PERIOD_OPTIONS = ['7D', '30D', '90D'] as const;
 type Period = typeof PERIOD_OPTIONS[number];

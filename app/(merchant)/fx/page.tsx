@@ -16,17 +16,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from '@/components/ui/input';
+import { pairs } from '@/lib/mock/fx';
 
 const FxRateChart = dynamic(() => import('@/components/charts/FxRateChart'), {
   ssr: false,
   loading: () => <Skeleton className="h-[240px] w-full rounded-xl" />,
 });
-
-const pairs = [
-  { from: 'USDC', to: 'NGN', rate: '₦1,550', change: +1.6, trend: 'up' },
-  { from: 'XLM', to: 'NGN', rate: '₦324.5', change: -0.8, trend: 'down' },
-  { from: 'USDC', to: 'XLM', rate: '4.78 XLM', change: +2.3, trend: 'up' },
-];
 
 interface RateAlert {
   id: string;
