@@ -37,10 +37,10 @@ const WalletActivityItem = memo(function WalletActivityItem({ tx }: { tx: Wallet
       className="flex items-center gap-3 py-2.5 px-2 rounded-xl hover:bg-muted transition-colors"
     >
       <div
-        className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${tx.type === "receive" ? "bg-emerald-100" : "bg-primary/20"}`}
+        className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${tx.type === "receive" ? "bg-success/20" : "bg-primary/20"}`}
       >
         {tx.type === "receive" ? (
-          <ArrowDownLeft className="w-4 h-4 text-emerald-600" />
+          <ArrowDownLeft className="w-4 h-4 text-success" />
         ) : (
           <ArrowUpRight className="w-4 h-4 text-primary" />
         )}
@@ -52,7 +52,7 @@ const WalletActivityItem = memo(function WalletActivityItem({ tx }: { tx: Wallet
         <p className="text-xs text-muted-foreground">{tx.time}</p>
       </div>
       <span
-        className={`text-sm font-semibold ${tx.type === "receive" ? "text-emerald-600" : "text-foreground"}`}
+        className={`text-sm font-semibold ${tx.type === "receive" ? "text-success" : "text-foreground"}`}
       >
         {tx.type === "receive" ? "+" : "-"}
         {tx.amount.toFixed(2)} USDC
@@ -207,7 +207,7 @@ export default function WalletPage() {
               </div>
               {change && (
                 <span
-                  className={`text-xs font-semibold px-2 py-0.5 rounded-full ${change.startsWith("+") ? "text-emerald-600 bg-emerald-50" : "text-red-500 bg-red-50"}`}
+                  className={`text-xs font-semibold px-2 py-0.5 rounded-full ${change.startsWith("+") ? "text-success bg-success/10" : "text-destructive bg-destructive/10"}`}
                 >
                   {change}
                 </span>

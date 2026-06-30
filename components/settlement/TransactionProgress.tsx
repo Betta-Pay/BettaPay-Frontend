@@ -27,13 +27,13 @@ export const TransactionProgress = ({ currentStep }: TransactionProgressProps) =
               <div
                 className={cn(
                   "w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-all duration-500",
-                  isCompleted && "bg-emerald-100 dark:bg-emerald-900/30",
+                  isCompleted && "bg-success/20 dark:bg-success/10",
                   isActive && "bg-primary/20",
                   isPending && "bg-muted"
                 )}
               >
                 {isCompleted ? (
-                  <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                  <CheckCircle2 className="w-5 h-5 text-success dark:text-emerald-400" />
                 ) : isActive ? (
                   <Loader2 className="w-5 h-5 text-primary animate-spin" />
                 ) : (
@@ -44,7 +44,7 @@ export const TransactionProgress = ({ currentStep }: TransactionProgressProps) =
                 <div
                   className={cn(
                     "w-px h-10 mt-1 transition-all duration-500",
-                    isCompleted ? "bg-emerald-300 dark:bg-emerald-700" : "bg-border"
+                    isCompleted ? "bg-success/40 dark:bg-emerald-700" : "bg-border"
                   )}
                 />
               )}
@@ -53,7 +53,7 @@ export const TransactionProgress = ({ currentStep }: TransactionProgressProps) =
               <p
                 className={cn(
                   "text-sm font-semibold transition-colors",
-                  isCompleted && "text-emerald-600 dark:text-emerald-400",
+                  isCompleted && "text-success dark:text-emerald-400",
                   isActive && "text-foreground",
                   isPending && "text-muted-foreground/50"
                 )}
@@ -63,7 +63,7 @@ export const TransactionProgress = ({ currentStep }: TransactionProgressProps) =
               <p
                 className={cn(
                   "text-xs mt-0.5 transition-colors",
-                  isCompleted && "text-emerald-600/70 dark:text-emerald-400/70",
+                  isCompleted && "text-success/70 dark:text-emerald-400/70",
                   isActive && "text-muted-foreground",
                   isPending && "text-muted-foreground/40"
                 )}

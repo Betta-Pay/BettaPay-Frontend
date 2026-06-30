@@ -69,7 +69,7 @@ export default function ForgotPasswordPage() {
             aria-describedby={error ? "email-error" : undefined}
             className="h-12 bg-card border border-border text-foreground placeholder:text-muted-foreground rounded-xl text-sm focus-visible:ring-1 focus-visible:ring-ring focus-visible:border-ring transition-all"
           />
-          {error && <p id="email-error" className="text-xs text-red-500 mt-1">{error}</p>}
+          {error && <p id="email-error" className="text-xs text-destructive mt-1">{error}</p>}
         </div>
 
         {/* Submit CTA */}

@@ -87,7 +87,7 @@ export const MerchantSidebar = () => {
             <span className="text-sm font-semibold text-foreground truncate">
               Merchant Corp
             </span>
-            <span className="text-xs text-emerald-600 flex items-center gap-1 font-medium">
+            <span className="text-xs text-success flex items-center gap-1 font-medium">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block"></span>
               Verified
             </span>

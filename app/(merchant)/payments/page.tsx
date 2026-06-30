@@ -129,7 +129,7 @@ export default function PaymentsPage() {
                   aria-invalid={labelError ? "true" : "false"}
                   aria-describedby={labelError ? "label-error" : undefined}
                 />
-                {labelError && <p id="label-error" className="text-xs text-red-500 mt-1">{labelError}</p>}
+                {labelError && <p id="label-error" className="text-xs text-destructive mt-1">{labelError}</p>}
               </div>
 
               <div className="space-y-2">

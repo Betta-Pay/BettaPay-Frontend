@@ -51,9 +51,9 @@ export default function PlatformVolumeChart({
           />
           <Tooltip
             contentStyle={{
-              backgroundColor: isDark ? "#1E293B" : "#FFFFFF",
-              borderColor: isDark ? "#334155" : "#E2E8F0",
-              color: isDark ? "#F8FAFC" : "#0F172A",
+              backgroundColor: isDark ? "var(--card)" : "var(--card)",
+              borderColor: isDark ? "var(--border)" : "var(--border)",
+              color: isDark ? "var(--foreground)" : "var(--foreground)",
             }}
             cursor={{ fill: "var(--accent)" }}
           />

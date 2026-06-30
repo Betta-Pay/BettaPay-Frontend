@@ -18,7 +18,7 @@ export default function RootLoading() {
         </div>
 
         {/* Brand name */}
-        <h1 className="text-xl font-bold tracking-tight text-slate-900">
+        <h1 className="text-xl font-bold tracking-tight text-foreground">
           BettaPay
         </h1>
 

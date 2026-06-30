@@ -119,7 +119,7 @@ export default function SettlementPage() {
           </CardHeader>
           <CardContent className="p-3 sm:p-4">
             <p className="text-xl sm:text-2xl font-bold text-foreground"><CurrencyDisplay amount={38750.00} /></p>
-            <p className="text-xs text-emerald-600 mt-1 flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> All completed</p>
+            <p className="text-xs text-success mt-1 flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> All completed</p>
           </CardContent>
         </Card>
       </div>
@@ -164,7 +164,7 @@ export default function SettlementPage() {
         <CardContent className="flex items-start gap-4 p-5">
           <AlertCircle className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
           <div className="flex-1">
-            <p className="text-sm font-semibold text-amber-800">Bank account not configured</p>
+            <p className="text-sm font-semibold text-primary">Bank account not configured</p>
             <p className="text-xs text-primary mt-0.5">
               Add your Nigerian bank account in Settings to enable automatic settlements.
             </p>

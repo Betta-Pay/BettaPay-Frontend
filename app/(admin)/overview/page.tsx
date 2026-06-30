@@ -32,7 +32,7 @@ export default function AdminOverviewPage() {
             <div className="text-xl sm:text-2xl font-bold text-foreground">
               <CurrencyDisplay amount={1452310.89} />
             </div>
-            <p className="text-xs text-green-500 flex items-center mt-1">
+            <p className="text-xs text-success flex items-center mt-1">
               <ArrowUpRight className="h-3 w-3 mr-1" />
               +12.5% from last month
             </p>
@@ -42,7 +42,7 @@ export default function AdminOverviewPage() {
         <Card className="bg-card border shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Platform Fees Generated</CardTitle>
-            <DollarSign className="h-4 w-4 text-green-500" />
+            <DollarSign className="h-4 w-4 text-success" />
           </CardHeader>
           <CardContent className="p-3 sm:p-4">
             <div className="text-xl sm:text-2xl font-bold text-foreground">
@@ -61,7 +61,7 @@ export default function AdminOverviewPage() {
           </CardHeader>
           <CardContent className="p-3 sm:p-4">
             <div className="text-xl sm:text-2xl font-bold text-foreground">142</div>
-            <p className="text-xs text-green-500 flex items-center mt-1">
+            <p className="text-xs text-success flex items-center mt-1">
               <ArrowUpRight className="h-3 w-3 mr-1" />
               +12 new this week
             </p>
@@ -102,7 +102,7 @@ export default function AdminOverviewPage() {
             <div className="space-y-6">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                  <div className="w-2 h-2 rounded-full bg-success"></div>
                   <div>
                     <p className="text-sm font-medium">Stellar Horizon API</p>
                     <p className="text-xs text-muted-foreground">Operational</p>
@@ -113,7 +113,7 @@ export default function AdminOverviewPage() {
               
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                  <div className="w-2 h-2 rounded-full bg-success"></div>
                   <div>
                     <p className="text-sm font-medium">Soroban RPC</p>
                     <p className="text-xs text-muted-foreground">Operational</p>
@@ -124,7 +124,7 @@ export default function AdminOverviewPage() {
 
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                  <div className="w-2 h-2 rounded-full bg-success"></div>
                   <div>
                     <p className="text-sm font-medium">SEP-24 Anchor (NGN)</p>
                     <p className="text-xs text-muted-foreground">Operational</p>
@@ -141,7 +141,7 @@ export default function AdminOverviewPage() {
                     <p className="text-xs text-muted-foreground">High Load</p>
                   </div>
                 </div>
-                <span className="text-xs font-mono text-yellow-500">82% CPU</span>
+                <span className="text-xs font-mono text-warning">82% CPU</span>
               </div>
             </div>
           </CardContent>

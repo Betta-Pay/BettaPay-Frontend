@@ -165,7 +165,7 @@ export default function DashboardPage() {
                 <div className="text-xl sm:text-2xl font-bold text-foreground">
                   <CurrencyDisplay amount={45231.89} />
                 </div>
-                <p className="text-xs text-emerald-600 flex items-center mt-1.5 font-medium">
+                <p className="text-xs text-success flex items-center mt-1.5 font-medium">
                   <ArrowUpRight className="h-3 w-3 mr-1" />
                   +20.1% from last month
                 </p>
@@ -179,8 +179,8 @@ export default function DashboardPage() {
                 <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                   Active Payment Links
                 </CardTitle>
-                <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
-                  <CreditCard className="h-4 w-4 text-blue-600" />
+                <div className="w-8 h-8 rounded-lg bg-info/20 flex items-center justify-center">
+                  <CreditCard className="h-4 w-4 text-info" />
                 </div>
               </CardHeader>
               <CardContent className="p-3 sm:p-4 relative">
@@ -198,8 +198,8 @@ export default function DashboardPage() {
                 <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                   Available to Settle
                 </CardTitle>
-                <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center">
-                  <Wallet className="h-4 w-4 text-emerald-600" />
+                <div className="w-8 h-8 rounded-lg bg-success/20 flex items-center justify-center">
+                  <Wallet className="h-4 w-4 text-success" />
                 </div>
               </CardHeader>
               <CardContent className="p-3 sm:p-4 relative">
@@ -285,7 +285,7 @@ export default function DashboardPage() {
                 <p className="text-xs text-muted-foreground">Weekly avg</p>
                 <p className="text-sm font-semibold text-foreground">$2,714</p>
               </div>
-              <div className="ml-auto flex items-center gap-1 text-emerald-600 text-xs font-semibold bg-emerald-50 px-3 py-1.5 rounded-full">
+              <div className="ml-auto flex items-center gap-1 text-success text-xs font-semibold bg-success/10 px-3 py-1.5 rounded-full">
                 <TrendingUp className="w-3 h-3" />
                 +18.4% WoW
               </div>
@@ -331,7 +331,7 @@ export default function DashboardPage() {
                     <div className="flex flex-col items-end gap-1 flex-shrink-0">
                       <span className={cn(
                         'text-sm font-semibold',
-                        tx.status === 'failed' ? 'text-red-500' : 'text-emerald-600'
+                        tx.status === 'failed' ? 'text-destructive' : 'text-success'
                       )}>
                         {tx.status === 'failed' ? '-' : '+'}<CurrencyDisplay amount={tx.amountUsdc} showDecimals={false} />
                       </span>
@@ -364,15 +364,15 @@ export default function DashboardPage() {
                 <div className={cn(
                   'flex flex-col gap-3 p-4 rounded-xl border cursor-pointer transition-all hover:scale-[1.02] hover:shadow-sm',
                   color === 'amber' && 'border-primary/30 bg-primary/10 hover:bg-primary/20',
-                  color === 'blue' && 'border-blue-200 bg-blue-50 hover:bg-blue-100',
-                  color === 'emerald' && 'border-emerald-200 bg-emerald-50 hover:bg-emerald-100',
+                  color === 'blue' && 'border-info/30 bg-info/10 hover:bg-info/20',
+                  color === 'emerald' && 'border-success/30 bg-success/10 hover:bg-success/20',
                   color === 'purple' && 'border-purple-200 bg-purple-50 hover:bg-purple-100',
                 )}>
                   <Icon className={cn(
                     'w-5 h-5',
                     color === 'amber' && 'text-primary',
-                    color === 'blue' && 'text-blue-600',
-                    color === 'emerald' && 'text-emerald-600',
+                    color === 'blue' && 'text-info',
+                    color === 'emerald' && 'text-success',
                     color === 'purple' && 'text-purple-600',
                   )} />
                   <p className="text-xs font-semibold text-foreground leading-tight">{label}</p>

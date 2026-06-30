@@ -27,12 +27,12 @@ const ChartTooltip = ({ active, payload, label }: ClicksChartTooltipProps) => {
       <div 
         className="border rounded-xl p-3 shadow-lg text-sm"
         style={{ 
-          backgroundColor: isDark ? '#1E293B' : '#FFFFFF',
-          borderColor: isDark ? '#334155' : '#E2E8F0',
+          backgroundColor: isDark ? "var(--card)" : "var(--card)",
+          borderColor: isDark ? "var(--border)" : "var(--border)",
         }}
       >
-        <p className="font-semibold mb-1" style={{ color: isDark ? '#F8FAFC' : '#0F172A' }}>{label}</p>
-        <p className="font-bold" style={{ color: isDark ? '#FBBF24' : '#F0A500' }}>
+        <p className="font-semibold mb-1" style={{ color: isDark ? "var(--foreground)" : "var(--foreground)" }}>{label}</p>
+        <p className="font-bold" style={{ color: isDark ? "var(--primary)" : "var(--primary)" }}>
           {payload[0]?.value} clicks
         </p>
       </div>

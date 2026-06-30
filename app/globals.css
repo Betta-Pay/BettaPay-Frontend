@@ -15,6 +15,13 @@
    * muted, primary, etc.) in Tailwind classes instead of brand-specific
    * aliases or hardcoded surface/text colors. The .dark block below must
    * define the same token set so components adapt by theme.
+   *
+   * COLOR EXCEPTION LIST (DO NOT REPLACE):
+   * - Stellar Wallet Modal / Tooltips: Elements meant to strictly look like 
+   *   Stellar-branded UI (e.g. `bg-slate-900`) must remain dark.
+   * - Code Blocks: Syntax highlighting elements (e.g. `text-emerald-400` in <pre>)
+   *   should not adapt to theme if they rely on specific contrast against dark blocks.
+   * - Brand Logos: Background wrappers for external logos that require specific contrast.
    */
   :root {
     --background: #FFFFFF;
@@ -33,6 +40,12 @@
     --accent-foreground: #0F172A;
     --destructive: #EF4444;
     --destructive-foreground: #FFFFFF;
+    --success: #10B981;
+    --success-foreground: #FFFFFF;
+    --warning: #F59E0B;
+    --warning-foreground: #FFFFFF;
+    --info: #3B82F6;
+    --info-foreground: #FFFFFF;
     --border: #E2E8F0;
     --input: #F8FAFC;
     --ring: #F0A500;
@@ -70,6 +83,12 @@
     --accent-foreground: #F8FAFC;
     --destructive: #F87171;
     --destructive-foreground: #0F172A;
+    --success: #34D399;
+    --success-foreground: #0F172A;
+    --warning: #FBBF24;
+    --warning-foreground: #0F172A;
+    --info: #60A5FA;
+    --info-foreground: #0F172A;
     --border: #334155;
     --input: #1E293B;
     --ring: #FBBF24;
