@@ -66,13 +66,13 @@ export default function AuthLayout({
               priority={true}
               className="w-11 h-11 rounded-xl object-contain bg-foreground"
             />
-            <span className="text-xl font-bold text-white tracking-tight">
+            <span className="text-xl font-bold text-background tracking-tight">
               BettaPay
             </span>
           </div>
 
           {/* Headline */}
-          <h2 className="text-4xl font-bold text-white leading-snug mb-4">
+          <h2 className="text-4xl font-bold text-background leading-snug mb-4">
             Global settlement,
             <br />
             <span className="text-amber-400">zero friction.</span>
