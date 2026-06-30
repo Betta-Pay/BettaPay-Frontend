@@ -119,8 +119,8 @@ export const SettlementConfirmation = ({
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 print:relative print:inset-auto print:p-0">
           <div className="bg-popover rounded-xl border border-border/50 shadow-dropdown max-w-md w-full p-6 space-y-6 print:shadow-none print:border-0 print:max-w-full">
             <div className="text-center space-y-2 print:mb-6">
-              <div className="w-12 h-12 bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center mx-auto">
-                <CheckCircle2 className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
+              <div className="w-12 h-12 bg-success/20 dark:bg-success/10 rounded-full flex items-center justify-center mx-auto">
+                <CheckCircle2 className="w-6 h-6 text-success dark:text-emerald-400" />
               </div>
               <h2 className="text-lg font-bold text-foreground print:text-2xl">Settlement Receipt</h2>
               <p className="text-xs text-muted-foreground print:hidden">Settlement completed successfully</p>
@@ -267,11 +267,11 @@ export const SettlementConfirmation = ({
             </div>
           </div>
 
-          <div className="flex items-start gap-3 p-3 rounded-xl border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30">
-            <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+          <div className="flex items-start gap-3 p-3 rounded-xl border border-primary/30 bg-primary/10 dark:border-primary/30 dark:bg-primary/10">
+            <AlertTriangle className="w-4 h-4 text-primary dark:text-primary shrink-0 mt-0.5" />
             <div>
-              <p className="text-xs font-semibold text-amber-800 dark:text-amber-300">This action is irreversible</p>
-              <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
+              <p className="text-xs font-semibold text-primary dark:text-primary">This action is irreversible</p>
+              <p className="text-xs text-primary dark:text-primary mt-0.5">
                 Once confirmed, the settlement will be processed on-chain and cannot be reversed.
               </p>
             </div>

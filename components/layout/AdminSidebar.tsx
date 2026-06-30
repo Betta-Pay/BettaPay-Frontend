@@ -47,14 +47,23 @@ export const AdminSidebar = () => {
             <Link
               key={item.href}
               href={item.href}
+              aria-current={isActive ? 'page' : undefined}
               className={cn(
-                "flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors border-l-2",
+                "group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all",
                 isActive 
-                  ? "border-primary bg-sidebar-accent/30 text-sidebar-foreground" 
-                  : "border-transparent text-muted-foreground hover:bg-sidebar-accent/20 hover:text-sidebar-foreground"
+                  ? "bg-primary/10 text-sidebar-foreground font-semibold border border-primary/30 shadow-sm" 
+                  : "text-muted-foreground hover:bg-sidebar-accent/20 hover:text-sidebar-foreground font-medium border border-transparent"
               )}
             >
-              <Icon className="w-5 h-5" />
+              <div className="relative flex items-center">
+                <Icon className={cn(
+                  "w-5 h-5 transition-colors",
+                  isActive ? "text-primary" : "text-muted-foreground group-hover:text-sidebar-foreground"
+                )} />
+                {isActive && (
+                  <span className="absolute -right-1 -top-1 w-2 h-2 rounded-full bg-primary" />
+                )}
+              </div>
               {item.label}
             </Link>
           );

@@ -161,7 +161,7 @@ export const Topbar = ({ onMenuClick, isMenuOpen, title, unreadNotificationCount
           className="relative text-muted-foreground hover:text-foreground hover:bg-muted rounded-xl min-h-[44px] min-w-[44px]"
         >
           <Bell className="h-4.5 w-4.5" />
-          <span aria-hidden="true" className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-red-500 border-2 border-background"></span>
+          <span aria-hidden="true" className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-destructive border-2 border-background"></span>
         </Button>
 
         <Button
@@ -225,7 +225,7 @@ export const Topbar = ({ onMenuClick, isMenuOpen, title, unreadNotificationCount
             </DropdownMenuItem>
             <DropdownMenuSeparator className="bg-muted" />
             <DropdownMenuItem
-              className="flex items-center gap-2 text-red-500 focus:text-red-500 focus:bg-red-50 cursor-pointer rounded-lg"
+              className="flex items-center gap-2 text-destructive focus:text-destructive focus:bg-destructive/10 cursor-pointer rounded-lg"
               onClick={handleLogout}
             >
               <LogOut className="w-4 h-4" /> Log out

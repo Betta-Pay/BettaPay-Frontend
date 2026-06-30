@@ -1,6 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
+import { useTheme } from "next-themes";
 import {
   ResponsiveContainer,
   AreaChart,
@@ -18,11 +19,20 @@ interface ClicksChartTooltipProps {
 }
 
 const ChartTooltip = ({ active, payload, label }: ClicksChartTooltipProps) => {
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === "dark";
+
   if (active && payload && payload.length) {
     return (
-      <div className="bg-card border border-border rounded-xl p-3 shadow-lg text-sm">
-        <p className="font-semibold text-foreground mb-1">{label}</p>
-        <p className="text-primary font-bold">
+      <div 
+        className="border rounded-xl p-3 shadow-lg text-sm"
+        style={{ 
+          backgroundColor: isDark ? "var(--card)" : "var(--card)",
+          borderColor: isDark ? "var(--border)" : "var(--border)",
+        }}
+      >
+        <p className="font-semibold mb-1" style={{ color: isDark ? "var(--foreground)" : "var(--foreground)" }}>{label}</p>
+        <p className="font-bold" style={{ color: isDark ? "var(--primary)" : "var(--primary)" }}>
           {payload[0]?.value} clicks
         </p>
       </div>
@@ -37,6 +47,9 @@ interface ClicksChartProps {
 }
 
 export default function ClicksChart({ data, height = 260 }: ClicksChartProps) {
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === "dark";
+
   return (
     <div className={cn("w-full")} style={{ height }}>
       <ResponsiveContainer width="100%" height="100%">
@@ -46,8 +59,8 @@ export default function ClicksChart({ data, height = 260 }: ClicksChartProps) {
         >
           <defs>
             <linearGradient id="colorClicks" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.25} />
-              <stop offset="95%" stopColor="var(--primary)" stopOpacity={0} />
+              <stop offset="5%" stopColor="var(--primary)" stopOpacity={isDark ? 0.4 : 0.25} />
+              <stop offset="95%" stopColor="var(--primary)" stopOpacity={isDark ? 0.05 : 0} />
             </linearGradient>
           </defs>
           <CartesianGrid

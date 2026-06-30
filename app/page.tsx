@@ -26,7 +26,7 @@ const features = [
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-screen bg-card text-foreground">
       <Header />
 
       {/* Hero Section */}
@@ -34,8 +34,8 @@ export default function LandingPage() {
         <div className="container mx-auto px-6 text-center">
 
           {/* Badge */}
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-amber-50 border border-amber-200 text-sm text-amber-700 font-medium mb-10">
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/10 border border-primary/30 text-sm text-primary font-medium mb-10">
+            <span className="w-1.5 h-1.5 rounded-full bg-primary" />
             Now live on Soroban Testnet
           </div>
 
@@ -43,7 +43,7 @@ export default function LandingPage() {
           <h1 className="text-5xl lg:text-7xl font-bold tracking-tighter max-w-4xl mx-auto leading-tight text-foreground">
             Settle Globally.{' '}
             <br className="hidden lg:block" />
-            <span className="text-amber-500">Instantly &amp; Non-Custodial.</span>
+            <span className="text-primary">Instantly &amp; Non-Custodial.</span>
           </h1>
 
           <p className="mt-6 text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
@@ -53,13 +53,13 @@ export default function LandingPage() {
           {/* CTAs */}
           <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link href="/auth/register">
-              <Button className="h-12 px-8 text-base bg-primary text-primary-foreground hover:bg-primary/90 font-semibold rounded-xl">
+              <Button className="h-12 px-8 text-base bg-primary text-white hover:bg-primary font-semibold rounded-xl">
                 Start Accepting Crypto
                 <ArrowRight className="ml-2 w-5 h-5" />
               </Button>
             </Link>
             <Link href="#features">
-              <Button variant="outline" className="h-12 px-8 text-base font-medium rounded-xl">
+              <Button variant="outline" className="h-12 px-8 text-base border-border bg-card text-foreground hover:bg-muted font-medium rounded-xl">
                 Explore Features
               </Button>
             </Link>
@@ -71,7 +71,7 @@ export default function LandingPage() {
       <div className="border-t border-border" />
 
       {/* Features Section */}
-      <section id="features" className="py-24 bg-muted/50">
+      <section id="features" className="py-24 bg-muted">
         <div className="container mx-auto px-6">
           <div className="text-center mb-16">
             <h2 className="text-3xl lg:text-4xl font-bold tracking-tight mb-4 text-foreground">
@@ -86,10 +86,10 @@ export default function LandingPage() {
             {features.map((feature, i) => (
               <div
                 key={i}
-                className="p-8 rounded-2xl bg-card border border-border hover:border-primary/50 hover:shadow-card-hover transition-all duration-200"
+                className="p-8 rounded-2xl bg-card border border-border hover:border-primary/40 hover:shadow-md transition-all duration-200"
               >
-                <div className="w-11 h-11 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center mb-6">
-                  <feature.icon className="w-5 h-5 text-amber-500" />
+                <div className="w-11 h-11 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center mb-6">
+                  <feature.icon className="w-5 h-5 text-primary" />
                 </div>
                 <h3 className="text-lg font-semibold mb-3 text-foreground">{feature.title}</h3>
                 <p className="text-muted-foreground leading-relaxed text-sm">{feature.desc}</p>

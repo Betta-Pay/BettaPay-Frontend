@@ -49,10 +49,10 @@ export default function RegisterPage() {
   const strengthScore = metRequirements.filter((r) => r.met).length;
   const strengthPercent = (strengthScore / passwordRequirements.length) * 100;
   const strengthColor =
-    strengthScore <= 1 ? 'bg-red-500' :
+    strengthScore <= 1 ? 'bg-destructive' :
     strengthScore <= 2 ? 'bg-orange-500' :
     strengthScore <= 3 ? 'bg-yellow-500' :
-    strengthScore <= 4 ? 'bg-blue-500' : 'bg-green-500';
+    strengthScore <= 4 ? 'bg-blue-500' : 'bg-success';
 
   const onSubmit = async (data: RegisterFormValues) => {
     setIsLoading(true);
