@@ -16,6 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useOfflineStore } from '@/lib/store/offlineStore';
+import { mockKeys, codeExample } from '@/lib/mock/developers';
 
 const CodeExample = dynamic(() => import('@/components/developers/CodeExample').then(m => ({ default: m.CodeExample })), {
   loading: () => <Skeleton className="h-64 rounded-xl" />,
@@ -122,10 +123,10 @@ export default function DevelopersPage() {
         ].map(({ icon: Icon, label, desc, color }) => (
           <div key={label} className={`flex items-center gap-4 p-4 rounded-xl border cursor-pointer hover:shadow-sm transition-all
             ${color === 'amber' ? 'border-primary/30 bg-primary/10 hover:bg-primary/20' : ''}
-            ${color === 'blue' ? 'border-blue-200 bg-blue-50 hover:bg-blue-100' : ''}
-            ${color === 'emerald' ? 'border-emerald-200 bg-emerald-50 hover:bg-emerald-100' : ''}
+            ${color === 'blue' ? 'border-info/30 bg-info/10 hover:bg-info/20' : ''}
+            ${color === 'emerald' ? 'border-success/30 bg-success/10 hover:bg-success/20' : ''}
           `}>
-            <Icon className={`w-5 h-5 ${color === 'amber' ? 'text-primary' : ''} ${color === 'blue' ? 'text-blue-600' : ''} ${color === 'emerald' ? 'text-emerald-600' : ''}`} />
+            <Icon className={`w-5 h-5 ${color === 'amber' ? 'text-primary' : ''} ${color === 'blue' ? 'text-info' : ''} ${color === 'emerald' ? 'text-success' : ''}`} />
             <div>
               <p className="text-sm font-semibold text-foreground">{label}</p>
               <p className="text-xs text-muted-foreground">{desc}</p>
@@ -157,7 +158,7 @@ export default function DevelopersPage() {
             {mockKeys.map((key) => (
               <div key={key.id} className="flex items-center gap-4 p-4 rounded-xl border border-border hover:border-border hover:bg-muted/50 transition-all">
                 <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 text-xs font-bold
-                  ${key.type === 'live' ? 'bg-emerald-100 text-emerald-700' : 'bg-muted text-muted-foreground'}`}>
+                  ${key.type === 'live' ? 'bg-success/20 text-success' : 'bg-muted text-muted-foreground'}`}>
                   {key.type === 'live' ? 'LV' : 'TS'}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -279,13 +280,13 @@ export default function DevelopersPage() {
           {simulationResult && (
             <div className={`p-4 rounded-xl border flex items-start gap-3 animate-in fade-in slide-in-from-top-2 duration-300 ${
               simulationResult.status === 200 
-                ? 'bg-emerald-50 border-emerald-100 text-emerald-800' 
-                : 'bg-red-50 border-red-100 text-red-800'
+                ? 'bg-success/10 border-success/20 text-success' 
+                : 'bg-destructive/10 border-destructive/20 text-destructive'
             }`}>
               {simulationResult.status === 200 ? (
-                <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
+                <CheckCircle2 className="w-5 h-5 text-success shrink-0 mt-0.5" />
               ) : (
-                <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+                <AlertCircle className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
               )}
               <div>
                 <p className="text-sm font-semibold">Response Status: {simulationResult.status} OK</p>

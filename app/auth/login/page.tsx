@@ -11,6 +11,7 @@ import { useNotify } from '@/lib/hooks/useNotify';
 import dynamic from 'next/dynamic';
 
 import { loginSchema, LoginFormValues } from '@/lib/utils/validation';
+import { normalizeEmail } from '@/lib/utils/sanitize';
 import { useAuthStore } from '@/lib/store/authStore';
 import { useRateLimitStore } from '@/lib/store/rateLimitStore';
 import { Button } from '@/components/ui/button';
@@ -51,8 +52,9 @@ export default function LoginPage() {
 
   const onSubmit = useCallback(async (data: LoginFormValues) => {
     setIsLoading(true);
+    const sanitizedData = { ...data, email: normalizeEmail(data.email) };
     try {
-      const isMockAdmin = data.email.includes('admin');
+      const isMockAdmin = sanitizedData.email.includes('admin');
       const role = isMockAdmin ? 'admin' : 'merchant';
       
       let merchantId = 'GCCHHKNI7GRA5QWC7RCTT3OHO7SKAUMKQA6IBWEQEO2SXI3GF376UHDD';
@@ -73,7 +75,7 @@ export default function LoginPage() {
       const mockToken = 'mock_jwt_token_12345';
       const mockUser = {
         id: merchantId,
-        email: data.email,
+        email: sanitizedData.email,
         name: merchantName,
         role,
       };
@@ -172,7 +174,7 @@ export default function LoginPage() {
             aria-describedby={errors.email ? "email-error" : undefined}
             className="h-12 bg-card border border-border text-foreground placeholder:text-muted-foreground rounded-xl text-sm focus-visible:ring-1 focus-visible:ring-ring focus-visible:border-ring transition-all"
           />
-          {errors.email && <p id="email-error" className="text-xs text-red-500 mt-1">{errors.email.message}</p>}
+          {errors.email && <p id="email-error" className="text-xs text-destructive mt-1">{errors.email.message}</p>}
         </div>
 
         {/* Password */}
@@ -194,7 +196,7 @@ export default function LoginPage() {
             aria-describedby={errors.password ? "password-error" : undefined}
             className="h-12 bg-card border border-border text-foreground placeholder:text-muted-foreground rounded-xl text-sm focus-visible:ring-1 focus-visible:ring-ring focus-visible:border-ring transition-all"
           />
-          {errors.password && <p id="password-error" className="text-xs text-red-500 mt-1">{errors.password.message}</p>}
+          {errors.password && <p id="password-error" className="text-xs text-destructive mt-1">{errors.password.message}</p>}
         </div>
 
         {/* Sign In CTA */}

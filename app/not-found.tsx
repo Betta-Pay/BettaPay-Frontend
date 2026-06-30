@@ -20,8 +20,8 @@ export default function NotFound() {
           <main className="flex-1 overflow-y-auto bg-background/50 pb-20 md:pb-0">
             <div className="mx-auto max-w-7xl px-3 sm:px-6 py-4 sm:py-8">
               <div className="flex flex-col items-center justify-center py-20 text-center">
-                <div className="w-20 h-20 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 flex items-center justify-center mb-6">
-                  <Frown className="w-10 h-10 text-amber-500" />
+                <div className="w-20 h-20 rounded-2xl bg-primary/10 dark:bg-primary/10 border border-primary/30 dark:border-primary/30 flex items-center justify-center mb-6">
+                  <Frown className="w-10 h-10 text-primary" />
                 </div>
                 <h1 className="text-4xl sm:text-5xl font-bold text-foreground tracking-tight mb-3">
                   404
@@ -35,7 +35,7 @@ export default function NotFound() {
                 </p>
                 <div className="flex flex-col sm:flex-row items-center gap-3">
                   <Link href="/dashboard">
-                    <Button className="shadow-sm shadow-primary/20">
+                    <Button className="shadow-button">
                       <Home className="w-4 h-4 mr-2" />
                       Back to Dashboard
                     </Button>
@@ -60,8 +60,8 @@ export default function NotFound() {
       <Header />
       <main className="flex-1">
         <div className="flex flex-col items-center justify-center py-24 sm:py-32 text-center px-4">
-          <div className="w-16 h-16 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 flex items-center justify-center mb-6">
-            <ShieldCheck className="w-8 h-8 text-amber-500" />
+          <div className="w-16 h-16 rounded-2xl bg-primary/10 dark:bg-primary/10 border border-primary/30 dark:border-primary/30 flex items-center justify-center mb-6">
+            <ShieldCheck className="w-8 h-8 text-primary" />
           </div>
           <h1 className="text-4xl sm:text-5xl font-bold text-foreground tracking-tight mb-3">
             404
@@ -75,7 +75,7 @@ export default function NotFound() {
           </p>
           <div className="flex flex-col sm:flex-row items-center gap-3">
             <Link href="/">
-              <Button className="shadow-sm shadow-primary/20">
+              <Button className="shadow-button">
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 Go Home
               </Button>

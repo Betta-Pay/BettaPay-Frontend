@@ -18,17 +18,9 @@ import {
   DialogFooter
 } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { trimInput } from '@/lib/utils/sanitize';
 import { useNotify } from '@/lib/hooks/useNotify';
-
-interface PaymentLink {
-  id: string;
-  label: string;
-  type: 'open' | 'fixed';
-  amount: number | null;
-  currency: string;
-  url: string;
-  created: string;
-}
+import { mockLinks, type PaymentLink } from '@/lib/mock/paymentLinks';
 
 interface PaymentLinkCardProps {
   link: PaymentLink;
@@ -76,7 +68,8 @@ export default function PaymentsPage() {
 
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!labelValue.trim()) {
+    const sanitizedLabel = trimInput(labelValue);
+    if (!sanitizedLabel) {
       setLabelError('Label is required');
       return;
     }
@@ -85,12 +78,6 @@ export default function PaymentsPage() {
     setIsCreateOpen(false);
     setLabelValue('');
   };
-
-  const mockLinks: PaymentLink[] = [
-    { id: 'link_01', label: 'Consulting Retainer Q3', type: 'open', amount: null, currency: 'USDC', url: 'https://betta.pay/pay/link_01', created: '2023-10-25' },
-    { id: 'link_02', label: 'E-commerce Checkout', type: 'fixed', amount: 45.50, currency: 'USDC', url: 'https://betta.pay/pay/link_02', created: '2023-10-24' },
-    { id: 'link_03', label: 'Donation Campaign', type: 'open', amount: null, currency: 'USDC', url: 'https://betta.pay/pay/link_03', created: '2023-10-20' },
-  ];
 
   return (
     <div className="space-y-6">
@@ -129,7 +116,7 @@ export default function PaymentsPage() {
                   aria-invalid={labelError ? "true" : "false"}
                   aria-describedby={labelError ? "label-error" : undefined}
                 />
-                {labelError && <p id="label-error" className="text-xs text-red-500 mt-1">{labelError}</p>}
+                {labelError && <p id="label-error" className="text-xs text-destructive mt-1">{labelError}</p>}
               </div>
 
               <div className="space-y-2">

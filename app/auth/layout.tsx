@@ -66,16 +66,16 @@ export default function AuthLayout({
               priority={true}
               className="w-11 h-11 rounded-xl object-contain bg-foreground"
             />
-            <span className="text-xl font-bold text-white tracking-tight">
+            <span className="text-xl font-bold text-background tracking-tight">
               BettaPay
             </span>
           </div>
 
           {/* Headline */}
-          <h2 className="text-4xl font-bold text-white leading-snug mb-4">
+          <h2 className="text-4xl font-bold text-background leading-snug mb-4">
             Global settlement,
             <br />
-            <span className="text-amber-400">zero friction.</span>
+            <span className="text-primary">zero friction.</span>
           </h2>
 
           <p className="text-muted-foreground text-base leading-relaxed mb-12">
@@ -87,7 +87,7 @@ export default function AuthLayout({
           <ul className="space-y-4">
             {highlights.map((item) => (
               <li key={item} className="flex items-start gap-3">
-                <CheckCircle2 className="w-5 h-5 text-amber-400 mt-0.5 shrink-0" />
+                <CheckCircle2 className="w-5 h-5 text-primary mt-0.5 shrink-0" />
                 <span className="text-muted-foreground text-sm leading-relaxed">
                   {item}
                 </span>

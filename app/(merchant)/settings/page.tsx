@@ -10,6 +10,7 @@ import { Settings, User, Building2, Bell, Shield, LogOut } from 'lucide-react';
 import { useAuthStore } from '@/lib/store/authStore';
 import { useRouter } from 'next/navigation';
 import { useNotify } from '@/lib/hooks/useNotify';
+import { trimInput, normalizeEmail } from '@/lib/utils/sanitize';
 import { cn } from '@/lib/utils';
 
 const tabs = [
@@ -37,6 +38,19 @@ export default function SettingsPage() {
   });
   const { user, logout } = useAuthStore();
   const notify = useNotify();
+
+  const [profileName, setProfileName] = useState(user?.name ?? '');
+  const [profileEmail, setProfileEmail] = useState(user?.email ?? '');
+  const [profilePhone, setProfilePhone] = useState('');
+
+  const [bizName, setBizName] = useState('Merchant Corp');
+  const [bizRegNumber, setBizRegNumber] = useState('');
+  const [bizBankName, setBizBankName] = useState('');
+  const [bizAccountNumber, setBizAccountNumber] = useState('');
+
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
 
   const handleLogout = useCallback(() => {
     logout();
@@ -86,7 +100,7 @@ export default function SettingsPage() {
             <div className="pt-4">
               <button
                 onClick={handleLogout}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-red-500 hover:bg-red-50 transition-colors text-left"
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors text-left"
               >
                 <LogOut className="w-4 h-4" /> Log out
               </button>
@@ -115,20 +129,25 @@ export default function SettingsPage() {
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-1.5">
                     <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Full Name</Label>
-                    <Input defaultValue={user?.name ?? ''} className="h-10 border-border rounded-xl bg-card text-sm" />
+                    <Input value={profileName} onChange={(e) => setProfileName(e.target.value)} className="h-10 border-border rounded-xl bg-card text-sm" />
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Email Address</Label>
-                    <Input defaultValue={user?.email ?? ''} type="email" className="h-10 border-border rounded-xl bg-card text-sm" />
+                    <Input value={profileEmail} onChange={(e) => setProfileEmail(e.target.value)} type="email" className="h-10 border-border rounded-xl bg-card text-sm" />
                   </div>
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Phone Number</Label>
-                  <Input placeholder="+234 800 000 0000" className="h-10 border-border rounded-xl bg-card text-sm" />
+                  <Input value={profilePhone} onChange={(e) => setProfilePhone(e.target.value)} placeholder="+234 800 000 0000" className="h-10 border-border rounded-xl bg-card text-sm" />
                 </div>
                 <Button
                   className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-xl h-10 px-6 text-sm scroll-mb-52"
                   onClick={() => {
+                    const sanitized = {
+                      name: trimInput(profileName),
+                      email: normalizeEmail(profileEmail),
+                      phone: trimInput(profilePhone),
+                    };
                     notify.success('Profile updated');
                   }}
                 >
@@ -147,24 +166,30 @@ export default function SettingsPage() {
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-1.5">
                     <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Business Name</Label>
-                    <Input defaultValue="Merchant Corp" className="h-10 border-border rounded-xl bg-card text-sm" />
+                    <Input value={bizName} onChange={(e) => setBizName(e.target.value)} className="h-10 border-border rounded-xl bg-card text-sm" />
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Registration Number</Label>
-                    <Input placeholder="RC-1234567" className="h-10 border-border rounded-xl bg-card text-sm" />
+                    <Input value={bizRegNumber} onChange={(e) => setBizRegNumber(e.target.value)} placeholder="RC-1234567" className="h-10 border-border rounded-xl bg-card text-sm" />
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Bank Name</Label>
-                    <Input placeholder="e.g. GTBank" className="h-10 border-border rounded-xl bg-card text-sm" />
+                    <Input value={bizBankName} onChange={(e) => setBizBankName(e.target.value)} placeholder="e.g. GTBank" className="h-10 border-border rounded-xl bg-card text-sm" />
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Account Number</Label>
-                    <Input placeholder="0123456789" className="h-10 border-border rounded-xl bg-card text-sm" />
+                    <Input value={bizAccountNumber} onChange={(e) => setBizAccountNumber(e.target.value)} placeholder="0123456789" className="h-10 border-border rounded-xl bg-card text-sm" />
                   </div>
                 </div>
                 <Button
                   className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-xl h-10 px-6 text-sm scroll-mb-52"
                   onClick={() => {
+                    const sanitized = {
+                      name: trimInput(bizName),
+                      regNumber: trimInput(bizRegNumber),
+                      bankName: trimInput(bizBankName),
+                      accountNumber: trimInput(bizAccountNumber),
+                    };
                     notify.success('Business info saved');
                   }}
                 >
@@ -205,19 +230,24 @@ export default function SettingsPage() {
               <CardContent className="space-y-5">
                 <div className="space-y-1.5">
                   <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Current Password</Label>
-                  <Input type="password" placeholder="••••••••" className="h-10 border-border rounded-xl bg-card text-sm" />
+                  <Input value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} type="password" placeholder="••••••••" className="h-10 border-border rounded-xl bg-card text-sm" />
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">New Password</Label>
-                  <Input type="password" placeholder="••••••••" className="h-10 border-border rounded-xl bg-card text-sm" />
+                  <Input value={newPassword} onChange={(e) => setNewPassword(e.target.value)} type="password" placeholder="••••••••" className="h-10 border-border rounded-xl bg-card text-sm" />
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Confirm New Password</Label>
-                  <Input type="password" placeholder="••••••••" className="h-10 border-border rounded-xl bg-card text-sm" />
+                  <Input value={confirmNewPassword} onChange={(e) => setConfirmNewPassword(e.target.value)} type="password" placeholder="••••••••" className="h-10 border-border rounded-xl bg-card text-sm" />
                 </div>
                 <Button
                   className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-xl h-10 px-6 text-sm scroll-mb-52"
                   onClick={() => {
+                    const sanitized = {
+                      currentPassword: trimInput(currentPassword),
+                      newPassword: trimInput(newPassword),
+                      confirmNewPassword: trimInput(confirmNewPassword),
+                    };
                     notify.success('Password updated');
                   }}
                 >

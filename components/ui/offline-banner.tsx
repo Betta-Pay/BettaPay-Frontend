@@ -19,7 +19,7 @@ export function OfflineBanner() {
     <div
       role="alert"
       aria-live="polite"
-      className="fixed top-0 left-0 right-0 z-50 bg-amber-500 text-white px-4 py-2.5 flex items-center justify-center gap-2 shadow-md animate-in slide-in-from-top duration-300"
+      className="fixed top-0 left-0 right-0 z-50 bg-primary text-white px-4 py-2.5 flex items-center justify-center gap-2 shadow-md animate-in slide-in-from-top duration-300"
     >
       <WifiOff className="w-4 h-4 shrink-0" aria-hidden="true" />
       <span className="text-sm font-medium">

@@ -22,17 +22,7 @@ import { EmptyState } from '@/components/shared/EmptyState';
 import { useOfflineStore } from '@/lib/store/offlineStore';
 import { SettlementConfirmation } from '@/components/settlement/SettlementConfirmation';
 import { memo } from 'react';
-
-interface Settlement {
-  id: string;
-  amount: number;
-  amountNgn: number;
-  status: string;
-  date: string;
-  bank: string;
-  accountNo: string;
-  txHash?: string;
-}
+import { mockSettlements, type Settlement } from '@/lib/mock/settlements';
 
 interface SettlementItemProps {
   settlement: Settlement;
@@ -71,12 +61,6 @@ const SettlementItem = memo(function SettlementItem({ settlement: s }: Settlemen
   );
 });
 
-const mockSettlements = [
-  { id: 'stl_01', amount: 12450.00, amountNgn: 19297500, status: 'completed', date: '2024-01-10', bank: 'GTBank', accountNo: '012****567', txHash: '0x1234567890abcdef1234567890abcdef12345678' },
-  { id: 'stl_02', amount: 8200.50, amountNgn: 12710775, status: 'pending', date: '2024-01-12', bank: 'First Bank', accountNo: '302****814', txHash: '0xabcdef1234567890abcdef1234567890abcdef12' },
-  { id: 'stl_03', amount: 5000.00, amountNgn: 7750000, status: 'completed', date: '2024-01-08', bank: 'GTBank', accountNo: '012****567' },
-];
-
 export default function SettlementPage() {
   const isOnline = useOfflineStore((s) => s.isOnline);
   const [settlementOpen, setSettlementOpen] = useState(false);
@@ -96,7 +80,7 @@ export default function SettlementPage() {
             disabled={!isOnline}
             aria-disabled={!isOnline}
             onClick={() => setSettlementOpen(true)}
-            className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-xl h-10 px-5 text-sm shadow-sm shadow-primary/20"
+            className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-xl h-10 px-5 text-sm shadow-button"
           >
             <Banknote className="w-4 h-4 mr-2" />
             Initiate Settlement
@@ -136,7 +120,7 @@ export default function SettlementPage() {
           </CardHeader>
           <CardContent className="p-3 sm:p-4">
             <p className="text-xl sm:text-2xl font-bold text-foreground"><CurrencyDisplay amount={38750.00} /></p>
-            <p className="text-xs text-emerald-600 mt-1 flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> All completed</p>
+            <p className="text-xs text-success mt-1 flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> All completed</p>
           </CardContent>
         </Card>
       </div>
@@ -181,7 +165,7 @@ export default function SettlementPage() {
         <CardContent className="flex items-start gap-4 p-5">
           <AlertCircle className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
           <div className="flex-1">
-            <p className="text-sm font-semibold text-amber-800">Bank account not configured</p>
+            <p className="text-sm font-semibold text-primary">Bank account not configured</p>
             <p className="text-xs text-primary mt-0.5">
               Add your Nigerian bank account in Settings to enable automatic settlements.
             </p>

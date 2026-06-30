@@ -16,17 +16,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from '@/components/ui/input';
+import { pairs } from '@/lib/mock/fx';
 
 const FxRateChart = dynamic(() => import('@/components/charts/FxRateChart'), {
   ssr: false,
   loading: () => <Skeleton className="h-[240px] w-full rounded-xl" />,
 });
-
-const pairs = [
-  { from: 'USDC', to: 'NGN', rate: '₦1,550', change: +1.6, trend: 'up' },
-  { from: 'XLM', to: 'NGN', rate: '₦324.5', change: -0.8, trend: 'down' },
-  { from: 'USDC', to: 'XLM', rate: '4.78 XLM', change: +2.3, trend: 'up' },
-];
 
 interface RateAlert {
   id: string;
@@ -135,9 +130,9 @@ export default function FxRatesPage() {
               <p className="text-muted-foreground text-sm mt-1">Updated {lastRefresh}</p>
             </div>
             <div className="flex flex-wrap items-center gap-3">
-              <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 px-4 py-2 rounded-xl">
-                <TrendingUp className="w-4 h-4 text-emerald-600" />
-                <span className="text-emerald-700 font-bold text-sm">+1.6% today</span>
+              <div className="flex items-center gap-2 bg-success/10 border border-success/30 px-4 py-2 rounded-xl">
+                <TrendingUp className="w-4 h-4 text-success" />
+                <span className="text-success font-bold text-sm">+1.6% today</span>
               </div>
               <div className="bg-muted px-4 py-2 rounded-xl">
                 <p className="text-xs text-muted-foreground">24h Range</p>
@@ -177,7 +172,7 @@ export default function FxRatesPage() {
                   </div>
                   <div className={cn(
                     'flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full',
-                    pair.trend === 'up' ? 'text-emerald-600 bg-emerald-50' : 'text-red-500 bg-red-50'
+                    pair.trend === 'up' ? 'text-success bg-success/10' : 'text-destructive bg-destructive/10'
                   )}>
                     {pair.trend === 'up' ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
                     {pair.change > 0 ? '+' : ''}{pair.change}%
@@ -289,7 +284,7 @@ export default function FxRatesPage() {
                         aria-label={alert.enabled ? "Disable alert" : "Enable alert"}
                         className={cn(
                           "min-h-[44px] min-w-[44px] rounded-lg",
-                          alert.enabled ? "text-emerald-500 hover:text-emerald-600 hover:bg-emerald-50" : "text-muted-foreground hover:text-muted-foreground hover:bg-muted"
+                          alert.enabled ? "text-success hover:text-success hover:bg-success/10" : "text-muted-foreground hover:text-muted-foreground hover:bg-muted"
                         )}
                         onClick={() => toggleAlert(alert.id)}
                       >
@@ -299,7 +294,7 @@ export default function FxRatesPage() {
                         variant="ghost" 
                         size="icon" 
                         aria-label="Delete alert"
-                        className="min-h-[44px] min-w-[44px] rounded-lg text-muted-foreground hover:text-red-500 hover:bg-red-50"
+                        className="min-h-[44px] min-w-[44px] rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                         onClick={() => deleteAlert(alert.id)}
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -313,12 +308,12 @@ export default function FxRatesPage() {
         </Card>
       </div>
 
-      <Card className="border border-blue-200 bg-blue-50/50">
+      <Card className="border border-info/30 bg-info/10/50">
         <CardContent className="flex items-start gap-3 p-3 sm:p-5">
-          <Info className="w-4 h-4 sm:w-5 sm:h-5 text-blue-500 mt-0.5 flex-shrink-0" />
+          <Info className="w-4 h-4 sm:w-5 sm:h-5 text-info mt-0.5 flex-shrink-0" />
           <div>
-            <p className="text-xs sm:text-sm font-semibold text-blue-800">Rates sourced from SEP-24 Anchor</p>
-            <p className="text-xs text-blue-600 mt-0.5">Exchange rates are fetched in real-time from the BettaPay SEP-24 compliant anchor and may vary at the time of settlement.</p>
+            <p className="text-xs sm:text-sm font-semibold text-info">Rates sourced from SEP-24 Anchor</p>
+            <p className="text-xs text-info mt-0.5">Exchange rates are fetched in real-time from the BettaPay SEP-24 compliant anchor and may vary at the time of settlement.</p>
           </div>
         </CardContent>
       </Card>

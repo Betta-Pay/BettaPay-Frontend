@@ -1,16 +1,19 @@
-Description: Navigating between pages is instant with no transition animation. Adding a subtle page transition (fade + slight slide) using framer-motion (already installed) would improve perceived polish and smoothness.
+Description: Mock data arrays are defined inline at the top of page files: mockChartData in dashboard, mockTransactions in dashboard, mockPaymentLinks in dashboard, mockLinks in payments, mockTxHistory in wallet, mockSettlements in settlement, mockKeys in developers. This clutters page files and makes it hard to swap mock data for real API data.
 
 Requirements:
 
-Add a page transition wrapper using framer-motion AnimatePresence
-The transition should be a subtle fade (opacity 0 → 1) with a slight upward slide (y: 4px → 0)
-Duration should be short (~200ms) to avoid feeling sluggish
-Respect prefers-reduced-motion — disable animations when set
-Apply to the main content area in both merchant and admin layouts
+Create lib/mock/dashboard.ts, lib/mock/transactions.ts, lib/mock/paymentLinks.ts, lib/mock/wallet.ts, lib/mock/settlements.ts, lib/mock/developers.ts
+Move all mock data arrays from page files to these dedicated files
+Export them as named exports
+Import them in the page files
 Suggested execution steps:
 
-Create components/shared/PageTransition.tsx wrapping motion.div with fade + slide animation
-In app/(merchant)/layout.tsx, wrap {children} with <PageTransition>
-In app/(admin)/layout.tsx, wrap {children} with <PageTransition>
-Use usePathname() as the animation key so transitions fire on route change
-Add motion-safe: or check for reduced motion preference
+Create the mock data files under lib/mock/
+Move mockChartData, mockTransactions, mockPaymentLinks from app/(merchant)/dashboard/page.tsx
+Move mockLinks from app/(merchant)/payments/page.tsx
+Move mockTxHistory from app/(merchant)/wallet/page.tsx
+Move mockSettlements from app/(merchant)/settlement/page.tsx
+Move mockKeys and codeExample from app/(merchant)/developers/page.tsx
+Move fxHistory and pairs from app/(merchant)/fx/page.tsx
+Move mockChartData from app/(admin)/overview/page.tsx
+Update all imports in page files

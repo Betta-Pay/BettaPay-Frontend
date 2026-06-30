@@ -23,7 +23,7 @@ export const MobileBottomNav = () => {
   const pathname = usePathname();
 
   return (
-    <div className="fixed bottom-0 md:hidden left-0 right-0 z-40 bg-card border-t border-border px-2 pt-2 pb-safe sm:pb-3 flex items-center justify-around shadow-[0_-4px_10px_rgba(0,0,0,0.02)]">
+    <div className="fixed bottom-0 md:hidden left-0 right-0 z-40 bg-card border-t border-border px-2 pt-2 pb-safe sm:pb-3 flex items-center justify-around shadow-nav-bottom">
       {mobileNavItems.map((item) => {
         const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
         const Icon = item.icon;

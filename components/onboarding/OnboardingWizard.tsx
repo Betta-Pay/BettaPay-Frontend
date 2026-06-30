@@ -171,7 +171,7 @@ export const OnboardingWizard = () => {
             <div className="flex items-center gap-2">
               {STEPS[currentStep].cta.href ? (
                 <Link href={STEPS[currentStep].cta.href} onClick={handleNext}>
-                  <Button size="sm" className="shadow-sm shadow-primary/20">
+                  <Button size="sm" className="shadow-button">
                     {STEPS[currentStep].cta.label}
                     <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
                   </Button>
@@ -179,7 +179,7 @@ export const OnboardingWizard = () => {
               ) : (
                 <Button
                   size="sm"
-                  className="shadow-sm shadow-primary/20"
+                  className="shadow-button"
                   onClick={() => handleStepCta(STEPS[currentStep])}
                 >
                   {isConnected ? "Connected" : STEPS[currentStep].cta.label}

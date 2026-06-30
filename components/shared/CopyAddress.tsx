@@ -49,7 +49,7 @@ export const CopyAddress = ({
         title="Copy address"
         aria-label={`Copy address ${displayAddress}`}
       >
-        {copied ? <Check className="h-4 w-4 text-emerald-600" /> : <Copy className="h-4 w-4" />}
+        {copied ? <Check className="h-4 w-4 text-success" /> : <Copy className="h-4 w-4" />}
       </Button>
     );
   }
@@ -65,7 +65,7 @@ export const CopyAddress = ({
     >
       <span className="font-mono text-sm">{displayAddress}</span>
       {copied ? (
-        <Check className="h-3.5 w-3.5 text-emerald-600" />
+        <Check className="h-3.5 w-3.5 text-success" />
       ) : (
         <Copy className="h-3.5 w-3.5 text-muted-foreground" />
       )}
