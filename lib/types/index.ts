@@ -12,5 +12,6 @@ export interface User {
 export interface AssetBalance {
   assetCode: string;
   balance: string;
+  assetIssuer?: string;
   usdEquivalent?: number;
 }

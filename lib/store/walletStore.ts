@@ -1,17 +1,43 @@
 import { create } from 'zustand';
 import { AssetBalance } from '../types';
-import { connectFreighter } from '@/lib/stellar/freighter';
+import { connectFreighter, FreighterNotInstalledError, FreighterCancelledError, FreighterNetworkMismatchError } from '@/lib/stellar/freighter';
+import { retryWithBackoff } from '../utils/retry';
 
 type Connector = 'freighter' | 'walletconnect' | null;
+
+const NETWORK_URLS: Record<string, string> = {
+  testnet: 'https://horizon-testnet.stellar.org',
+  public: 'https://horizon.stellar.org',
+};
+
+function getNetwork(): 'testnet' | 'public' {
+  const val = (process.env.NEXT_PUBLIC_STELLAR_NETWORK || 'testnet').toLowerCase();
+  if (val === 'mainnet' || val === 'public') return 'public';
+  return 'testnet';
+}
+
+interface ConnectError {
+  type: 'not_installed' | 'cancelled' | 'network_mismatch' | 'generic';
+  message: string;
+  raw?: string;
+  expectedNetwork?: string;
+  freighterNetwork?: string;
+}
 
 interface WalletState {
   address: string | null;
   isConnected: boolean;
   connector: Connector;
-  network: 'mainnet' | 'testnet';
+  network: 'testnet' | 'public';
   balances: AssetBalance[];
+  loading: boolean;
+  isReconnecting: boolean;
+  error: string | null;
+  connectError: ConnectError | null;
   connect: (connector?: Connector) => Promise<void>;
   disconnect: () => void;
+  clearConnectError: () => void;
+  setNetwork: (network: 'testnet' | 'public') => void;
   refreshBalances: () => Promise<void>;
 }
 
@@ -19,23 +45,25 @@ export const useWalletStore = create<WalletState>((set, get) => ({
   address: null,
   isConnected: false,
   connector: null,
-  network: (process.env.NEXT_PUBLIC_STELLAR_NETWORK as 'mainnet' | 'testnet') || 'testnet',
+  network: getNetwork(),
   balances: [],
+  loading: false,
+  isReconnecting: false,
+  error: null,
 
-  // connect supports specifying a connector. Defaults to freighter when omitted.
   connect: async (connector: Connector = 'freighter') => {
     try {
+      set({ connectError: null });
+
       if (connector === 'freighter') {
         const address = await connectFreighter();
         if (address) {
-          set({ address, isConnected: true, connector: 'freighter' });
+          set({ address, isConnected: true, connector: 'freighter', connectError: null });
           get().refreshBalances();
         } else {
-          throw new Error('Freighter connection failed or was cancelled');
+          throw new Error('Freighter connection failed');
         }
       } else if (connector === 'walletconnect') {
-        // Placeholder lightweight WalletConnect support: prompt for public key until full integration is added.
-        // This avoids blocking the app if the WalletConnect runtime/integration isn't available yet.
         const manual = typeof window !== 'undefined' ? window.prompt('Paste your Stellar public key (WalletConnect placeholder):') : null;
         if (manual) {
           set({ address: manual, isConnected: true, connector: 'walletconnect' });
@@ -48,24 +76,87 @@ export const useWalletStore = create<WalletState>((set, get) => ({
       }
     } catch (error) {
       console.error('Failed to connect wallet', error);
+
+      if (error instanceof FreighterNotInstalledError) {
+        set({ connectError: { type: 'not_installed', message: error.message } });
+      } else if (error instanceof FreighterCancelledError) {
+        set({ connectError: { type: 'cancelled', message: error.message } });
+      } else if (error instanceof FreighterNetworkMismatchError) {
+        set({ connectError: { type: 'network_mismatch', message: error.message, expectedNetwork: error.expectedNetwork, freighterNetwork: error.freighterNetwork } });
+      } else {
+        set({ connectError: { type: 'generic', message: error instanceof Error ? error.message : 'An unexpected error occurred', raw: String(error) } });
+      }
+
       throw error;
     }
   },
 
   disconnect: () => {
-    set({ address: null, isConnected: false, connector: null, balances: [] });
+    set({ address: null, isConnected: false, connector: null, balances: [], loading: false, isReconnecting: false, error: null, connectError: null });
+  },
+
+  clearConnectError: () => {
+    set({ connectError: null });
+  },
+
+  setNetwork: (network: 'testnet' | 'public') => {
+    set({ network });
+    get().refreshBalances();
   },
 
   refreshBalances: async () => {
-    const { address } = get();
+    const { address, network } = get();
     if (!address) return;
 
-    // TODO: replace mock data with actual Horizon queries
-    set({
-      balances: [
-        { assetCode: 'USDC', balance: '14500.00', usdEquivalent: 14500.00 },
-        { assetCode: 'XLM', balance: '250.50', usdEquivalent: 25.05 },
-      ]
-    });
-  }
+    set({ loading: true, error: null, isReconnecting: false });
+
+    const horizonUrl = NETWORK_URLS[network];
+
+    try {
+      const result = await retryWithBackoff(async () => {
+        const response = await fetch(`${horizonUrl}/accounts/${address}`);
+
+        if (!response.ok) {
+          if (response.status === 404) {
+            return 'NOT_FOUND' as const;
+          }
+          throw new Error(`Horizon error: ${response.status} ${response.statusText}`);
+        }
+
+        return await response.json();
+      }, {
+        maxRetries: 3,
+        onRetry: () => { set({ isReconnecting: true }); },
+      });
+
+      set({ isReconnecting: false });
+
+      if (result === 'NOT_FOUND') {
+        set({ balances: [], loading: false });
+        return;
+      }
+
+      const data = result as { balances: Array<{ asset_type: string; balance: string; asset_code?: string; asset_issuer?: string }> };
+
+      const balances: AssetBalance[] = data.balances.map((b) => {
+        if (b.asset_type === 'native') {
+          return { assetCode: 'XLM', balance: b.balance };
+        }
+        return {
+          assetCode: b.asset_code!,
+          balance: b.balance,
+          assetIssuer: b.asset_issuer,
+        };
+      });
+
+      set({ balances, loading: false, error: null });
+    } catch (error) {
+      console.error('Failed to refresh balances', error);
+      set({
+        loading: false,
+        isReconnecting: false,
+        error: error instanceof Error ? error.message : 'Failed to fetch balances',
+      });
+    }
+  },
 }));

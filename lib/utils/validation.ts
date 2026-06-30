@@ -17,7 +17,7 @@ function validatePassword(password: string): string[] {
     .map(({ label }) => label);
 }
 
-const strongPasswordSchema = z.string().superRefine((password, ctx) => {
+export const strongPasswordSchema = z.string().superRefine((password, ctx) => {
   const unmet = validatePassword(password);
   if (unmet.length > 0) {
     ctx.addIssue({

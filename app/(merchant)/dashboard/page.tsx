@@ -17,13 +17,9 @@ import {
   CreditCard,
   RefreshCcw,
   Plus,
-  Copy,
-  ExternalLink,
   TrendingUp,
   Zap,
   ChevronRight,
-  BarChart3,
-  ArrowRight,
 } from 'lucide-react';
 import { TransactionDetail } from '@/components/transactions/TransactionDetail';
 import { Transaction } from '@/lib/mock/transactions';
@@ -37,6 +33,43 @@ const RevenueChart = dynamic(() => import('@/components/charts/RevenueChart'), {
   ssr: false,
   loading: () => <Skeleton className="h-[260px] w-full rounded-xl" />,
 });
+
+const QuickActions = dynamic(() => import('@/components/dashboard/QuickActions').then(m => ({ default: m.QuickActions })), {
+  loading: () => <Skeleton className="lg:col-span-3 h-48 rounded-xl" />,
+});
+
+const PaymentLinkPerformance = dynamic(() => import('@/components/dashboard/PaymentLinkPerformance').then(m => ({ default: m.PaymentLinkPerformance })), {
+  loading: () => <Skeleton className="lg:col-span-4 h-48 rounded-xl" />,
+});
+
+type DashboardTransaction = Transaction & {
+  label: string;
+  amount: number;
+  time: string;
+  address: string;
+};
+
+const mockTransactions: DashboardTransaction[] = realTransactions.slice(0, 5).map((tx, i) => {
+  const oldData: Array<Pick<DashboardTransaction, 'label' | 'amount' | 'time'>> = [
+    { label: 'Consulting Retainer', amount: 750, time: '2m ago' },
+    { label: 'E-commerce Payment', amount: 45.5, time: '18m ago' },
+    { label: 'Invoice #1042', amount: 1200, time: '1h ago' },
+    { label: 'Subscription Fee', amount: 29, time: '3h ago' },
+    { label: 'Freelance Project', amount: 3500, time: '5h ago' },
+  ];
+  return {
+    ...tx,
+    ...oldData[i],
+    amountUsdc: oldData[i].amount,
+    address: tx.payerAddress.substring(0, 4) + '...' + tx.payerAddress.substring(tx.payerAddress.length - 4),
+  };
+});
+
+const mockPaymentLinks = [
+  { id: 'link_01', label: 'Consulting Retainer Q3', url: 'betta.pay/pay/link_01', clicks: 24, converted: 8 },
+  { id: 'link_02', label: 'E-commerce Checkout', url: 'betta.pay/pay/link_02', clicks: 112, converted: 47 },
+  { id: 'link_03', label: 'Donation Campaign', url: 'betta.pay/pay/link_03', clicks: 58, converted: 19 },
+];
 
 const PERIOD_OPTIONS = ['7D', '30D', '90D'] as const;
 type Period = typeof PERIOD_OPTIONS[number];
@@ -267,106 +300,13 @@ export default function DashboardPage() {
 
       {/* ── Bottom Row: Quick Actions + Payment Link Performance ── */}
       <div className="grid gap-6 lg:grid-cols-7">
-
-        {/* Quick Actions */}
-        <Card className="lg:col-span-3 border border-border bg-card shadow-sm">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base font-semibold text-foreground">Quick Actions</CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0 grid grid-cols-2 gap-3">
-            {[
-              { label: 'Create Payment Link', icon: Plus, href: '/payments', color: 'amber' },
-              { label: 'View Transactions', icon: BarChart3, href: '/transactions', color: 'blue' },
-              { label: 'Settle Funds', icon: Wallet, href: '/settlement', color: 'emerald' },
-              { label: 'Check FX Rate', icon: RefreshCcw, href: '/fx', color: 'purple' },
-            ].map(({ label, icon: Icon, href, color }) => (
-              <Link key={href} href={href}>
-                <div className={cn(
-                  'flex flex-col gap-3 p-4 rounded-xl border cursor-pointer transition-all hover:scale-[1.02] hover:shadow-sm',
-                  color === 'amber' && 'border-primary/30 bg-primary/10 hover:bg-primary/20',
-                  color === 'blue' && 'border-blue-200 bg-blue-50 hover:bg-blue-100',
-                  color === 'emerald' && 'border-emerald-200 bg-emerald-50 hover:bg-emerald-100',
-                  color === 'purple' && 'border-purple-200 bg-purple-50 hover:bg-purple-100',
-                )}>
-                  <Icon className={cn(
-                    'w-5 h-5',
-                    color === 'amber' && 'text-primary',
-                    color === 'blue' && 'text-blue-600',
-                    color === 'emerald' && 'text-emerald-600',
-                    color === 'purple' && 'text-purple-600',
-                  )} />
-                  <p className="text-xs font-semibold text-foreground leading-tight">{label}</p>
-                </div>
-              </Link>
-            ))}
-          </CardContent>
-        </Card>
-
-        {/* Payment Link Performance */}
-        <Card className="lg:col-span-4 border border-border bg-card shadow-sm">
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-base font-semibold text-foreground">Payment Link Performance</CardTitle>
-              <Link href="/payments">
-                <Button variant="ghost" className="text-xs text-primary hover:text-primary hover:bg-primary/10 min-h-[44px] px-2 rounded-lg font-semibold">
-                  Manage <ArrowRight className="w-3 h-3 ml-0.5" />
-                </Button>
-              </Link>
-            </div>
-          </CardHeader>
-          <CardContent className="pt-0">
-            {linksError ? (
-              <div className="py-8">
-                <ErrorDisplay
-                  message="Failed to load payment links"
-                  onRetry={() => setLinksError(false)}
-                />
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {mockPaymentLinks.map((link) => {
-                  const conversionRate = Math.round((link.converted / link.clicks) * 100);
-                  return (
-                    <Link
-                      key={link.id}
-                      href={`/payments/${link.id}`}
-                      className="flex items-center gap-4 p-3 rounded-xl border border-border hover:border-border hover:bg-muted/50 transition-all group"
-                    >
-                      <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center flex-shrink-0">
-                        <CreditCard className="w-4 h-4 text-primary" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-foreground truncate">{link.label}</p>
-                        <p className="text-xs text-muted-foreground font-mono truncate">{link.url}</p>
-                        <div className="flex items-center gap-2 mt-1.5">
-                          <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
-                            <div
-                              className="h-full bg-amber-400 rounded-full"
-                              style={{ width: `${conversionRate}%` }}
-                            />
-                          </div>
-                          <span className="text-xs text-muted-foreground font-medium">{conversionRate}%</span>
-                        </div>
-                      </div>
-                      <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                        <span className="text-sm font-bold text-foreground">{link.converted}</span>
-                        <span className="text-xs text-muted-foreground">{link.clicks} clicks</span>
-                      </div>
-                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Button variant="ghost" size="icon" aria-label="Copy payment link" className="min-h-[44px] min-w-[44px] rounded-lg" onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleCopy(`https://${link.url}`); }}>
-                          <Copy className="w-3 h-3 text-muted-foreground" />
-                        </Button>
-                        <Button variant="ghost" size="icon" aria-label="Open payment link" className="min-h-[44px] min-w-[44px] rounded-lg" onClick={(e) => { e.preventDefault(); e.stopPropagation(); window.open(`https://${link.url}`, '_blank'); }}>
-                          <ExternalLink className="w-3 h-3 text-muted-foreground" />
-                        </Button>
-                      </div>
-                    </Link>
-                  );
-                })}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        <QuickActions />
+        <PaymentLinkPerformance
+          links={mockPaymentLinks}
+          error={linksError}
+          onRetry={() => setLinksError(false)}
+          onCopy={(url) => handleCopy(url)}
+        />
       </div>
 
       <TransactionDetail 
