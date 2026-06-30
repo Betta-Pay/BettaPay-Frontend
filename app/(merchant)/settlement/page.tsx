@@ -79,8 +79,7 @@ export default function SettlementPage() {
 
       {/* Balance summary */}
       <div className="grid gap-3 grid-cols-2 sm:grid-cols-3">
-        <Card className="border border-border bg-card shadow-sm relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-amber-50/60 to-transparent pointer-events-none" />
+        <Card className="border border-border border-t-2 border-t-amber-200 bg-card shadow-sm">
           <CardHeader className="pb-2 relative">
             <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Available to Settle</CardTitle>
           </CardHeader>

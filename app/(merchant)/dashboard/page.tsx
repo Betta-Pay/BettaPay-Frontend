@@ -90,8 +90,7 @@ const StatCards = memo(function StatCards({ error, onRetry }: StatCardsProps) {
   return (
     <>
       {/* Card 1 */}
-      <Card className="relative overflow-hidden border border-border bg-card shadow-sm hover:shadow-md transition-shadow">
-        <div className="absolute inset-0 bg-gradient-to-br from-amber-50/60 to-transparent pointer-events-none" />
+      <Card className="relative overflow-hidden border border-border border-t-2 border-t-amber-200 bg-card shadow-sm hover:shadow-md transition-shadow">
         <CardHeader className="flex flex-row items-center justify-between pb-2 relative">
           <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
             Total Volume (30d)
@@ -113,7 +112,6 @@ const StatCards = memo(function StatCards({ error, onRetry }: StatCardsProps) {
 
       {/* Card 2 */}
       <Card className="relative overflow-hidden border border-border bg-card shadow-sm hover:shadow-md transition-shadow">
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-50/60 to-transparent pointer-events-none" />
         <CardHeader className="flex flex-row items-center justify-between pb-2 relative">
           <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
             Active Payment Links
@@ -132,7 +130,6 @@ const StatCards = memo(function StatCards({ error, onRetry }: StatCardsProps) {
 
       {/* Card 3 */}
       <Card className="relative overflow-hidden border border-border bg-card shadow-sm hover:shadow-md transition-shadow">
-        <div className="absolute inset-0 bg-gradient-to-br from-emerald-50/60 to-transparent pointer-events-none" />
         <CardHeader className="flex flex-row items-center justify-between pb-2 relative">
           <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
             Available to Settle
@@ -154,7 +151,6 @@ const StatCards = memo(function StatCards({ error, onRetry }: StatCardsProps) {
 
       {/* Card 4 */}
       <Card className="relative overflow-hidden border border-border bg-card shadow-sm hover:shadow-md transition-shadow">
-        <div className="absolute inset-0 bg-gradient-to-br from-purple-50/60 to-transparent pointer-events-none" />
         <CardHeader className="flex flex-row items-center justify-between pb-2 relative">
           <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
             Current FX Rate
