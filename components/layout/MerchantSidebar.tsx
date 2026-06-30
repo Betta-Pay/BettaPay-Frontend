@@ -39,7 +39,7 @@ export const MerchantSidebar = () => {
       <div className="p-5 border-b border-border">
         <Link href="/dashboard" className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-xl bg-primary flex items-center justify-center shadow-sm shadow-primary/20">
-            <ShieldCheck className="w-4.5 h-4.5 text-primary-foreground" />
+            <ShieldCheck className="w-4 h-4 text-primary-foreground" />
           </div>
           <span className="font-bold text-xl tracking-tight text-foreground">
             BettaPay
@@ -67,7 +67,7 @@ export const MerchantSidebar = () => {
             >
               <Icon
                 className={cn(
-                  "w-4.5 h-4.5",
+                  "w-4 h-4",
                   isActive ? "text-primary" : "text-muted-foreground",
                 )}
               />

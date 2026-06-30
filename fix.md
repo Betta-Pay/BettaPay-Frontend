@@ -1,17 +1,15 @@
-Description: The KPI stat card pattern (icon + title + value + trend) is repeated inline across 3 pages with ~11 instances total. A reusable StatCard component would reduce duplication and ensure consistent styling.
+Description: Icons across the app use inconsistent sizing: w-4 h-4, w-4.5 h-4.5 (non-standard), w-5 h-5, w-3 h-3, w-3.5 h-3.5. The w-4.5 h-4.5 class is not a standard Tailwind size and may not render correctly. A consistent icon size system improves polish.
 
 Requirements:
 
-Create components/shared/StatCard.tsx
-Props: title, value (ReactNode), icon, trend?, trendLabel?, color? (amber/blue/emerald/purple), className?
-Handle the gradient overlay, icon background, and trend display internally
-Use the component in dashboard, settlement, and admin overview pages
+Define icon size tokens: icon-sm (12px/3), icon-md (16px/4), icon-lg (20px/5), icon-xl (24px/6)
+Remove non-standard sizes like w-4.5 h-4.5
+Use the size tokens consistently: sidebar icons = icon-md, card header icons = icon-md, button icons = icon-sm
+Create a Tailwind utility or CSS variable for icon sizes
 Suggested execution steps:
 
-Create components/shared/StatCard.tsx
-Define the prop interface with all needed fields
-Implement the card with gradient overlay, icon, value, and optional trend
-Replace the 4 inline stat cards in app/(merchant)/dashboard/page.tsx
-Replace the 3 stat cards in app/(merchant)/settlement/page.tsx
-Replace the 4 stat cards in app/(admin)/overview/page.tsx
-Verify all look identical to the original
+Search for w-4.5 and h-4.5 across the codebase — replace with w-4 h-4 or w-5 h-5
+Define icon size classes or use Tailwind's consistent sizes
+In MerchantSidebar.tsx, change w-4.5 h-4.5 → w-4 h-4
+In Topbar.tsx, change h-4.5 w-4.5 → h-4 w-4
+Create an icon size convention document

@@ -85,7 +85,7 @@ export default function MerchantLoading() {
                   </div>
                   <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
                     <Skeleton className="h-3.5 w-12 bg-muted" />
-                    <Skeleton className="h-4.5 w-16 rounded-full bg-muted" />
+                    <Skeleton className="h-4 w-16 rounded-full bg-muted" />
                   </div>
                 </div>
               ))}
