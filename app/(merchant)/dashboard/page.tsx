@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useCallback, memo } from 'react';
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, memo, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -31,6 +30,9 @@ import { useNotify } from '@/lib/hooks/useNotify';
 import { cn } from '@/lib/utils';
 import { RevenueChartSection } from '@/components/dashboard/RevenueChartSection';
 
+const PERIOD_OPTIONS = ['7D', '30D', '90D'] as const;
+type Period = typeof PERIOD_OPTIONS[number];
+
 const QuickActions = dynamic(
   () => import('@/components/dashboard/QuickActions').then((m) => ({ default: m.QuickActions })),
   { loading: () => <Skeleton className="lg:col-span-3 h-48 rounded-xl" /> }
@@ -43,38 +45,6 @@ const PaymentLinkPerformance = dynamic(
     })),
   { loading: () => <Skeleton className="lg:col-span-4 h-48 rounded-xl" /> }
 );
-
-type DashboardTransaction = Transaction & {
-  label: string;
-  amount: number;
-  time: string;
-  address: string;
-};
-
-const mockTransactions: DashboardTransaction[] = realTransactions.slice(0, 5).map((tx, i) => {
-  const oldData: Array<Pick<DashboardTransaction, 'label' | 'amount' | 'time'>> = [
-    { label: 'Consulting Retainer', amount: 750, time: '2m ago' },
-    { label: 'E-commerce Payment', amount: 45.5, time: '18m ago' },
-    { label: 'Invoice #1042', amount: 1200, time: '1h ago' },
-    { label: 'Subscription Fee', amount: 29, time: '3h ago' },
-    { label: 'Freelance Project', amount: 3500, time: '5h ago' },
-  ];
-  return {
-    ...tx,
-    ...oldData[i],
-    amountUsdc: oldData[i].amount,
-    address:
-      tx.payerAddress.substring(0, 4) +
-      '...' +
-      tx.payerAddress.substring(tx.payerAddress.length - 4),
-  };
-});
-
-const mockPaymentLinks = [
-  { id: 'link_01', label: 'Consulting Retainer Q3', url: 'betta.pay/pay/link_01', clicks: 24, converted: 8 },
-  { id: 'link_02', label: 'E-commerce Checkout', url: 'betta.pay/pay/link_02', clicks: 112, converted: 47 },
-  { id: 'link_03', label: 'Donation Campaign', url: 'betta.pay/pay/link_03', clicks: 58, converted: 19 },
-];
 
 // ── Memoised stat cards — won't re-render when period or tx selection changes ──
 interface StatCardsProps {
@@ -190,22 +160,21 @@ const [isLoading, setIsLoading] = useState(true);
 
   const firstName = user?.name?.split(' ')[0] ?? 'Merchant';
 
-const handleCopy = useCallback(
+  const handleCopy = useCallback(
     (text: string) => {
       navigator.clipboard.writeText(text);
       notify.success('Copied to clipboard');
     },
     [notify]
   );
-useEffect(() => {
+  useEffect(() => {
     const timer = setTimeout(() => setIsLoading(false), 500);
     return () => clearTimeout(timer);
   }, []);
 
-  const handleCopy = useCallback((text: string) => {
-  }, [notify]);
   const handlePeriodChange = useCallback((p: Period) => {
     setActivePeriod(p);
+  }, []);
 
   const toggleSimulation = () => {
     const nextState = !simulationEnabled;
@@ -600,12 +569,14 @@ useEffect(() => {
         </Card>
       </div>
 
-<TransactionDetail
-</>)}
-        transaction={selectedTx}
-        isOpen={!!selectedTx}
-        onClose={() => setSelectedTx(null)}
-      />
+          <TransactionDetail
+            transaction={selectedTx}
+            isOpen={!!selectedTx}
+            onClose={() => setSelectedTx(null)}
+          />
+        </>
+      )}
     </div>
   );
 }
+

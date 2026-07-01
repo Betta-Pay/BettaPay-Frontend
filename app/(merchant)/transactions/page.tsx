@@ -1,10 +1,8 @@
 "use client";
 
-import { useState, memo, useMemo, useRef } from 'react';
+import { useState, memo, useMemo, useRef, useEffect } from 'react';
 import { useDebounceValue } from 'usehooks-ts';
-import { useState, memo, useMemo, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -24,56 +22,7 @@ import { TransactionDetail } from '@/components/transactions/TransactionDetail';
 import { Transaction } from '@/lib/mock/transactions';
 import { useOfflineStore } from '@/lib/store/offlineStore';
 
-interface TransactionRowProps {
-  tx: Transaction;
-  onClick: (tx: Transaction) => void;
-}
 
-const TransactionRow = memo(function TransactionRow({ tx, onClick }: TransactionRowProps) {
-  return (
-    <TableRow
-      className="border-border/50 hover:bg-muted/30 cursor-pointer"
-      onClick={() => onClick(tx)}
-    >
-      <TableCell className="text-muted-foreground whitespace-nowrap">
-        {formatDate(tx.timestamp)}
-      </TableCell>
-      <TableCell>
-        <CopyAddress address={tx.payerAddress} />
-      </TableCell>
-      <TableCell>
-        <CopyAddress address={tx.txHash} />
-      </TableCell>
-      <TableCell className="text-muted-foreground">
-        {tx.source}
-      </TableCell>
-      <TableCell className="text-right font-medium">
-        <CurrencyDisplay amount={tx.amountUsdc} currency="USDC" />
-      </TableCell>
-      <TableCell className="text-right text-muted-foreground">
-        <CurrencyDisplay amount={tx.amountNgn} currency="NGN" showDecimals={false} />
-      </TableCell>
-      <TableCell className="text-center">
-        <StatusBadge status={tx.status} />
-      </TableCell>
-      <TableCell className="text-center">
-        {tx.txHash && (
-          <a
-            href={getStellarExplorerTxUrl(tx.txHash)}
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label="View on Stellar Explorer"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg">
-              <ExternalLink className="w-3.5 h-3.5 text-muted-foreground" />
-            </Button>
-          </a>
-        )}
-      </TableCell>
-    </TableRow>
-  );
-});
 
 interface TransactionCardProps {
   tx: Transaction;

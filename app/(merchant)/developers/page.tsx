@@ -1,7 +1,6 @@
 "use client";
 import { useState, useCallback } from 'react';
 import dynamic from 'next/dynamic';
-import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,7 +16,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useOfflineStore } from '@/lib/store/offlineStore';
-import { mockKeys, codeExample } from '@/lib/mock/developers';
 
 const CodeExample = dynamic(() => import('@/components/developers/CodeExample').then(m => ({ default: m.CodeExample })), {
   loading: () => <Skeleton className="h-64 rounded-xl" />,
