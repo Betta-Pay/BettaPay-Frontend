@@ -210,16 +210,16 @@ export default function PaymentLinkDetailPage() {
       value: linkDetails.uniquePayers.toLocaleString(),
       icon: Users,
       gradient: "from-blue-50/60 to-transparent",
-      iconBg: "bg-blue-100",
-      iconColor: "text-blue-600",
+      iconBg: "bg-info/20",
+      iconColor: "text-info",
     },
     {
       label: "Conversion Rate",
       value: `${conversionRate}%`,
       icon: TrendingUp,
       gradient: "from-emerald-50/60 to-transparent",
-      iconBg: "bg-emerald-100",
-      iconColor: "text-emerald-600",
+      iconBg: "bg-success/20",
+      iconColor: "text-success",
     },
     {
       label: "Total Revenue",
@@ -254,7 +254,7 @@ export default function PaymentLinkDetailPage() {
               "text-xs font-semibold px-2 py-0.5 rounded-full",
               isDeactivated
                 ? "bg-destructive/10 text-destructive"
-                : "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
+                : "bg-success/20 text-success dark:bg-success/10 dark:text-emerald-400"
             )}>
               {isDeactivated ? "Deactivated" : "Active"}
             </span>
@@ -454,10 +454,10 @@ export default function PaymentLinkDetailPage() {
             </DialogDescription>
           </DialogHeader>
           <div className="py-4 space-y-3">
-            <div className="flex items-start gap-3 p-3 rounded-xl border border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950/30">
+            <div className="flex items-start gap-3 p-3 rounded-xl border border-destructive/20 bg-destructive/10 dark:border-red-800 dark:bg-red-950/30">
               <AlertTriangle className="w-4 h-4 text-destructive shrink-0 mt-0.5" />
               <div>
-                <p className="text-xs font-semibold text-red-800 dark:text-red-300">
+                <p className="text-xs font-semibold text-destructive dark:text-red-300">
                   This action cannot be undone
                 </p>
                 <p className="text-xs text-red-700 dark:text-red-400 mt-0.5">

@@ -5,7 +5,7 @@ import { Providers } from "@/components/providers";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 
-const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
+const inter = Inter({ subsets: ["latin"], variable: "--font-sans", display: "swap" });
 
 export const metadata: Metadata = {
   title: "BettaPay | Non-custodial Merchant Platform",

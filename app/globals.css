@@ -15,8 +15,25 @@
    * muted, primary, etc.) in Tailwind classes instead of brand-specific
    * aliases or hardcoded surface/text colors. The .dark block below must
    * define the same token set so components adapt by theme.
+   *
+   * COLOR EXCEPTION LIST (DO NOT REPLACE):
+   * - Stellar Wallet Modal / Tooltips: Elements meant to strictly look like 
+   *   Stellar-branded UI (e.g. `bg-slate-900`) must remain dark.
+   * - Code Blocks: Syntax highlighting elements (e.g. `text-emerald-400` in <pre>)
+   *   should not adapt to theme if they rely on specific contrast against dark blocks.
+   * - Brand Logos: Background wrappers for external logos that require specific contrast.
    */
   :root {
+    /* ── Shadow tokens ── */
+    --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.05), 0 1px 2px -1px rgb(0 0 0 / 0.05);
+    --shadow-card-hover: 0 4px 6px -1px rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.07);
+    --shadow-button: 0 1px 3px 0 rgb(0 0 0 / 0.08), 0 0 0 1px rgb(240 165 0 / 0.15);
+    --shadow-dropdown: 0 4px 6px -1px rgb(0 0 0 / 0.08), 0 2px 4px -2px rgb(0 0 0 / 0.06), 0 0 0 1px rgb(0 0 0 / 0.05);
+    --shadow-glow: 0 0 20px rgba(240, 165, 0, 0.3);
+    --shadow-glow-hover: 0 0 25px rgba(240, 165, 0, 0.5);
+    --shadow-nav-bottom: 0 -4px 10px rgb(0 0 0 / 0.04);
+    --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+
     --background: #FFFFFF;
     --foreground: #0F172A;
     --card: #FFFFFF;
@@ -33,6 +50,12 @@
     --accent-foreground: #0F172A;
     --destructive: #EF4444;
     --destructive-foreground: #FFFFFF;
+    --success: #10B981;
+    --success-foreground: #FFFFFF;
+    --warning: #F59E0B;
+    --warning-foreground: #FFFFFF;
+    --info: #3B82F6;
+    --info-foreground: #FFFFFF;
     --border: #E2E8F0;
     --input: #F8FAFC;
     --ring: #F0A500;
@@ -54,6 +77,16 @@
   }
 
   .dark {
+    /* ── Shadow tokens (dark mode — lighter, more diffuse) ── */
+    --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.2), 0 1px 2px -1px rgb(0 0 0 / 0.2);
+    --shadow-card-hover: 0 4px 6px -1px rgb(0 0 0 / 0.3), 0 2px 4px -2px rgb(0 0 0 / 0.25);
+    --shadow-button: 0 1px 3px 0 rgb(0 0 0 / 0.25), 0 0 0 1px rgb(251 191 36 / 0.2);
+    --shadow-dropdown: 0 4px 6px -1px rgb(0 0 0 / 0.35), 0 2px 4px -2px rgb(0 0 0 / 0.3), 0 0 0 1px rgb(255 255 255 / 0.05);
+    --shadow-glow: 0 0 20px rgba(251, 191, 36, 0.25);
+    --shadow-glow-hover: 0 0 25px rgba(251, 191, 36, 0.4);
+    --shadow-nav-bottom: 0 -4px 10px rgb(0 0 0 / 0.15);
+    --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.4), 0 8px 10px -6px rgb(0 0 0 / 0.35);
+
     --background: #0F172A;
     --foreground: #F8FAFC;
     --card: #1E293B;
@@ -70,6 +103,12 @@
     --accent-foreground: #F8FAFC;
     --destructive: #F87171;
     --destructive-foreground: #0F172A;
+    --success: #34D399;
+    --success-foreground: #0F172A;
+    --warning: #FBBF24;
+    --warning-foreground: #0F172A;
+    --info: #60A5FA;
+    --info-foreground: #0F172A;
     --border: #334155;
     --input: #1E293B;
     --ring: #FBBF24;

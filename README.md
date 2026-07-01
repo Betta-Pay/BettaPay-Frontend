@@ -119,21 +119,26 @@ To explicitly signal mock mode, you can leave `NEXT_PUBLIC_API_URL` unset or poi
 
 Create a `.env.local` in the frontend package root (or set in your deployment platform):
 
-```bash
-# Backend API base URL — omit or leave blank to run in mock mode
-NEXT_PUBLIC_API_URL=http://localhost:3001
-
-# Stellar network: testnet | mainnet (default: testnet)
-NEXT_PUBLIC_STELLAR_NETWORK=testnet
-
-# Horizon URL (default points to testnet)
-NEXT_PUBLIC_STELLAR_HORIZON_URL=https://horizon-testnet.stellar.org
-
-# Soroban contract ID for settlement (a demo default is provided)
-NEXT_PUBLIC_SETTLEMENT_CONTRACT_ID=<your-contract-id>
-```
+| Variable | Required | Default | Description | Example |
+|---|---|---|---|---|
+| `NEXT_PUBLIC_API_URL` | No | `http://localhost:3001` | Backend API base URL. When unset or unreachable, the app falls back to **mock mode** — login appears to succeed, but no HttpOnly auth cookies are set and API calls return mock/empty data. Useful for UI development without a running backend. | `https://api.bettapay.com` |
+| `NEXT_PUBLIC_STELLAR_NETWORK` | No | `testnet` | Stellar network to connect to. Valid values: `testnet` (development/friendbot funding) or `mainnet` (production/live assets). Also accepts `public` as an alias for `mainnet`. Must match the network your Freighter wallet is configured for. | `mainnet` |
+| `NEXT_PUBLIC_STELLAR_HORIZON_URL` | No | `https://horizon-testnet.stellar.org` | Horizon RPC endpoint for querying Stellar ledger data. Defaults to the testnet Horizon instance. Set to `https://horizon.stellar.org` for mainnet, or a custom Horizon URL if running a private Stellar network or using a load-balanced endpoint. | `https://horizon.stellar.org` |
+| `NEXT_PUBLIC_SETTLEMENT_CONTRACT_ID` | No | Embedded demo default | Soroban smart contract ID for settlement logic. If not set, the app uses a hardcoded demo contract ID (`CBGBGKJSUY7XYB6HWW4CVAU6MW2KD25FSF45E5KCP53TKUK374MBZNFB`). In production, deploy your own contract and set this to its ID. | `CA3D...XYZ` |
 
 > **Security:** never put secrets or private keys in `NEXT_PUBLIC_*` variables — they are exposed to the browser.
+
+### Environment file precedence (Next.js + Vercel)
+
+Next.js loads environment variables from `.env` files in this order (later files override earlier ones):
+
+1. `.env.development` — used only when running `next dev`
+2. `.env.production` — used only when running `next start` or during build
+3. `.env.local` — **overrides all others** and is **never committed to git**
+
+For local development, create a `.env.local` file. The values there will take precedence over any other `.env` files.
+
+When deploying to **Vercel**, set environment variables in the **Vercel Dashboard** (Project Settings → Environment Variables) rather than relying on `.env.production` files in the repo. Vercel does not read `.env.local` from the repository during deployment — you must configure production/ preview/development variables in the Vercel UI or CLI.
 
 ---
 

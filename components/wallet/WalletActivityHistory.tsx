@@ -4,7 +4,8 @@ import { memo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/shared/EmptyState';
-import { ArrowUpRight, ArrowDownLeft, Inbox, RefreshCcw } from 'lucide-react';
+import { ArrowUpRight, ArrowDownLeft, Inbox, RefreshCcw, ExternalLink } from 'lucide-react';
+import { getStellarExplorerTxUrl } from '@/lib/utils/explorer';
 
 interface WalletTx {
   id: string;
@@ -12,13 +13,14 @@ interface WalletTx {
   label: string;
   amount: number;
   time: string;
+  txHash?: string;
 }
 
 const mockTxHistory: WalletTx[] = [
-  { id: 'w1', type: 'receive', label: 'Payment from link_02', amount: 45.5, time: '2h ago' },
-  { id: 'w2', type: 'receive', label: 'Payment from link_01', amount: 750, time: '5h ago' },
+  { id: 'w1', type: 'receive', label: 'Payment from link_02', amount: 45.5, time: '2h ago', txHash: '0x1234567890abcdef1234567890abcdef12345678' },
+  { id: 'w2', type: 'receive', label: 'Payment from link_01', amount: 750, time: '5h ago', txHash: '0xabcdef1234567890abcdef1234567890abcdef12' },
   { id: 'w3', type: 'send', label: 'Settlement to GTBank', amount: 1200, time: 'Yesterday' },
-  { id: 'w4', type: 'receive', label: 'Payment from link_03', amount: 29, time: 'Yesterday' },
+  { id: 'w4', type: 'receive', label: 'Payment from link_03', amount: 29, time: 'Yesterday', txHash: '0x9999999999abcdef1234567890abcdef12345678' },
 ];
 
 const WalletActivityItem = memo(function WalletActivityItem({ tx }: { tx: WalletTx }) {
@@ -38,6 +40,18 @@ const WalletActivityItem = memo(function WalletActivityItem({ tx }: { tx: Wallet
       <span className={`text-sm font-semibold ${tx.type === 'receive' ? 'text-emerald-600' : 'text-foreground'}`}>
         {tx.type === 'receive' ? '+' : '-'}{tx.amount.toFixed(2)} USDC
       </span>
+      {tx.txHash && (
+        <a
+          href={getStellarExplorerTxUrl(tx.txHash)}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="View transaction on Stellar Explorer"
+        >
+          <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg">
+            <ExternalLink className="w-3.5 h-3.5 text-muted-foreground" />
+          </Button>
+        </a>
+      )}
     </div>
   );
 });

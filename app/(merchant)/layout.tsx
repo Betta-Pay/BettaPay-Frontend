@@ -24,6 +24,11 @@ export default function MerchantLayout({
     setMobileMenuOpen(false);
   }, []);
 
+  useEffect(() => {
+    router.prefetch("/transactions");
+    router.prefetch("/payments");
+  }, [router]);
+
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       <MerchantSidebar />

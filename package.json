@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "jest"
+    "test": "jest --passWithNoTests",
+    "test:watch": "jest --watch",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",
@@ -16,6 +18,7 @@
     "@stellar/stellar-sdk": "^15.1.0",
     "@tanstack/react-query": "^5.101.0",
     "@tanstack/react-table": "^8.21.3",
+    "@tanstack/react-virtual": "^3.14.4",
     "axios": "^1.17.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -39,6 +42,7 @@
     "zustand": "^5.0.14"
   },
   "devDependencies": {
+    "@next/bundle-analyzer": "^16.2.9",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.1",
@@ -51,6 +55,7 @@
     "jest": "^30.4.2",
     "jest-environment-jsdom": "^30.4.1",
     "postcss": "^8",
+    "@playwright/test": "^1.52.0",
     "tailwindcss": "^3.4.1",
     "typescript": "^5"
   }

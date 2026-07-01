@@ -18,6 +18,7 @@ import {
   DialogFooter
 } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { trimInput } from '@/lib/utils/sanitize';
 import { useNotify } from '@/lib/hooks/useNotify';
 import { mockLinks, type PaymentLink } from '@/lib/mock/paymentLinks';
 
@@ -67,7 +68,8 @@ export default function PaymentsPage() {
 
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!labelValue.trim()) {
+    const sanitizedLabel = trimInput(labelValue);
+    if (!sanitizedLabel) {
       setLabelError('Label is required');
       return;
     }
@@ -114,7 +116,7 @@ export default function PaymentsPage() {
                   aria-invalid={labelError ? "true" : "false"}
                   aria-describedby={labelError ? "label-error" : undefined}
                 />
-                {labelError && <p id="label-error" className="text-xs text-red-500 mt-1">{labelError}</p>}
+                {labelError && <p id="label-error" className="text-xs text-destructive mt-1">{labelError}</p>}
               </div>
 
               <div className="space-y-2">

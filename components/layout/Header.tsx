@@ -26,7 +26,7 @@ export default function Header() {
             <Button variant="ghost" className="text-muted-foreground hover:text-foreground font-medium">Log in</Button>
           </Link>
           <Link href="/auth/register">
-            <Button className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-sm shadow-primary/20">Get started</Button>
+            <Button className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-button">Get started</Button>
           </Link>
         </div>
       </div>
