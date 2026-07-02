@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, memo } from 'react';
+import { useState, memo, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -61,7 +61,13 @@ const PaymentLinkCard = memo(function PaymentLinkCard({ link }: PaymentLinkCardP
 });
 
 export default function PaymentsPage() {
+  const [, setIsLoading] = useState(true);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setIsLoading(false), 500);
+    return () => clearTimeout(timer);
+  }, []);
   const [labelError, setLabelError] = useState('');
   const [labelValue, setLabelValue] = useState('');
   const notify = useNotify();

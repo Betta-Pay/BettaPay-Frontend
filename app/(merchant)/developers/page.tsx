@@ -16,7 +16,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useOfflineStore } from '@/lib/store/offlineStore';
-import { mockKeys, codeExample } from '@/lib/mock/developers';
 
 const CodeExample = dynamic(() => import('@/components/developers/CodeExample').then(m => ({ default: m.CodeExample })), {
   loading: () => <Skeleton className="h-64 rounded-xl" />,

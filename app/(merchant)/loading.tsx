@@ -1,43 +1,18 @@
-import React from "react";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function MerchantLoading() {
   return (
-    <div className="space-y-8 pb-8">
-      {/* Welcome Header Skeleton */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="space-y-2">
-          {/* Tagline */}
-          <Skeleton className="h-3 w-28 bg-muted" />
-          {/* Title */}
-          <Skeleton className="h-9 w-64 bg-muted" />
-          {/* Subtitle */}
-          <Skeleton className="h-4 w-96 bg-muted max-w-full" />
-        </div>
-        <div>
-          {/* Header Action Button */}
-          <Skeleton className="h-10 w-44 rounded-xl bg-muted" />
-        </div>
+    <div className="space-y-6 p-6">
+      <div className="space-y-2">
+        <Skeleton className="h-4 w-24" />
+        <Skeleton className="h-8 w-64" />
+        <Skeleton className="h-4 w-48" />
       </div>
-
-      {/* KPI Stat Cards Skeleton */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
         {Array.from({ length: 4 }).map((_, i) => (
-          <Card key={i} className="border border-border bg-card shadow-sm">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <Skeleton className="h-3 w-24 bg-muted" />
-              <Skeleton className="h-8 w-8 rounded-lg bg-muted" />
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <Skeleton className="h-8 w-32 bg-muted" />
-              <Skeleton className="h-3.5 w-28 bg-muted" />
-            </CardContent>
-          </Card>
+          <Skeleton key={i} className="h-32 rounded-xl" />
         ))}
       </div>
-
-      {/* Charts + Recent Transactions Skeleton */}
       <div className="grid gap-6 lg:grid-cols-7">
         {/* Revenue Chart Card */}
         <Card className="lg:col-span-4 border border-border bg-card shadow-sm">
@@ -141,6 +116,8 @@ export default function MerchantLoading() {
             </div>
           </CardContent>
         </Card>
+        <Skeleton className="lg:col-span-4 h-[340px] rounded-xl" />
+        <Skeleton className="lg:col-span-3 h-[340px] rounded-xl" />
       </div>
     </div>
   );

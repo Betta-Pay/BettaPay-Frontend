@@ -1,16 +1,17 @@
 "use client";
 
-import { useState, memo, useMemo, useRef } from 'react';
+import { useState, memo, useMemo, useRef, useEffect } from 'react';
 import { useDebounceValue } from 'usehooks-ts';
 import { Card, CardContent } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import { NetworkTooltip } from '@/components/ui/network-tooltip';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { CopyAddress } from '@/components/shared/CopyAddress';
 import { CurrencyDisplay } from '@/components/shared/CurrencyDisplay';
 import { EmptyState } from '@/components/shared/EmptyState';
+import { TableSkeleton } from '@/components/skeletons/TableSkeleton';
 import { mockTransactions } from '@/lib/mock/transactions';
 import { formatDate } from '@/lib/utils/format';
 import { sanitizeSearchQuery } from '@/lib/utils/sanitize';
@@ -21,56 +22,7 @@ import { TransactionDetail } from '@/components/transactions/TransactionDetail';
 import { Transaction } from '@/lib/mock/transactions';
 import { useOfflineStore } from '@/lib/store/offlineStore';
 
-interface TransactionRowProps {
-  tx: Transaction;
-  onClick: (tx: Transaction) => void;
-}
 
-const TransactionRow = memo(function TransactionRow({ tx, onClick }: TransactionRowProps) {
-  return (
-    <TableRow
-      className="border-border/50 hover:bg-muted/30 cursor-pointer"
-      onClick={() => onClick(tx)}
-    >
-      <TableCell className="text-muted-foreground whitespace-nowrap">
-        {formatDate(tx.timestamp)}
-      </TableCell>
-      <TableCell>
-        <CopyAddress address={tx.payerAddress} />
-      </TableCell>
-      <TableCell>
-        <CopyAddress address={tx.txHash} />
-      </TableCell>
-      <TableCell className="text-muted-foreground">
-        {tx.source}
-      </TableCell>
-      <TableCell className="text-right font-medium">
-        <CurrencyDisplay amount={tx.amountUsdc} currency="USDC" />
-      </TableCell>
-      <TableCell className="text-right text-muted-foreground">
-        <CurrencyDisplay amount={tx.amountNgn} currency="NGN" showDecimals={false} />
-      </TableCell>
-      <TableCell className="text-center">
-        <StatusBadge status={tx.status} />
-      </TableCell>
-      <TableCell className="text-center">
-        {tx.txHash && (
-          <a
-            href={getStellarExplorerTxUrl(tx.txHash)}
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label="View on Stellar Explorer"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg">
-              <ExternalLink className="w-3.5 h-3.5 text-muted-foreground" />
-            </Button>
-          </a>
-        )}
-      </TableCell>
-    </TableRow>
-  );
-});
 
 interface TransactionCardProps {
   tx: Transaction;
@@ -129,9 +81,14 @@ const TransactionCard = memo(function TransactionCard({ tx, onClick }: Transacti
 });
 
 export default function TransactionsPage() {
+  const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const sanitizedOnChange = (value: string) => setSearchTerm(sanitizeSearchQuery(value));
+const sanitizedOnChange = (value: string) => setSearchTerm(sanitizeSearchQuery(value));
   const [debouncedSearch] = useDebounceValue(searchTerm, 300);
+useEffect(() => {
+    const timer = setTimeout(() => setIsLoading(false), 500);
+    return () => clearTimeout(timer);
+  }, []);
   const [filterCount] = useState(0);
   const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
   const isOnline = useOfflineStore((s) => s.isOnline);
@@ -157,6 +114,27 @@ export default function TransactionsPage() {
 
   return (
     <div className="space-y-6">
+      {isLoading ? (
+        <div className="space-y-6">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div className="space-y-2">
+              <Skeleton className="h-8 w-40" />
+              <Skeleton className="h-4 w-64" />
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <Skeleton className="h-10 flex-1 rounded-lg" />
+            <Skeleton className="h-10 w-24 rounded-lg" />
+            <Skeleton className="h-10 w-32 rounded-lg" />
+          </div>
+          <Card className="bg-card border-border/50 shadow-sm">
+            <CardContent className="pt-4">
+              <TableSkeleton rows={6} columns={7} />
+            </CardContent>
+          </Card>
+        </div>
+      ) : (
+      <>
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Transactions</h1>
@@ -336,6 +314,9 @@ export default function TransactionsPage() {
         </CardContent>
       </Card>
 
+      </>
+
+      )}
       <TransactionDetail 
         transaction={selectedTx}
         isOpen={!!selectedTx}

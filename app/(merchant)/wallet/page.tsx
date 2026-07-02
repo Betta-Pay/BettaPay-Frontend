@@ -6,55 +6,21 @@ import {
   CardContent,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CurrencyDisplay } from "@/components/shared/CurrencyDisplay";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Copy,
   ExternalLink,
+  RefreshCcw,
+  Wallet,
 } from "lucide-react";
+import { EmptyState } from "@/components/shared/EmptyState";
 import { useNotify } from "@/lib/hooks/useNotify";
+import { ErrorDisplay } from "@/components/shared/ErrorDisplay";
 import { useAuthStore } from "@/lib/store/authStore";
 import { useWalletStore } from "@/lib/store/walletStore";
 import Image from "next/image";
-import { memo } from "react";
-import { mockTxHistory, type WalletTx } from "@/lib/mock/wallet";
+import { useEffect } from "react";
 
-interface WalletTx {
-  id: string;
-  type: "receive" | "send";
-  label: string;
-  amount: number;
-  time: string;
-}
-
-const WalletActivityItem = memo(function WalletActivityItem({ tx }: { tx: WalletTx }) {
-  return (
-    <div
-      className="flex items-center gap-3 py-2.5 px-2 rounded-xl hover:bg-muted transition-colors"
-    >
-      <div
-        className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${tx.type === "receive" ? "bg-success/20" : "bg-primary/20"}`}
-      >
-        {tx.type === "receive" ? (
-          <ArrowDownLeft className="w-4 h-4 text-success" />
-        ) : (
-          <ArrowUpRight className="w-4 h-4 text-primary" />
-        )}
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-foreground">
-          {tx.label}
-        </p>
-        <p className="text-xs text-muted-foreground">{tx.time}</p>
-      </div>
-      <span
-        className={`text-sm font-semibold ${tx.type === "receive" ? "text-success" : "text-foreground"}`}
-      >
-        {tx.type === "receive" ? "+" : "-"}
-        {tx.amount.toFixed(2)} USDC
-      </span>
-    </div>
-  );
 const WalletActivityHistory = dynamic(() => import('@/components/wallet/WalletActivityHistory').then(m => ({ default: m.WalletActivityHistory })), {
   loading: () => <Skeleton className="h-64 rounded-xl" />,
 });
@@ -195,9 +161,9 @@ export default function WalletPage() {
       {/* Loading State */}
       {loading && balances.length === 0 && (
         <div className="grid gap-4 sm:grid-cols-3">
-          <BalanceSkeleton />
-          <BalanceSkeleton />
-          <BalanceSkeleton />
+          <Skeleton className="h-32 rounded-xl" />
+          <Skeleton className="h-32 rounded-xl" />
+          <Skeleton className="h-32 rounded-xl" />
         </div>
       )}
 
@@ -249,7 +215,6 @@ export default function WalletPage() {
                 <p className="text-2xl font-bold text-foreground">
                   {parseFloat(asset.balance).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 7 })}
                 </p>
-              </div>
               {change && (
                 <span
                   className={`text-xs font-semibold px-2 py-0.5 rounded-full ${change.startsWith("+") ? "text-success bg-success/10" : "text-destructive bg-destructive/10"}`}
@@ -261,10 +226,6 @@ export default function WalletPage() {
           </Card>
         ))}
       </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
       )}
 
       {/* No address / not connected */}
