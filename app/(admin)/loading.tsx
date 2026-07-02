@@ -32,7 +32,7 @@ export default function AdminLoading() {
         {/* Platform Volume Chart Skeleton */}
         <Card className="col-span-4 bg-card border shadow-sm">
           <CardHeader>
-            <Skeleton className="h-4.5 w-40 bg-muted" />
+            <Skeleton className="h-4 w-40 bg-muted" />
           </CardHeader>
           <CardContent className="space-y-4">
             <Skeleton className="h-[300px] w-full bg-muted/70 mt-4" />
@@ -42,7 +42,7 @@ export default function AdminLoading() {
         {/* System Health Status List Skeleton */}
         <Card className="col-span-3 bg-card border shadow-sm">
           <CardHeader>
-            <Skeleton className="h-4.5 w-28 bg-muted" />
+            <Skeleton className="h-4 w-28 bg-muted" />
           </CardHeader>
           <CardContent>
             <div className="space-y-6">

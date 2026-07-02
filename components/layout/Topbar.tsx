@@ -160,6 +160,8 @@ export const Topbar = ({ onMenuClick, isMenuOpen, title, unreadNotificationCount
           aria-label={notificationLabel}
           className="relative text-muted-foreground hover:text-foreground hover:bg-muted rounded-xl min-h-[44px] min-w-[44px]"
         >
+          <Bell className="h-4 w-4" />
+          <span aria-hidden="true" className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-red-500 border-2 border-background"></span>
           <Bell className="h-4.5 w-4.5" />
           <span aria-hidden="true" className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-destructive border-2 border-background"></span>
         </Button>
@@ -171,6 +173,7 @@ export const Topbar = ({ onMenuClick, isMenuOpen, title, unreadNotificationCount
           className="text-muted-foreground hover:text-foreground hover:bg-muted rounded-xl min-h-[44px] min-w-[44px]"
           onClick={toggleTheme}
         >
+          {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
           {themeIcon}
         </Button>
 
