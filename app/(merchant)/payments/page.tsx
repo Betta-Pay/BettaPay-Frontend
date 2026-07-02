@@ -152,7 +152,7 @@ export default function PaymentsPage() {
                      <span className="hidden sm:inline"> · Created {link.created}</span>
                    </CardDescription>
                  </div>
-                 <Button variant="ghost" size="icon" aria-label="More options" className="h-8 w-8 text-muted-foreground -mt-2 -mr-2">
+                  <Button variant="ghost" size="icon" aria-label="More options" className="h-8 w-8 text-muted-foreground -mt-2 -mr-2">
                    <MoreHorizontal className="h-4 w-4" />
                  </Button>
                </CardHeader>
@@ -165,7 +165,7 @@ export default function PaymentsPage() {
                    </div>
                    <div className="flex items-center gap-2 flex-shrink-0">
                      <CopyAddress address={link.url} showIconOnly truncate={false} />
-                     <Button variant="outline" size="icon" aria-label="Show QR code" className="h-8 w-8 border-border/50 bg-background/50 text-muted-foreground hover:text-brand-text-primary">
+                      <Button variant="outline" size="icon" aria-label="Show QR code" className="h-8 w-8 border-border/50 bg-background/50 text-muted-foreground hover:text-brand-text-primary">
                        <QrCode className="h-4 w-4" />
                      </Button>
                    </div>
