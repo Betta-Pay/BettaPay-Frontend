@@ -265,6 +265,66 @@ pnpm dev -- -p 3001
 - Uses Tailwind CSS with design tokens in `app/globals.css`
 - Components live under `components/ui`; prefer reuse and accessibility-conscious patterns
 
+## Component Library
+
+This project keeps reusable UI, shared, and layout components in the `components` directory. These components help keep the frontend consistent, maintainable, and easy to extend.
+
+### UI Components
+
+| Component | Location | Purpose |
+|---|---|---|
+| Button | `components/ui/button.tsx` | Reusable button component for actions, forms, and navigation triggers. |
+| Input | `components/ui/input.tsx` | Reusable form input component for text fields and form controls. |
+| Card | `components/ui/card.tsx` | Container component used to group related content. |
+| Badge | `components/ui/badge.tsx` | Small label component used for status, tags, and highlights. |
+| Dialog | `components/ui/dialog.tsx` | Modal/dialog component used for confirmations, forms, and focused user actions. |
+
+### Shared Components
+
+| Component | Location | Purpose |
+|---|---|---|
+| StatusBadge | `components/StatusBadge.tsx` | Displays payment, account, or transaction status in a consistent format. |
+| CurrencyDisplay | `components/CurrencyDisplay.tsx` | Formats and displays currency values consistently across the app. |
+| CopyAddress | `components/CopyAddress.tsx` | Shows an address or text value with copy-to-clipboard support. |
+
+### Layout Components
+
+| Component | Location | Purpose |
+|---|---|---|
+| MerchantSidebar | `components/MerchantSidebar.tsx` | Sidebar navigation for merchant-facing pages. |
+| AdminSidebar | `components/AdminSidebar.tsx` | Sidebar navigation for admin-facing pages. |
+| Topbar | `components/Topbar.tsx` | Top navigation/header area used across dashboard pages. |
+| Header | `components/Header.tsx` | Page or app header component. |
+| Footer | `components/Footer.tsx` | Footer section used for common page layout. |
+
+### Usage Example
+
+```tsx
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import StatusBadge from "@/components/StatusBadge";
+
+export function ExampleComponent() {
+  return (
+    <Card>
+      <CardContent>
+        <StatusBadge status="active" />
+        <Button>Continue</Button>
+      </CardContent>
+    </Card>
+  );
+}
+```
+
+### Component Guidelines
+
+- Reuse existing components before creating new ones.
+- Keep component props simple and clearly named.
+- Follow the existing `@base-ui/react` primitives and `shadcn` conventions used in the project.
+- Keep layout components separate from low-level UI components.
+- Prefer accessible and keyboard-friendly UI patterns.
+
+
 ## Next steps
 
 - Implement proper server-side auth and refresh token endpoints
