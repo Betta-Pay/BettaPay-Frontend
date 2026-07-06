@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { CopyAddress } from '@/components/shared/CopyAddress';
 import { EmptyState } from '@/components/shared/EmptyState';
+import { ErrorDisplay } from '@/components/shared/ErrorDisplay';
 import { Plus, MoreHorizontal, QrCode, Link2 } from 'lucide-react';
 import {
   Dialog,
@@ -62,6 +63,7 @@ const PaymentLinkCard = memo(function PaymentLinkCard({ link }: PaymentLinkCardP
 
 export default function PaymentsPage() {
   const [, setIsLoading] = useState(true);
+  const { notify } = useNotify();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
 
   useEffect(() => {
@@ -70,7 +72,7 @@ export default function PaymentsPage() {
   }, []);
   const [labelError, setLabelError] = useState('');
   const [labelValue, setLabelValue] = useState('');
-  const notify = useNotify();
+  const [linksError, setLinksError] = useState(false);
 
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
@@ -156,10 +158,24 @@ export default function PaymentsPage() {
               </DialogFooter>
             </form>
           </DialogContent>
-        </Dialog>
-      </div>
+         </Dialog>
+         <Button 
+           variant="outline" 
+           className="w-full sm:w-auto"
+           onClick={() => setLinksError(!linksError)}
+         >
+           {linksError ? "Reset API" : "Simulate Error"}
+         </Button>
+       </div>
 
-      {mockLinks.length === 0 ? (
+      {linksError ? (
+        <div className="py-12">
+          <ErrorDisplay
+            message="Failed to load payment links"
+            onRetry={() => setLinksError(false)}
+          />
+        </div>
+      ) : mockLinks.length === 0 ? (
         <EmptyState
           icon={Link2}
           title="No payment links yet"

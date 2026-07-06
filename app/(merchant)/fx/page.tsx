@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { ErrorDisplay } from '@/components/shared/ErrorDisplay';
 import { RefreshCcw, TrendingUp, TrendingDown, Info, Bell, BellRing, Trash2, Plus } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
@@ -33,6 +34,7 @@ interface RateAlert {
 
 export default function FxRatesPage() {
   const [lastRefresh] = useState('Just now');
+  const [fxError, setFxError] = useState(false);
   const [alerts, setAlerts] = useState<RateAlert[]>([]);
   const notify = useNotify();
   const [newPair, setNewPair] = useState('USDC/NGN');
@@ -118,71 +120,89 @@ export default function FxRatesPage() {
         <Button variant="outline" className="border-border rounded-xl h-10 px-4 text-sm font-semibold text-muted-foreground">
           <RefreshCcw className="w-4 h-4 mr-2" /> Refresh
         </Button>
+        <Button 
+          variant="outline" 
+          className="border-border rounded-xl h-10 px-4 text-sm font-semibold text-muted-foreground"
+          onClick={() => setFxError(!fxError)}
+        >
+          {fxError ? "Reset API" : "Simulate Error"}
+        </Button>
       </div>
 
-      <Card className="relative overflow-hidden border border-border bg-card shadow-sm">
-        <div className="absolute inset-0 bg-gradient-to-br from-amber-50/60 to-transparent pointer-events-none" />
-        <CardContent className="p-6 relative">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
-            <div>
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Primary Rate · USDC/NGN</p>
-              <p className="text-3xl sm:text-5xl font-bold text-foreground">₦1,550</p>
-              <p className="text-muted-foreground text-sm mt-1">Updated {lastRefresh}</p>
-            </div>
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="flex items-center gap-2 bg-success/10 border border-success/30 px-4 py-2 rounded-xl">
-                <TrendingUp className="w-4 h-4 text-success" />
-                <span className="text-success font-bold text-sm">+1.6% today</span>
-              </div>
-              <div className="bg-muted px-4 py-2 rounded-xl">
-                <p className="text-xs text-muted-foreground">24h Range</p>
-                <p className="text-sm font-bold text-foreground">₦1,510 – ₦1,565</p>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <div className="grid gap-6 lg:grid-cols-7">
-        <Card className="lg:col-span-4 border border-border bg-card shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-base font-semibold text-foreground">USDC/NGN — 7 Day Chart</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <FxRateChart height={240} />
-          </CardContent>
-        </Card>
-
-        <Card className="lg:col-span-3 border border-border bg-card shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-base font-semibold text-foreground">All Pairs</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {pairs.map((pair) => (
-                <div key={`${pair.from}-${pair.to}`} className="flex items-center justify-between p-3 rounded-xl border border-border hover:bg-muted transition-colors">
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center text-sm font-bold text-muted-foreground">
-                      {pair.from.substring(0, 2)}
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold text-foreground">{pair.from}/{pair.to}</p>
-                      <p className="text-xs text-muted-foreground">{pair.rate}</p>
-                    </div>
+      {fxError ? (
+        <div className="py-12">
+          <ErrorDisplay
+            message="Failed to load exchange rates"
+            onRetry={() => setFxError(false)}
+          />
+        </div>
+      ) : (
+        <>
+          <Card className="relative overflow-hidden border border-border bg-card shadow-sm">
+            <div className="absolute inset-0 bg-gradient-to-br from-amber-50/60 to-transparent pointer-events-none" />
+            <CardContent className="p-6 relative">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+                <div>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Primary Rate · USDC/NGN</p>
+                  <p className="text-3xl sm:text-5xl font-bold text-foreground">₦1,550</p>
+                  <p className="text-muted-foreground text-sm mt-1">Updated {lastRefresh}</p>
+                </div>
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="flex items-center gap-2 bg-success/10 border border-success/30 px-4 py-2 rounded-xl">
+                    <TrendingUp className="w-4 h-4 text-success" />
+                    <span className="text-success font-bold text-sm">+1.6% today</span>
                   </div>
-                  <div className={cn(
-                    'flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full',
-                    pair.trend === 'up' ? 'text-success bg-success/10' : 'text-destructive bg-destructive/10'
-                  )}>
-                    {pair.trend === 'up' ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-                    {pair.change > 0 ? '+' : ''}{pair.change}%
+                  <div className="bg-muted px-4 py-2 rounded-xl">
+                    <p className="text-xs text-muted-foreground">24h Range</p>
+                    <p className="text-sm font-bold text-foreground">₦1,510 – ₦1,565</p>
                   </div>
                 </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <div className="grid gap-6 lg:grid-cols-7">
+            <Card className="lg:col-span-4 border border-border bg-card shadow-sm">
+              <CardHeader>
+                <CardTitle className="text-base font-semibold text-foreground">USDC/NGN — 7 Day Chart</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <FxRateChart height={240} />
+              </CardContent>
+            </Card>
+
+            <Card className="lg:col-span-3 border border-border bg-card shadow-sm">
+              <CardHeader>
+                <CardTitle className="text-base font-semibold text-foreground">All Pairs</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {pairs.map((pair) => (
+                    <div key={`${pair.from}-${pair.to}`} className="flex items-center justify-between p-3 rounded-xl border border-border hover:bg-muted transition-colors">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center text-sm font-bold text-muted-foreground">
+                          {pair.from.substring(0, 2)}
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-foreground">{pair.from}/{pair.to}</p>
+                          <p className="text-xs text-muted-foreground">{pair.rate}</p>
+                        </div>
+                      </div>
+                      <div className={cn(
+                        'flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full',
+                        pair.trend === 'up' ? 'text-success bg-success/10' : 'text-destructive bg-destructive/10'
+                      )}>
+                        {pair.trend === 'up' ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+                        {pair.change > 0 ? '+' : ''}{pair.change}%
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </>
+      )}
 
       {/* Rate Alerts Section */}
       <div className="grid gap-6 lg:grid-cols-2">
@@ -308,7 +328,7 @@ export default function FxRatesPage() {
         </Card>
       </div>
 
-      <Card className="border border-info/30 bg-info/10/50">
+      <Card className="border border-info/30 bg-info/10">
         <CardContent className="flex items-start gap-3 p-3 sm:p-5">
           <Info className="w-4 h-4 sm:w-5 sm:h-5 text-info mt-0.5 flex-shrink-0" />
           <div>

@@ -10,6 +10,7 @@ import { NetworkTooltip } from '@/components/ui/network-tooltip';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { CopyAddress } from '@/components/shared/CopyAddress';
 import { CurrencyDisplay } from '@/components/shared/CurrencyDisplay';
+import { ErrorDisplay } from '@/components/shared/ErrorDisplay';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { TableSkeleton } from '@/components/skeletons/TableSkeleton';
 import { mockTransactions } from '@/lib/mock/transactions';
@@ -91,6 +92,7 @@ useEffect(() => {
   }, []);
   const [filterCount] = useState(0);
   const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
+  const [txError, setTxError] = useState(false);
   const isOnline = useOfflineStore((s) => s.isOnline);
   const tableContainerRef = useRef<HTMLDivElement>(null);
 
@@ -178,6 +180,13 @@ useEffect(() => {
                 Export CSV
               </Button>
             </NetworkTooltip>
+            <Button 
+              variant="outline" 
+              className="flex-1 sm:flex-none border-border/50 bg-card"
+              onClick={() => setTxError(!txError)}
+            >
+              {txError ? "Reset API" : "Simulate Error"}
+            </Button>
           </div>
         </div>
       </div>
@@ -190,127 +199,138 @@ useEffect(() => {
 
       <Card className="bg-card border-border/50 shadow-sm">
         <CardContent className="pt-4">
-          {filteredTransactions.length === 0 ? (
-            <EmptyState
-              icon={SearchX}
-              title={searchTerm ? 'No transactions match your search' : 'No transactions found'}
-              description={
-                searchTerm
-                  ? 'Try adjusting your search terms or clearing filters.'
-                  : 'Transactions will appear here once payments are received.'
-              }
-              action={
-                searchTerm
-                  ? { label: 'Clear search', onClick: () => setSearchTerm('') }
-                  : undefined
-              }
-            />
-          ) : (
-            <div className="rounded-md border border-border/50 overflow-hidden hidden md:block">
-              <table className="w-full border-collapse">
-                <thead className="bg-muted/50 sticky top-0 z-10">
-                  <tr className="border-border/50">
-                    <th className="w-[180px] px-4 py-2 text-left text-sm font-medium">Date</th>
-                    <th className="px-4 py-2 text-left text-sm font-medium">Payer</th>
-                    <th className="px-4 py-2 text-left text-sm font-medium">Tx Hash</th>
-                    <th className="px-4 py-2 text-left text-sm font-medium">Source</th>
-                    <th className="px-4 py-2 text-right text-sm font-medium">Amount (USDC)</th>
-                    <th className="px-4 py-2 text-right text-sm font-medium">Amount (NGN)</th>
-                    <th className="px-4 py-2 text-center text-sm font-medium">Status</th>
-                    <th className="w-[80px] px-4 py-2 text-center text-sm font-medium">Explorer</th>
-                  </tr>
-                </thead>
-              </table>
-              <div
-                ref={tableContainerRef}
-                className="h-[600px] overflow-y-auto border-t border-border/50"
-              >
-                <div style={{ height: `${totalSize}px`, position: 'relative' }}>
-                  <table className="w-full border-collapse">
-                    <tbody>
-                      {virtualItems.map((virtualItem) => {
-                        const tx = filteredTransactions[virtualItem.index];
-                        return (
-                          <tr
-                            key={virtualItem.key}
-                            className="border-border/50 hover:bg-muted/30 cursor-pointer border-b"
-                            onClick={() => setSelectedTx(tx)}
-                            style={{
-                              transform: `translateY(${virtualItem.start}px)`,
-                            }}
-                          >
-                            <td className="text-muted-foreground whitespace-nowrap px-4 py-2 text-sm">
-                              {formatDate(tx.timestamp)}
-                            </td>
-                            <td className="px-4 py-2 text-sm">
-                              <CopyAddress address={tx.payerAddress} />
-                            </td>
-                            <td className="px-4 py-2 text-sm">
-                              <CopyAddress address={tx.txHash} />
-                            </td>
-                            <td className="text-muted-foreground px-4 py-2 text-sm">
-                              {tx.source}
-                            </td>
-                            <td className="text-right font-medium px-4 py-2 text-sm">
-                              <CurrencyDisplay amount={tx.amountUsdc} currency="USDC" />
-                            </td>
-                            <td className="text-right text-muted-foreground px-4 py-2 text-sm">
-                              <CurrencyDisplay amount={tx.amountNgn} currency="NGN" showDecimals={false} />
-                            </td>
-                            <td className="text-center px-4 py-2 text-sm">
-                              <StatusBadge status={tx.status} />
-                            </td>
-                            <td className="w-[80px] text-center px-4 py-2 text-sm">
-                              {tx.txHash && (
-                                <a
-                                  href={getStellarExplorerTxUrl(tx.txHash)}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  aria-label="View on Stellar Explorer"
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg">
-                                    <ExternalLink className="w-3.5 h-3.5 text-muted-foreground" />
-                                  </Button>
-                                </a>
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          )}
-
-          <div className="md:hidden space-y-3">
-            {filteredTransactions.length === 0 ? (
-              <EmptyState
-                icon={SearchX}
-                title={searchTerm ? 'No transactions match your search' : 'No transactions found'}
-                description={
-                  searchTerm
-                    ? 'Try adjusting your search terms or clearing filters.'
-                    : 'Transactions will appear here once payments are received.'
-                }
-                action={
-                  searchTerm
-                    ? { label: 'Clear search', onClick: () => setSearchTerm('') }
-                    : undefined
-                }
+          {txError ? (
+            <div className="py-12">
+              <ErrorDisplay
+                message="Failed to load transactions"
+                onRetry={() => setTxError(false)}
               />
-            ) : (
-              filteredTransactions.map((tx) => (
-                <TransactionCard
-                  key={tx.id}
-                  tx={tx}
-                  onClick={setSelectedTx}
+            </div>
+          ) : (
+            <>
+              {filteredTransactions.length === 0 ? (
+                <EmptyState
+                  icon={SearchX}
+                  title={searchTerm ? 'No transactions match your search' : 'No transactions found'}
+                  description={
+                    searchTerm
+                      ? 'Try adjusting your search terms or clearing filters.'
+                      : 'Transactions will appear here once payments are received.'
+                  }
+                  action={
+                    searchTerm
+                      ? { label: 'Clear search', onClick: () => setSearchTerm('') }
+                      : undefined
+                  }
                 />
-              ))
-            )}
-          </div>
+              ) : (
+                <div className="rounded-md border border-border/50 overflow-hidden hidden md:block">
+                  <table className="w-full border-collapse">
+                    <thead className="bg-muted/50 sticky top-0 z-10">
+                      <tr className="border-border/50">
+                        <th className="w-[180px] px-4 py-2 text-left text-sm font-medium">Date</th>
+                        <th className="px-4 py-2 text-left text-sm font-medium">Payer</th>
+                        <th className="px-4 py-2 text-left text-sm font-medium">Tx Hash</th>
+                        <th className="px-4 py-2 text-left text-sm font-medium">Source</th>
+                        <th className="px-4 py-2 text-right text-sm font-medium">Amount (USDC)</th>
+                        <th className="px-4 py-2 text-right text-sm font-medium">Amount (NGN)</th>
+                        <th className="px-4 py-2 text-center text-sm font-medium">Status</th>
+                        <th className="w-[80px] px-4 py-2 text-center text-sm font-medium">Explorer</th>
+                      </tr>
+                    </thead>
+                  </table>
+                  <div
+                    ref={tableContainerRef}
+                    className="h-[600px] overflow-y-auto border-t border-border/50"
+                  >
+                    <div style={{ height: `${totalSize}px`, position: 'relative' }}>
+                      <table className="w-full border-collapse">
+                        <tbody>
+                          {virtualItems.map((virtualItem) => {
+                            const tx = filteredTransactions[virtualItem.index];
+                            return (
+                              <tr
+                                key={virtualItem.key}
+                                className="border-border/50 hover:bg-muted/30 cursor-pointer border-b"
+                                onClick={() => setSelectedTx(tx)}
+                                style={{
+                                  transform: `translateY(${virtualItem.start}px)`,
+                                }}
+                              >
+                                <td className="text-muted-foreground whitespace-nowrap px-4 py-2 text-sm">
+                                  {formatDate(tx.timestamp)}
+                                </td>
+                                <td className="px-4 py-2 text-sm">
+                                  <CopyAddress address={tx.payerAddress} />
+                                </td>
+                                <td className="px-4 py-2 text-sm">
+                                  <CopyAddress address={tx.txHash} />
+                                </td>
+                                <td className="text-muted-foreground px-4 py-2 text-sm">
+                                  {tx.source}
+                                </td>
+                                <td className="text-right font-medium px-4 py-2 text-sm">
+                                  <CurrencyDisplay amount={tx.amountUsdc} currency="USDC" />
+                                </td>
+                                <td className="text-right text-muted-foreground px-4 py-2 text-sm">
+                                  <CurrencyDisplay amount={tx.amountNgn} currency="NGN" showDecimals={false} />
+                                </td>
+                                <td className="text-center px-4 py-2 text-sm">
+                                  <StatusBadge status={tx.status} />
+                                </td>
+                                <td className="w-[80px] text-center px-4 py-2 text-sm">
+                                  {tx.txHash && (
+                                    <a
+                                      href={getStellarExplorerTxUrl(tx.txHash)}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      aria-label="View on Stellar Explorer"
+                                      onClick={(e) => e.stopPropagation()}
+                                    >
+                                      <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg">
+                                        <ExternalLink className="w-3.5 h-3.5 text-muted-foreground" />
+                                      </Button>
+                                    </a>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="md:hidden space-y-3">
+                {filteredTransactions.length === 0 ? (
+                  <EmptyState
+                    icon={SearchX}
+                    title={searchTerm ? 'No transactions match your search' : 'No transactions found'}
+                    description={
+                      searchTerm
+                        ? 'Try adjusting your search terms or clearing filters.'
+                        : 'Transactions will appear here once payments are received.'
+                    }
+                    action={
+                      searchTerm
+                        ? { label: 'Clear search', onClick: () => setSearchTerm('') }
+                        : undefined
+                    }
+                  />
+                ) : (
+                  filteredTransactions.map((tx) => (
+                    <TransactionCard
+                      key={tx.id}
+                      tx={tx}
+                      onClick={setSelectedTx}
+                    />
+                  ))
+                )}
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
 

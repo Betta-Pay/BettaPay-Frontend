@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { getStellarExplorerTxUrl } from '@/lib/utils/explorer';
 import { EmptyState } from '@/components/shared/EmptyState';
+import { ErrorDisplay } from '@/components/shared/ErrorDisplay';
 import { useOfflineStore } from '@/lib/store/offlineStore';
 import { SettlementConfirmation } from '@/components/settlement/SettlementConfirmation';
 import { StatCard } from '@/components/shared/StatCard';
@@ -63,6 +64,7 @@ const SettlementItem = memo(function SettlementItem({ settlement: s }: Settlemen
 });
 
 export default function SettlementPage() {
+  const [settlementsError, setSettlementsError] = useState(false);
   const isOnline = useOfflineStore((s) => s.isOnline);
   const [settlementOpen, setSettlementOpen] = useState(false);
 
@@ -87,6 +89,13 @@ export default function SettlementPage() {
             Initiate Settlement
           </Button>
         </NetworkTooltip>
+        <Button 
+          variant="outline" 
+          className="rounded-xl h-10 px-5 text-sm font-semibold text-muted-foreground"
+          onClick={() => setSettlementsError(!settlementsError)}
+        >
+          {settlementsError ? "Reset API" : "Simulate Error"}
+        </Button>
       </div>
 
       <SettlementConfirmation
@@ -160,7 +169,14 @@ export default function SettlementPage() {
           </NetworkTooltip>
         </CardHeader>
         <CardContent>
-          {mockSettlements.length === 0 ? (
+          {settlementsError ? (
+            <div className="py-12">
+              <ErrorDisplay
+                message="Failed to load settlement history"
+                onRetry={() => setSettlementsError(false)}
+              />
+            </div>
+          ) : mockSettlements.length === 0 ? (
             <EmptyState
               icon={Receipt}
               title="No settlements yet"

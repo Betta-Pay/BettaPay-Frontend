@@ -45,7 +45,7 @@ export default function AuthLoading() {
       <Skeleton className="h-10 w-full bg-muted rounded-xl" />
 
       {/* Footer Text Link */}
-      <Skeleton className="h-4.5 w-44 bg-muted mx-auto" />
+      <Skeleton className="h-4 w-44 bg-muted mx-auto" />
     </div>
   );
 }

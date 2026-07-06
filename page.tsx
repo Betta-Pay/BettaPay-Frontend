@@ -62,7 +62,7 @@ export default function SettingsPage() {
                 key={id}
                 onClick={() => handleTabChange(id)}
                 className={cn(
-                  'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium motion-safe:transition-colors duration-200 text-left',
+                  'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors text-left',
                   activeTab === id
                     ? 'bg-primary/10 text-primary border border-primary/30'
                     : 'text-muted-foreground hover:bg-muted hover:text-foreground'
@@ -74,7 +74,7 @@ export default function SettingsPage() {
             <div className="pt-4">
               <button
                 onClick={handleLogout}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-destructive hover:bg-destructive/10 motion-safe:transition-colors duration-200 text-left"
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors text-left"
               >
                 <LogOut className="w-4 h-4" /> Log out
               </button>
@@ -85,7 +85,7 @@ export default function SettingsPage() {
         {/* Tab content */}
         <div className="flex-1 min-w-0 overflow-y-auto">
           {activeTab === 'profile' && (
-            <Card className="border border-border bg-card shadow-sm motion-safe:transition-transform hover:scale-[1.01] duration-150">
+            <Card className="border border-border bg-card shadow-sm">
               <CardHeader>
                 <CardTitle className="text-base font-semibold text-foreground">Profile Details</CardTitle>
               </CardHeader>
@@ -127,7 +127,7 @@ export default function SettingsPage() {
           )}
 
           {activeTab === 'business' && (
-            <Card className="border border-border bg-card shadow-sm motion-safe:transition-transform hover:scale-[1.01] duration-150">
+            <Card className="border border-border bg-card shadow-sm">
               <CardHeader>
                 <CardTitle className="text-base font-semibold text-foreground">Business Information</CardTitle>
               </CardHeader>

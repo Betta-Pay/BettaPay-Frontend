@@ -19,7 +19,7 @@ import { ErrorDisplay } from "@/components/shared/ErrorDisplay";
 import { useAuthStore } from "@/lib/store/authStore";
 import { useWalletStore } from "@/lib/store/walletStore";
 import Image from "next/image";
-import { useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 const WalletActivityHistory = dynamic(() => import('@/components/wallet/WalletActivityHistory').then(m => ({ default: m.WalletActivityHistory })), {
   loading: () => <Skeleton className="h-64 rounded-xl" />,
@@ -29,6 +29,7 @@ export default function WalletPage() {
   const { user } = useAuthStore();
   const { address: walletAddress, balances, loading, isReconnecting, error, refreshBalances } = useWalletStore();
   const { success } = useNotify();
+  const [balancesError, setBalancesError] = useState(false);
 
   const address = walletAddress ?? user?.id ?? "";
   const shortAddress = address ? `${address.substring(0, 8)}...${address.slice(-6)}` : "";
@@ -54,16 +55,47 @@ export default function WalletPage() {
     ? balances.reduce((max, b) => parseFloat(b.balance) > parseFloat(max.balance) ? b : max, balances[0])
     : null;
 
+  if (balancesError) {
+    return (
+      <div className="space-y-8 pb-8">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-xs font-semibold tracking-widest text-primary uppercase mb-1">Stellar Wallet</p>
+            <h1 className="text-3xl font-bold text-foreground">My Wallet</h1>
+          </div>
+          <Button variant="outline" className="text-xs" onClick={() => setBalancesError(false)}>
+            Reset API
+          </Button>
+        </div>
+        <div className="py-8">
+          <ErrorDisplay
+            message="Failed to load wallet balances"
+            onRetry={() => setBalancesError(false)}
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-8 pb-8">
-      <div>
-        <p className="text-xs font-semibold tracking-widest text-primary uppercase mb-1">
-          Stellar Wallet
-        </p>
-        <h1 className="text-3xl font-bold text-foreground">My Wallet</h1>
-        <p className="text-muted-foreground text-sm mt-1">
-          Your non-custodial Stellar wallet for receiving crypto payments.
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-xs font-semibold tracking-widest text-primary uppercase mb-1">
+            Stellar Wallet
+          </p>
+          <h1 className="text-3xl font-bold text-foreground">My Wallet</h1>
+          <p className="text-muted-foreground text-sm mt-1">
+            Your non-custodial Stellar wallet for receiving crypto payments.
+          </p>
+        </div>
+        <Button 
+          variant="outline" 
+          className="text-xs"
+          onClick={() => setBalancesError(true)}
+        >
+          Simulate Error
+        </Button>
       </div>
 
       {/* Wallet Card */}
@@ -215,17 +247,10 @@ export default function WalletPage() {
                 <p className="text-2xl font-bold text-foreground">
                   {parseFloat(asset.balance).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 7 })}
                 </p>
-              {change && (
-                <span
-                  className={`text-xs font-semibold px-2 py-0.5 rounded-full ${change.startsWith("+") ? "text-success bg-success/10" : "text-destructive bg-destructive/10"}`}
-                >
-                  {change}
-                </span>
-              )}
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       )}
 
       {/* No address / not connected */}
