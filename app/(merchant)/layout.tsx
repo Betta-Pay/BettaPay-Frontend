@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { AlertTriangle } from "lucide-react";
 import { MerchantSidebar, merchantNavItems } from "@/components/layout/MerchantSidebar";
 import { PageTransition } from "@/components/shared/PageTransition";
@@ -17,6 +18,7 @@ export default function MerchantLayout({
   children: React.ReactNode;
 }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const router = useRouter();
   const network = useWalletStore((s) => s.network);
   const isTestnet = network === 'testnet';
 

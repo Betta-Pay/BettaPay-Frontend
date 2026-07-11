@@ -20,6 +20,11 @@ import {
   Plus,
   Zap,
   ChevronRight,
+  TrendingUp,
+  BarChart3,
+  Copy,
+  ExternalLink,
+  ArrowRight,
 } from 'lucide-react';
 import { TransactionDetail } from '@/components/transactions/TransactionDetail';
 import { usePayments, useSettlements, type ApiPayment } from '@/lib/api/hooks';
