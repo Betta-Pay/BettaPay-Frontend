@@ -53,42 +53,54 @@ export default function AuthLayout({
         </div>
       </div>
 
-      {/* Right Pane — Flat dark, no gradients */}
-      <div className="hidden lg:flex w-[48%] bg-foreground items-center justify-center">
-        <div className="p-16 max-w-lg w-full">
+      {/* Right Pane - Visual Area (Hidden on Mobile) */}
+      <div className="hidden lg:flex w-[48%] relative overflow-hidden items-center justify-center bg-slate-950">
+        {/* Decorative blobs */}
+        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary/10 blur-[140px] rounded-full pointer-events-none" />
+        <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-blue-600/10 blur-[120px] rounded-full pointer-events-none" />
+
+        {/* Grid pattern overlay */}
+        <div className="absolute inset-0 opacity-[0.03]"
+          style={{ backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '32px 32px' }}
+        />
+
+        {/* Branding Content */}
+        <div className="relative z-10 p-16 max-w-lg w-full">
           {/* Icon + brand */}
           <div className="flex items-center gap-3 mb-14">
-            <Image
-              src="/logo.png"
-              alt=""
-              width={44}
-              height={44}
-              priority={true}
-              className="w-11 h-11 rounded-xl object-contain bg-foreground"
-            />
-            <span className="text-xl font-bold text-background tracking-tight">
+            <div className="w-12 h-12 rounded-xl bg-primary flex items-center justify-center shadow-lg shadow-primary/30 overflow-hidden">
+              <Image
+                src="/logo.png"
+                alt="BettaPay Logo"
+                width={48}
+                height={48}
+                priority={true}
+                className="w-full h-full object-cover"
+              />
+            </div>
+            <span className="text-2xl font-bold text-white tracking-tight">
               BettaPay
             </span>
           </div>
 
           {/* Headline */}
-          <h2 className="text-4xl font-bold text-background leading-snug mb-4">
+          <h2 className="text-4xl lg:text-5xl font-bold text-white leading-tight mb-6">
             Global settlement,
             <br />
             <span className="text-primary">zero friction.</span>
           </h2>
 
-          <p className="text-muted-foreground text-base leading-relaxed mb-12">
+          <p className="text-slate-400 text-lg leading-relaxed mb-12">
             The next-generation payment platform for African businesses. Accept
             USDC, convert via SEP-24 anchors, and settle directly to your bank.
           </p>
 
           {/* Feature list */}
-          <ul className="space-y-4">
+          <ul className="space-y-4 mb-14">
             {highlights.map((item) => (
               <li key={item} className="flex items-start gap-3">
-                <CheckCircle2 className="w-5 h-5 text-primary mt-0.5 shrink-0" />
-                <span className="text-muted-foreground text-sm leading-relaxed">
+                <CheckCircle2 className="w-6 h-6 text-primary shrink-0" />
+                <span className="text-slate-300 text-base leading-relaxed">
                   {item}
                 </span>
               </li>
@@ -96,12 +108,13 @@ export default function AuthLayout({
           </ul>
 
           {/* Status bar */}
-          <div className="mt-14 pt-8 border-t border-border flex items-center gap-6 text-xs text-muted-foreground">
-            <span className="flex items-center gap-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-green-400" />
+          <div className="mt-auto pt-8 border-t border-white/10 flex items-center gap-6 text-sm font-medium">
+            <span className="flex items-center gap-2 text-slate-400">
+              <span className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)] animate-pulse" />
               System Operational
             </span>
-            <span>Soroban Testnet</span>
+            <span className="text-slate-600">•</span>
+            <span className="text-slate-400">Soroban Testnet</span>
           </div>
         </div>
       </div>
