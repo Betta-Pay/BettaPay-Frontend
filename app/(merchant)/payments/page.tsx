@@ -21,7 +21,9 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { trimInput } from '@/lib/utils/sanitize';
 import { useNotify } from '@/lib/hooks/useNotify';
-import { mockLinks, type PaymentLink } from '@/lib/mock/paymentLinks';
+import { usePayments, type ApiPayment } from '@/lib/api/hooks';
+
+type PaymentLink = ApiPayment;
 
 interface PaymentLinkCardProps {
   link: PaymentLink;
@@ -32,10 +34,10 @@ const PaymentLinkCard = memo(function PaymentLinkCard({ link }: PaymentLinkCardP
     <Card className="bg-card border-border/50 shadow-sm hover:border-primary/50 transition-colors group">
       <CardHeader className="flex flex-row items-start justify-between pb-2">
         <div>
-          <CardTitle className="text-base font-medium text-foreground line-clamp-1">{link.label}</CardTitle>
+          <CardTitle className="text-base font-medium text-foreground line-clamp-1">{link.source ?? 'Payment Link'}</CardTitle>
           <CardDescription className="mt-1">
-            {link.type === 'fixed' ? `${link.amount} ${link.currency}` : 'Open amount'}
-            <span className="hidden sm:inline"> · Created {link.created}</span>
+            {link.amountUsdc ? `${link.amountUsdc} USDC` : 'Open amount'}
+            <span className="hidden sm:inline"> · Created {new Date(link.createdAt).toLocaleDateString()}</span>
           </CardDescription>
         </div>
         <Button variant="ghost" size="icon" aria-label="More options" className="h-8 w-8 text-muted-foreground -mt-2 -mr-2">
@@ -46,11 +48,11 @@ const PaymentLinkCard = memo(function PaymentLinkCard({ link }: PaymentLinkCardP
         <div className="flex flex-col gap-2 mt-4 sm:flex-row sm:items-center">
           <div className="flex-1 overflow-hidden min-w-0">
             <div className="text-xs text-muted-foreground truncate max-w-[180px] sm:max-w-full bg-muted/50 p-2 rounded border border-border/50 font-mono">
-              {link.url}
+              {`${process.env.NEXT_PUBLIC_API_URL ?? ''}/pay/${link.id}`}
             </div>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
-            <CopyAddress address={link.url} showIconOnly truncate={false} />
+            <CopyAddress address={`${process.env.NEXT_PUBLIC_API_URL ?? ''}/pay/${link.id}`} showIconOnly truncate={false} />
             <Button variant="outline" size="icon" aria-label="Show QR code" className="h-8 w-8 border-border/50 bg-background/50 text-muted-foreground hover:text-foreground">
               <QrCode className="h-4 w-4" />
             </Button>
@@ -62,14 +64,9 @@ const PaymentLinkCard = memo(function PaymentLinkCard({ link }: PaymentLinkCardP
 });
 
 export default function PaymentsPage() {
-  const [, setIsLoading] = useState(true);
+  const { data: links, isLoading, error: fetchError, refetch } = usePayments();
   const { notify } = useNotify();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setIsLoading(false), 500);
-    return () => clearTimeout(timer);
-  }, []);
   const [labelError, setLabelError] = useState('');
   const [labelValue, setLabelValue] = useState('');
   const [linksError, setLinksError] = useState(false);
@@ -168,14 +165,18 @@ export default function PaymentsPage() {
          </Button>
        </div>
 
-      {linksError ? (
+      {linksError || fetchError ? (
         <div className="py-12">
           <ErrorDisplay
-            message="Failed to load payment links"
-            onRetry={() => setLinksError(false)}
+            message={fetchError ?? 'Failed to load payment links'}
+            onRetry={() => { setLinksError(false); refetch(); }}
           />
         </div>
-      ) : mockLinks.length === 0 ? (
+      ) : isLoading ? (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {[1,2,3].map(i => <div key={i} className="h-40 rounded-xl bg-muted animate-pulse" />)}
+        </div>
+      ) : links.length === 0 ? (
         <EmptyState
           icon={Link2}
           title="No payment links yet"
@@ -184,7 +185,7 @@ export default function PaymentsPage() {
         />
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {mockLinks.map((link) => (
+          {links.map((link) => (
             <PaymentLinkCard key={link.id} link={link} />
           ))}
         </div>
