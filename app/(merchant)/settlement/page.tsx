@@ -24,7 +24,9 @@ import { useOfflineStore } from '@/lib/store/offlineStore';
 import { SettlementConfirmation } from '@/components/settlement/SettlementConfirmation';
 import { StatCard } from '@/components/shared/StatCard';
 import { memo } from 'react';
-import { mockSettlements, type Settlement } from '@/lib/mock/settlements';
+import { useSettlements, type ApiSettlement } from '@/lib/api/hooks';
+
+type Settlement = ApiSettlement;
 
 interface SettlementItemProps {
   settlement: Settlement;
@@ -37,12 +39,12 @@ const SettlementItem = memo(function SettlementItem({ settlement: s }: Settlemen
         <Building2 className="w-5 h-5 text-muted-foreground" />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold text-foreground">{s.bank} · {s.accountNo}</p>
-        <p className="text-xs text-muted-foreground">{s.date}</p>
+        <p className="text-sm font-semibold text-foreground">{s.bankName ?? 'Bank'} · {s.accountNumber ?? '—'}</p>
+        <p className="text-xs text-muted-foreground">{new Date(s.createdAt).toLocaleDateString()}</p>
       </div>
       <div className="text-right">
-        <p className="text-sm font-bold text-foreground"><CurrencyDisplay amount={s.amount} /></p>
-        <p className="text-xs text-muted-foreground">₦{s.amountNgn.toLocaleString()}</p>
+        <p className="text-sm font-bold text-foreground"><CurrencyDisplay amount={s.amountUsdc} /></p>
+        <p className="text-xs text-muted-foreground">₦{(s.amountNgn ?? 0).toLocaleString()}</p>
       </div>
       <div className="flex items-center gap-2">
         <StatusBadge status={s.status as 'completed' | 'pending' | 'failed'} />
@@ -64,9 +66,16 @@ const SettlementItem = memo(function SettlementItem({ settlement: s }: Settlemen
 });
 
 export default function SettlementPage() {
+  const { data: settlements, isLoading, error: fetchError, refetch } = useSettlements();
   const [settlementsError, setSettlementsError] = useState(false);
   const isOnline = useOfflineStore((s) => s.isOnline);
   const [settlementOpen, setSettlementOpen] = useState(false);
+
+  // Compute stats from real data
+  const available = settlements.filter(s => s.status === 'PENDING').reduce((sum, s) => sum + s.amountUsdc, 0);
+  const pending = settlements.filter(s => s.status === 'PROCESSING').reduce((sum, s) => sum + s.amountUsdc, 0);
+  const totalSettled = settlements.filter(s => s.status === 'COMPLETED').reduce((sum, s) => sum + s.amountUsdc, 0);
+  const availableNgn = settlements.filter(s => s.status === 'PENDING').reduce((sum, s) => sum + (s.amountNgn ?? 0), 0);
 
   return (
     <div className="space-y-8 pb-8">
@@ -107,27 +116,27 @@ export default function SettlementPage() {
       <div className="grid gap-3 grid-cols-2 sm:grid-cols-3">
         <StatCard
           title="Available to Settle"
-          value={<CurrencyDisplay amount={12450.00} />}
+          value={<CurrencyDisplay amount={available} />}
           color="amber"
-          trend={{ label: "≈ ₦19,297,500" }}
+          trend={{ label: `≈ ₦${availableNgn.toLocaleString()}` }}
         />
         <StatCard
           title="Pending Settlement"
-          value={<CurrencyDisplay amount={8200.50} />}
-          trend={{ icon: Clock, label: "Processing", color: "text-primary" }}
+          value={<CurrencyDisplay amount={pending} />}
+          trend={{ icon: Clock, label: 'Processing', color: 'text-primary' }}
         />
         <StatCard
           title="Total Settled (30d)"
-          value={<CurrencyDisplay amount={38750.00} />}
-          trend={{ icon: CheckCircle2, label: "All completed", color: "text-emerald-600" }}
+          value={<CurrencyDisplay amount={totalSettled} />}
+          trend={{ icon: CheckCircle2, label: 'All completed', color: 'text-emerald-600' }}
         />
         <Card className="border border-border border-t-2 border-t-amber-200 bg-card shadow-sm">
           <CardHeader className="pb-2 relative">
             <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Available to Settle</CardTitle>
           </CardHeader>
           <CardContent className="p-3 sm:p-4 relative">
-            <p className="text-xl sm:text-2xl font-bold text-foreground"><CurrencyDisplay amount={12450.00} /></p>
-            <p className="text-xs text-muted-foreground mt-1">≈ ₦19,297,500</p>
+            <p className="text-xl sm:text-2xl font-bold text-foreground"><CurrencyDisplay amount={available} /></p>
+            <p className="text-xs text-muted-foreground mt-1">≈ ₦{availableNgn.toLocaleString()}</p>
           </CardContent>
         </Card>
         <Card className="border border-border bg-card shadow-sm">
@@ -135,7 +144,7 @@ export default function SettlementPage() {
             <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Pending Settlement</CardTitle>
           </CardHeader>
           <CardContent className="p-3 sm:p-4">
-            <p className="text-xl sm:text-2xl font-bold text-foreground"><CurrencyDisplay amount={8200.50} /></p>
+            <p className="text-xl sm:text-2xl font-bold text-foreground"><CurrencyDisplay amount={pending} /></p>
             <p className="text-xs text-primary mt-1 flex items-center gap-1"><Clock className="w-3 h-3" /> Processing</p>
           </CardContent>
         </Card>
@@ -144,7 +153,7 @@ export default function SettlementPage() {
             <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Total Settled (30d)</CardTitle>
           </CardHeader>
           <CardContent className="p-3 sm:p-4">
-            <p className="text-xl sm:text-2xl font-bold text-foreground"><CurrencyDisplay amount={38750.00} /></p>
+            <p className="text-xl sm:text-2xl font-bold text-foreground"><CurrencyDisplay amount={totalSettled} /></p>
             <p className="text-xs text-success mt-1 flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> All completed</p>
           </CardContent>
         </Card>
@@ -169,14 +178,18 @@ export default function SettlementPage() {
           </NetworkTooltip>
         </CardHeader>
         <CardContent>
-          {settlementsError ? (
+          {settlementsError || fetchError ? (
             <div className="py-12">
               <ErrorDisplay
-                message="Failed to load settlement history"
-                onRetry={() => setSettlementsError(false)}
+                message={fetchError ?? 'Failed to load settlement history'}
+                onRetry={() => { setSettlementsError(false); refetch(); }}
               />
             </div>
-          ) : mockSettlements.length === 0 ? (
+          ) : isLoading ? (
+            <div className="space-y-3">
+              {[1,2,3].map(i => <div key={i} className="h-16 rounded-xl bg-muted animate-pulse" />)}
+            </div>
+          ) : settlements.length === 0 ? (
             <EmptyState
               icon={Receipt}
               title="No settlements yet"
@@ -184,7 +197,7 @@ export default function SettlementPage() {
             />
           ) : (
             <div className="space-y-3">
-              {mockSettlements.map((s) => (
+              {settlements.map((s) => (
                 <SettlementItem key={s.id} settlement={s} />
               ))}
             </div>
