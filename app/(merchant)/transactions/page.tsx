@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, memo, useMemo, useRef, useEffect } from 'react';
+import { useState, memo, useMemo, useRef } from 'react';
 import { useDebounceValue } from 'usehooks-ts';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -13,15 +13,16 @@ import { CurrencyDisplay } from '@/components/shared/CurrencyDisplay';
 import { ErrorDisplay } from '@/components/shared/ErrorDisplay';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { TableSkeleton } from '@/components/skeletons/TableSkeleton';
-import { mockTransactions } from '@/lib/mock/transactions';
+import { usePayments, type ApiPayment } from '@/lib/api/hooks';
 import { formatDate } from '@/lib/utils/format';
 import { sanitizeSearchQuery } from '@/lib/utils/sanitize';
 import { Search, Download, Filter, SearchX, ExternalLink } from 'lucide-react';
 import { getStellarExplorerTxUrl } from '@/lib/utils/explorer';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { TransactionDetail } from '@/components/transactions/TransactionDetail';
-import { Transaction } from '@/lib/mock/transactions';
 import { useOfflineStore } from '@/lib/store/offlineStore';
+
+type Transaction = ApiPayment;
 
 
 
@@ -37,7 +38,7 @@ const TransactionCard = memo(function TransactionCard({ tx, onClick }: Transacti
       onClick={() => onClick(tx)}
     >
       <div className="flex items-center justify-between">
-        <span className="text-sm text-muted-foreground">{formatDate(tx.timestamp)}</span>
+        <span className="text-sm text-muted-foreground">{formatDate(tx.createdAt)}</span>
         <StatusBadge status={tx.status} />
       </div>
       <div className="space-y-2">
@@ -82,14 +83,10 @@ const TransactionCard = memo(function TransactionCard({ tx, onClick }: Transacti
 });
 
 export default function TransactionsPage() {
-  const [isLoading, setIsLoading] = useState(true);
+  const { data: payments, isLoading, error: fetchError, refetch } = usePayments();
   const [searchTerm, setSearchTerm] = useState('');
-const sanitizedOnChange = (value: string) => setSearchTerm(sanitizeSearchQuery(value));
+  const sanitizedOnChange = (value: string) => setSearchTerm(sanitizeSearchQuery(value));
   const [debouncedSearch] = useDebounceValue(searchTerm, 300);
-useEffect(() => {
-    const timer = setTimeout(() => setIsLoading(false), 500);
-    return () => clearTimeout(timer);
-  }, []);
   const [filterCount] = useState(0);
   const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
   const [txError, setTxError] = useState(false);
@@ -97,11 +94,11 @@ useEffect(() => {
   const tableContainerRef = useRef<HTMLDivElement>(null);
 
   const filteredTransactions = useMemo(() =>
-    mockTransactions.filter(tx =>
-      tx.txHash.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
-      tx.payerAddress.toLowerCase().includes(debouncedSearch.toLowerCase())
+    payments.filter(tx =>
+      (tx.txHash ?? '').toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+      (tx.payerAddress ?? '').toLowerCase().includes(debouncedSearch.toLowerCase())
     ),
-    [debouncedSearch]
+    [payments, debouncedSearch]
   );
 
   const virtualizer = useVirtualizer({
@@ -199,11 +196,11 @@ useEffect(() => {
 
       <Card className="bg-card border-border/50 shadow-sm">
         <CardContent className="pt-4">
-          {txError ? (
+          {txError || fetchError ? (
             <div className="py-12">
               <ErrorDisplay
-                message="Failed to load transactions"
-                onRetry={() => setTxError(false)}
+                message={fetchError ?? 'Failed to load transactions'}
+                onRetry={() => { setTxError(false); refetch(); }}
               />
             </div>
           ) : (
@@ -258,7 +255,7 @@ useEffect(() => {
                                 }}
                               >
                                 <td className="text-muted-foreground whitespace-nowrap px-4 py-2 text-sm">
-                                  {formatDate(tx.timestamp)}
+                                  {formatDate(tx.createdAt)}
                                 </td>
                                 <td className="px-4 py-2 text-sm">
                                   <CopyAddress address={tx.payerAddress} />
