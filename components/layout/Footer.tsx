@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ShieldCheck, Twitter, Github, Linkedin, Mail } from "lucide-react";
+import { ShieldCheck, MessageCircle, Code2, Briefcase, Mail } from "lucide-react";
 
 export default function Footer() {
   const currentYear = new Date().getFullYear();
@@ -25,9 +25,9 @@ export default function Footer() {
               The next-generation non-custodial payment gateway for African merchants. Accept global stablecoin payments and settle directly to your local bank account in seconds. Built securely on the Stellar network.
             </p>
             <div className="flex items-center gap-4 text-muted-foreground">
-              <Link href="#" className="hover:text-primary transition-colors"><Twitter className="w-5 h-5" /></Link>
-              <Link href="#" className="hover:text-primary transition-colors"><Github className="w-5 h-5" /></Link>
-              <Link href="#" className="hover:text-primary transition-colors"><Linkedin className="w-5 h-5" /></Link>
+              <Link href="#" className="hover:text-primary transition-colors"><MessageCircle className="w-5 h-5" /></Link>
+              <Link href="#" className="hover:text-primary transition-colors"><Code2 className="w-5 h-5" /></Link>
+              <Link href="#" className="hover:text-primary transition-colors"><Briefcase className="w-5 h-5" /></Link>
               <Link href="#" className="hover:text-primary transition-colors"><Mail className="w-5 h-5" /></Link>
             </div>
           </div>
