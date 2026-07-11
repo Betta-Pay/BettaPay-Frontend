@@ -22,13 +22,14 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { TransactionDetail } from '@/components/transactions/TransactionDetail';
-import { Transaction } from '@/lib/mock/transactions';
-import { mockTransactions, mockPaymentLinks } from '@/lib/mock/dashboard';
+import { usePayments, useSettlements, type ApiPayment } from '@/lib/api/hooks';
 import { useAuthStore } from '@/lib/store/authStore';
 import Link from 'next/link';
 import { useNotify } from '@/lib/hooks/useNotify';
 import { cn } from '@/lib/utils';
 import { RevenueChartSection } from '@/components/dashboard/RevenueChartSection';
+
+type Transaction = ApiPayment;
 
 const PERIOD_OPTIONS = ['7D', '30D', '90D'] as const;
 type Period = typeof PERIOD_OPTIONS[number];
@@ -74,7 +75,7 @@ const StatCards = memo(function StatCards({ error, onRetry }: StatCardsProps) {
         </CardHeader>
         <CardContent className="p-3 sm:p-4 relative">
           <div className="text-xl sm:text-2xl font-bold text-foreground">
-            <CurrencyDisplay amount={45231.89} />
+            <CurrencyDisplay amount={totalVolume} />
           </div>
           <p className="text-xs text-emerald-600 flex items-center mt-1.5 font-medium">
             <ArrowUpRight className="h-3 w-3 mr-1" />
@@ -146,8 +147,17 @@ const StatCards = memo(function StatCards({ error, onRetry }: StatCardsProps) {
 export default function DashboardPage() {
   const { user } = useAuthStore();
   const notify = useNotify();
+  const { data: payments, isLoading: paymentsLoading } = usePayments();
+  const { data: settlements, isLoading: settlementsLoading } = useSettlements();
 
-const [isLoading, setIsLoading] = useState(true);
+  const isLoading = paymentsLoading || settlementsLoading;
+
+  // Compute real stats
+  const totalVolume = payments.reduce((sum, p) => sum + p.amountUsdc, 0);
+  const successfulPayments = payments.filter(p => p.status === 'COMPLETED' || p.status === 'success').length;
+  const pendingSettlements = settlements.filter(s => s.status === 'PENDING' || s.status === 'PROCESSING').length;
+  const recentTxs = payments.slice(0, 5);
+
   const [activePeriod, setActivePeriod] = useState<Period>('7D');
   const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
 
@@ -167,10 +177,6 @@ const [isLoading, setIsLoading] = useState(true);
     },
     [notify]
   );
-  useEffect(() => {
-    const timer = setTimeout(() => setIsLoading(false), 500);
-    return () => clearTimeout(timer);
-  }, []);
 
   const handlePeriodChange = useCallback((p: Period) => {
     setActivePeriod(p);
@@ -433,7 +439,7 @@ const [isLoading, setIsLoading] = useState(true);
               </div>
             ) : (
               <div className="space-y-1">
-                {mockTransactions.map((tx) => (
+                {recentTxs.map((tx) => (
                   <div
                     key={tx.id}
                     className="flex items-center gap-3 py-2.5 px-2 rounded-xl hover:bg-muted transition-colors group cursor-pointer"
@@ -443,17 +449,17 @@ const [isLoading, setIsLoading] = useState(true);
                       <Zap className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-foreground truncate">{tx.label}</p>
+                      <p className="text-sm font-medium text-foreground truncate">{tx.source ?? 'Payment'}</p>
                       <p className="text-xs text-muted-foreground font-mono">
-                        {tx.address} · {tx.time}
+                        {(tx.payerAddress ?? '').slice(0, 8)}... · {new Date(tx.createdAt).toLocaleTimeString()}
                       </p>
                     </div>
                     <div className="flex flex-col items-end gap-1 flex-shrink-0">
                       <span className={cn(
                         'text-sm font-semibold',
-                        tx.status === 'failed' ? 'text-destructive' : 'text-success'
+                        tx.status === 'failed' || tx.status === 'FAILED' ? 'text-destructive' : 'text-success'
                       )}>
-                        {tx.status === 'failed' ? '-' : '+'}<CurrencyDisplay amount={tx.amountUsdc} showDecimals={false} />
+                        {tx.status === 'failed' || tx.status === 'FAILED' ? '-' : '+'}<CurrencyDisplay amount={tx.amountUsdc} showDecimals={false} />
                       </span>
                       <StatusBadge status={tx.status as 'completed' | 'pending' | 'failed'} />
                     </div>
@@ -524,8 +530,9 @@ const [isLoading, setIsLoading] = useState(true);
               </div>
             ) : (
               <div className="space-y-3">
-                {mockPaymentLinks.map((link) => {
-                  const conversionRate = Math.round((link.converted / link.clicks) * 100);
+                {payments.slice(0, 3).map((link) => {
+                  const baseUrl = process.env.NEXT_PUBLIC_API_URL ?? '';
+                  const linkUrl = `${baseUrl}/pay/${link.id}`;
                   return (
                     <Link
                       key={link.id}
@@ -536,16 +543,13 @@ const [isLoading, setIsLoading] = useState(true);
                         <CreditCard className="w-4 h-4 text-primary" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-foreground truncate">{link.label}</p>
-                        <p className="text-xs text-muted-foreground font-mono truncate">{link.url}</p>
+                        <p className="text-sm font-semibold text-foreground truncate">{link.source ?? 'Payment Link'}</p>
+                        <p className="text-xs text-muted-foreground font-mono truncate">{linkUrl}</p>
                         <div className="flex items-center gap-2 mt-1.5">
                           <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
-                            <div
-                              className="h-full bg-amber-400 rounded-full"
-                              style={{ width: `${conversionRate}%` }}
-                            />
+                            <div className="h-full bg-amber-400 rounded-full" style={{ width: '50%' }} />
                           </div>
-                          <span className="text-xs text-muted-foreground font-medium">{conversionRate}%</span>
+                          <span className="text-xs text-muted-foreground font-medium">—</span>
                         </div>
                       </div>
                       <div className="flex flex-col items-end gap-1 flex-shrink-0">
