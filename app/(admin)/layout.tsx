@@ -6,7 +6,6 @@ import { PageTransition } from '@/components/shared/PageTransition';
 import { MobileNavDrawer } from '@/components/layout/MobileNavDrawer';
 import { Topbar } from '@/components/layout/Topbar';
 import Footer from '@/components/layout/Footer';
-import { ShieldCheck } from 'lucide-react';
 
 export default function AdminLayout({
   children,
