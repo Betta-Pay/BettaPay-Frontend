@@ -11,7 +11,7 @@ export function middleware(request: NextRequest) {
     request.nextUrl.pathname === '/auth/verify-2fa' ||
     request.nextUrl.pathname === '/auth/forgot-password' ||
     request.nextUrl.pathname === '/auth/reset-password';
-  const isPublicPayPage = request.nextUrl.pathname.startsWith('/pay');
+  const isPublicPage = request.nextUrl.pathname === '/' || request.nextUrl.pathname.startsWith('/pay');
   const isAdminRoute = request.nextUrl.pathname.startsWith('/admin') || 
                        request.nextUrl.pathname === '/overview' ||
                        request.nextUrl.pathname === '/merchants' ||
@@ -19,8 +19,8 @@ export function middleware(request: NextRequest) {
                        request.nextUrl.pathname === '/fx-management' ||
                        request.nextUrl.pathname === '/compliance';
   
-  // Allow public access to payment links
-  if (isPublicPayPage) {
+  // Allow public access to landing page and payment links
+  if (isPublicPage) {
     return NextResponse.next();
   }
 
