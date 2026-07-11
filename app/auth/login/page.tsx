@@ -61,12 +61,19 @@ export default function LoginPage() {
       let merchantName = isMockAdmin ? 'System Admin' : 'Merchant User';
 
       try {
-        // Try fetching the seeded merchant from the backend
-        const { apiClient } = await import('@/lib/api/axios');
-        const response = await apiClient.get(`/api/merchants/${merchantId}`);
-        if (response.data && !response.data.error) {
-          merchantId = response.data.id;
-          merchantName = response.data.name;
+        // Use plain fetch (no auth interceptors) to avoid triggering the 401→redirect chain
+        // during the pre-auth merchant lookup. The endpoint requires a JWT we don't have yet.
+        const apiBase = process.env.NEXT_PUBLIC_API_URL || 'https://bettapay-backend.onrender.com';
+        const res = await fetch(`${apiBase}/api/merchants/${merchantId}`, {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data && !data.error) {
+            merchantId = data.data?.id ?? data.id ?? merchantId;
+            merchantName = data.data?.name ?? data.name ?? merchantName;
+          }
         }
       } catch {
         console.warn('Backend unavailable, falling back to mock auth for Vercel preview.');

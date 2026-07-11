@@ -60,6 +60,10 @@ function processQueue(error: unknown, token: string | null) {
 }
 
 function redirectToLogin() {
+  // Don't redirect if already on an auth page — prevents infinite redirect loops
+  if (typeof window !== 'undefined' && window.location.pathname.startsWith('/auth')) {
+    return;
+  }
   useAuthStore.getState().logout();
   if (typeof window !== 'undefined') {
     window.location.href = '/auth/login';
