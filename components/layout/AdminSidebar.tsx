@@ -24,6 +24,8 @@ export const adminNavItems = [
   { href: '/admin/settings', label: 'Settings', icon: Settings },
 ];
 
+import Image from 'next/image';
+
 export const AdminSidebar = () => {
   const pathname = usePathname();
 
@@ -31,8 +33,8 @@ export const AdminSidebar = () => {
     <aside className="flex h-full w-64 flex-col bg-sidebar border-r border-sidebar-border hidden md:flex" role="navigation" aria-label="Main navigation">
       <div className="p-6">
         <Link href="/overview" className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded bg-primary flex items-center justify-center">
-            <ShieldCheck className="w-5 h-5 text-primary-foreground" />
+          <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center p-1">
+            <Image src="/logo.png" alt="BettaPay Logo" width={24} height={24} className="w-full h-full object-contain" />
           </div>
           <span className="font-bold text-xl tracking-tight text-sidebar-foreground">BettaPay <span className="text-primary text-sm font-normal ml-1">ADMIN</span></span>
         </Link>

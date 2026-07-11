@@ -25,7 +25,9 @@ export default function AdminLayout({
         brandLabel="BettaPay ADMIN"
         logo={
           <span className="font-bold text-xl tracking-tight text-sidebar-foreground flex items-center gap-2">
-            <ShieldCheck className="w-5 h-5 text-primary" />
+            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center p-1">
+              <img src="/logo.png" alt="BettaPay Logo" className="w-full h-full object-contain" />
+            </div>
             BettaPay <span className="text-primary text-sm font-normal ml-0.5">ADMIN</span>
           </span>
         }

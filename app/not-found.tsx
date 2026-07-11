@@ -6,7 +6,8 @@ import { MerchantSidebar } from "@/components/layout/MerchantSidebar";
 import { Topbar } from "@/components/layout/Topbar";
 import Header from "@/components/layout/Header";
 import { Button } from "@/components/ui/button";
-import { ShieldCheck, Home, ArrowLeft, LifeBuoy, Frown } from "lucide-react";
+import { Home, ArrowLeft, LifeBuoy, Frown } from "lucide-react";
+import Image from "next/image";
 
 export default function NotFound() {
   const { isAuthenticated } = useAuthStore();
@@ -60,8 +61,8 @@ export default function NotFound() {
       <Header />
       <main className="flex-1">
         <div className="flex flex-col items-center justify-center py-24 sm:py-32 text-center px-4">
-          <div className="w-16 h-16 rounded-2xl bg-primary/10 dark:bg-primary/10 border border-primary/30 dark:border-primary/30 flex items-center justify-center mb-6">
-            <ShieldCheck className="w-8 h-8 text-primary" />
+          <div className="w-16 h-16 rounded-2xl bg-primary/10 dark:bg-primary/10 border border-primary/30 dark:border-primary/30 flex items-center justify-center mb-6 p-2 shadow-sm">
+            <Image src="/logo.png" alt="BettaPay Logo" width={48} height={48} className="w-full h-full object-contain" />
           </div>
           <h1 className="text-4xl sm:text-5xl font-bold text-foreground tracking-tight mb-3">
             404
@@ -91,8 +92,8 @@ export default function NotFound() {
       </main>
       <footer className="border-t border-border py-8 text-center text-xs text-muted-foreground">
         <div className="flex items-center justify-center gap-2 mb-2">
-          <div className="w-5 h-5 rounded bg-primary/20 flex items-center justify-center">
-            <ShieldCheck className="w-3 h-3 text-primary" />
+          <div className="w-5 h-5 rounded lg bg-primary/10 flex items-center justify-center p-0.5">
+            <Image src="/logo.png" alt="BettaPay Logo" width={16} height={16} className="w-full h-full object-contain" />
           </div>
           <span className="font-semibold text-foreground">BettaPay</span>
         </div>

@@ -26,6 +26,8 @@ export const merchantNavItems = [
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
+import Image from 'next/image';
+
 export const MerchantSidebar = () => {
   const pathname = usePathname();
 
@@ -38,8 +40,8 @@ export const MerchantSidebar = () => {
       {/* Logo */}
       <div className="p-5 border-b border-border">
         <Link href="/dashboard" className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl bg-primary flex items-center justify-center shadow-button">
-            <ShieldCheck className="w-4.5 h-4.5 text-primary-foreground" />
+          <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center p-1 shadow-sm">
+            <Image src="/logo.png" alt="BettaPay Logo" width={24} height={24} className="w-full h-full object-contain" />
           </div>
           <span className="font-bold text-xl tracking-tight text-foreground">
             BettaPay

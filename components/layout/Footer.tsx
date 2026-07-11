@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { ShieldCheck, MessageCircle, Code2, Briefcase, Mail } from "lucide-react";
+import Image from "next/image";
+import { MessageCircle, Code2, Briefcase, Mail } from "lucide-react";
 
 export default function Footer() {
   const currentYear = new Date().getFullYear();
@@ -16,8 +17,8 @@ export default function Footer() {
           {/* Brand Col */}
           <div className="lg:col-span-2 space-y-6">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
-                <ShieldCheck className="w-5 h-5 text-primary" />
+              <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center p-1">
+                <Image src="/logo.png" alt="BettaPay Logo" width={28} height={28} className="w-full h-full object-contain" />
               </div>
               <span className="text-xl font-bold text-foreground">BettaPay</span>
             </div>

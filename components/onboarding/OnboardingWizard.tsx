@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useWalletStore } from "@/lib/store/walletStore";
@@ -124,8 +125,8 @@ export const OnboardingWizard = () => {
       <div className="relative p-4 sm:p-6">
         <div className="flex items-start justify-between mb-4">
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center">
-              <ShieldCheck className="w-4 h-4 text-primary-foreground" />
+            <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center p-1 shadow-sm">
+              <Image src="/logo.png" alt="BettaPay Logo" width={20} height={20} className="w-full h-full object-contain" />
             </div>
             <span className="text-sm font-bold text-foreground">
               Getting Started
