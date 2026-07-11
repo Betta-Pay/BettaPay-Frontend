@@ -17,7 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from '@/components/ui/input';
-import { pairs } from '@/lib/mock/fx';
+import { useRates } from '@/lib/api/hooks';
 
 const FxRateChart = dynamic(() => import('@/components/charts/FxRateChart'), {
   ssr: false,
@@ -33,6 +33,7 @@ interface RateAlert {
 }
 
 export default function FxRatesPage() {
+  const { data: pairs, primaryRate, isLoading: ratesLoading, error: ratesError, refetch } = useRates();
   const [lastRefresh] = useState('Just now');
   const [fxError, setFxError] = useState(false);
   const [alerts, setAlerts] = useState<RateAlert[]>([]);
@@ -58,28 +59,24 @@ export default function FxRatesPage() {
     localStorage.setItem('bettapay_rate_alerts', JSON.stringify(alerts));
   }, [alerts]);
 
-  // Simulate rate checking
+  // Rate alert checking against live primaryRate
   useEffect(() => {
-    const currentRate = 1550; // Current mock rate
+    if (!primaryRate) return;
     const interval = setInterval(() => {
       alerts.forEach(alert => {
         if (alert.enabled) {
-          const isTriggered = alert.condition === 'above' 
-            ? currentRate >= alert.target 
-            : currentRate <= alert.target;
-          
+          const isTriggered = alert.condition === 'above'
+            ? primaryRate >= alert.target
+            : primaryRate <= alert.target;
           if (isTriggered) {
-            notify.info(`Rate alert triggered: ${alert.pair} is ${alert.condition} ₦${alert.target.toLocaleString()}. Current rate: ₦1,550`);
-            
-            // Disable alert after triggering once to avoid spamming
+            notify.info(`Rate alert triggered: ${alert.pair} is ${alert.condition} ₦${alert.target.toLocaleString()}. Current rate: ₦${primaryRate.toLocaleString()}`);
             setAlerts(prev => prev.map(a => a.id === alert.id ? { ...a, enabled: false } : a));
           }
         }
       });
-    }, 10000); // Check every 10 seconds
-
+    }, 10000);
     return () => clearInterval(interval);
-  }, [alerts, notify]);
+  }, [alerts, notify, primaryRate]);
 
   const handleCreateAlert = () => {
     if (!newTarget || isNaN(Number(newTarget))) {
@@ -144,7 +141,9 @@ export default function FxRatesPage() {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
                 <div>
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Primary Rate · USDC/NGN</p>
-                  <p className="text-3xl sm:text-5xl font-bold text-foreground">₦1,550</p>
+                  <p className="text-3xl sm:text-5xl font-bold text-foreground">
+                    {ratesLoading ? <span className="animate-pulse">Loading...</span> : primaryRate ? `₦${primaryRate.toLocaleString()}` : '₦—'}
+                  </p>
                   <p className="text-muted-foreground text-sm mt-1">Updated {lastRefresh}</p>
                 </div>
                 <div className="flex flex-wrap items-center gap-3">
@@ -274,7 +273,14 @@ export default function FxRatesPage() {
                 <p className="text-sm text-muted-foreground">No active rate alerts</p>
                 <p className="text-xs text-muted-foreground mt-1">We&apos;ll notify you when rates hit your targets.</p>
               </div>
-            ) : (
+              ) : ratesError || fxError ? (
+                <div className="py-6">
+                  <p className="text-sm text-center text-muted-foreground">{ratesError ?? 'Failed to load rates'}</p>
+                  <button onClick={refetch} className="mt-2 text-xs text-primary underline block mx-auto">Retry</button>
+                </div>
+              ) : pairs.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-4">No rate pairs available</p>
+              ) : (
               <div className="space-y-3">
                 {alerts.map((alert) => (
                   <div key={alert.id} className={cn(
