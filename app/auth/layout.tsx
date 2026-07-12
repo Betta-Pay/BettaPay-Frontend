@@ -14,7 +14,7 @@ export default function AuthLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen flex">
+    <main id="main-content" tabIndex={-1} className="min-h-screen flex">
       {/* Left Pane — Form */}
       <div className="w-full lg:w-[52%] flex flex-col bg-card">
         {/* Top bar */}
@@ -54,10 +54,10 @@ export default function AuthLayout({
       </div>
 
       {/* Right Pane - Visual Area (Hidden on Mobile) */}
-      <div className="hidden lg:flex w-[48%] relative overflow-hidden items-center justify-center bg-slate-950">
+      <div className="hidden lg:flex w-[48%] relative overflow-hidden items-center justify-center bg-sidebar">
         {/* Decorative blobs */}
         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary/10 blur-[140px] rounded-full pointer-events-none" />
-        <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-blue-600/10 blur-[120px] rounded-full pointer-events-none" />
+        <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-info/10 blur-[120px] rounded-full pointer-events-none" />
 
         {/* Grid pattern overlay */}
         <div className="absolute inset-0 opacity-[0.03]"
@@ -90,7 +90,7 @@ export default function AuthLayout({
             <span className="text-primary">zero friction.</span>
           </h2>
 
-          <p className="text-slate-400 text-lg leading-relaxed mb-12">
+          <p className="text-sidebar-foreground/60 text-lg leading-relaxed mb-12">
             The next-generation payment platform for African businesses. Accept
             USDC, convert via SEP-24 anchors, and settle directly to your bank.
           </p>
@@ -100,7 +100,7 @@ export default function AuthLayout({
             {highlights.map((item) => (
               <li key={item} className="flex items-start gap-3">
                 <CheckCircle2 className="w-6 h-6 text-primary shrink-0" />
-                <span className="text-slate-300 text-base leading-relaxed">
+                <span className="text-sidebar-foreground/70 text-base leading-relaxed">
                   {item}
                 </span>
               </li>
@@ -108,16 +108,16 @@ export default function AuthLayout({
           </ul>
 
           {/* Status bar */}
-          <div className="mt-auto pt-8 border-t border-white/10 flex items-center gap-6 text-sm font-medium">
-            <span className="flex items-center gap-2 text-slate-400">
-              <span className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)] animate-pulse" />
+          <div className="mt-auto pt-8 border-t border-sidebar-border flex items-center gap-6 text-sm font-medium">
+            <span className="flex items-center gap-2 text-sidebar-foreground/60">
+              <span className="w-2 h-2 rounded-full bg-success shadow-[0_0_8px_var(--success)/0.6] animate-pulse" />
               System Operational
             </span>
-            <span className="text-slate-600">•</span>
-            <span className="text-slate-400">Soroban Testnet</span>
+            <span className="text-sidebar-foreground/40">•</span>
+            <span className="text-sidebar-foreground/60">Soroban Testnet</span>
           </div>
         </div>
       </div>
-    </div>
+    </main>
   );
 }

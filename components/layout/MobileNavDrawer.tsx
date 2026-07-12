@@ -90,10 +90,10 @@ export const MobileNavDrawer = ({
                 href={item.href}
                 onClick={onClose}
                 className={cn(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors border-l-2 min-h-[44px]",
+                  "flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors min-h-[44px]",
                   isActive
-                    ? "border-primary bg-sidebar-accent/30 text-sidebar-foreground"
-                    : "border-transparent text-muted-foreground hover:bg-sidebar-accent/20 hover:text-sidebar-foreground"
+                    ? "bg-sidebar-accent/40 text-sidebar-foreground font-semibold"
+                    : "text-muted-foreground hover:bg-sidebar-accent/20 hover:text-sidebar-foreground"
                 )}
               >
                 <Icon className="w-5 h-5" />

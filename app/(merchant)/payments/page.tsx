@@ -40,7 +40,7 @@ const PaymentLinkCard = memo(function PaymentLinkCard({ link }: PaymentLinkCardP
             <span className="hidden sm:inline"> · Created {new Date(link.createdAt).toLocaleDateString()}</span>
           </CardDescription>
         </div>
-        <Button variant="ghost" size="icon" aria-label="More options" className="h-8 w-8 text-muted-foreground -mt-2 -mr-2">
+        <Button variant="ghost" size="icon" aria-label="More options" className="min-h-[44px] min-w-[44px] text-muted-foreground -mt-2 -mr-2">
           <MoreHorizontal className="h-4 w-4" />
         </Button>
       </CardHeader>
@@ -53,7 +53,7 @@ const PaymentLinkCard = memo(function PaymentLinkCard({ link }: PaymentLinkCardP
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
             <CopyAddress address={`${process.env.NEXT_PUBLIC_API_URL ?? ''}/pay/${link.id}`} showIconOnly truncate={false} />
-            <Button variant="outline" size="icon" aria-label="Show QR code" className="h-8 w-8 border-border/50 bg-background/50 text-muted-foreground hover:text-foreground">
+            <Button variant="outline" size="icon" aria-label="Show QR code" className="min-h-[44px] min-w-[44px] border-border/50 bg-background/50 text-muted-foreground hover:text-foreground">
               <QrCode className="h-4 w-4" />
             </Button>
           </div>

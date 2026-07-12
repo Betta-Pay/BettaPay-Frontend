@@ -164,7 +164,7 @@ export default function WalletPage() {
                 onClick={handleCopy}
                 variant="ghost"
                 aria-label="Copy wallet address"
-                className="h-8 w-8 p-0 rounded-lg bg-background/10 hover:bg-background/20 text-primary-foreground"
+                className="min-h-[44px] min-w-[44px] p-0 rounded-lg bg-background/10 hover:bg-background/20 text-primary-foreground"
               >
                 <Copy className="w-3.5 h-3.5" />
               </Button>
@@ -173,7 +173,7 @@ export default function WalletPage() {
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="View on Stellar Expert"
-                className="h-8 w-8 p-0 rounded-lg bg-background/10 hover:bg-background/20 text-primary-foreground flex items-center justify-center transition-colors"
+                className="min-h-[44px] min-w-[44px] p-0 rounded-lg bg-background/10 hover:bg-background/20 text-primary-foreground flex items-center justify-center transition-colors"
               >
                 <ExternalLink className="w-3.5 h-3.5" />
               </a>

@@ -50,9 +50,8 @@ export const Topbar = ({ onMenuClick, isMenuOpen, title, unreadNotificationCount
 
   const isDark = isMounted && resolvedTheme === "dark";
 
-  // Cycle: light → dark → system → light
-  const THEME_CYCLE: Array<"light" | "dark" | "system"> = ["light", "dark", "system"];
   const toggleTheme = useCallback(() => {
+    const THEME_CYCLE: Array<"light" | "dark" | "system"> = ["light", "dark", "system"];
     const current = theme as "light" | "dark" | "system";
     const next = THEME_CYCLE[(THEME_CYCLE.indexOf(current) + 1) % THEME_CYCLE.length];
     setTheme(next);

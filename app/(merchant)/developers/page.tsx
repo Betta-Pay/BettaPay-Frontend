@@ -171,13 +171,13 @@ export default function DevelopersPage() {
                   <p className="text-xs font-medium text-foreground">{key.lastUsed}</p>
                 </div>
                 <div className="flex gap-1">
-                  <Button variant="ghost" size="icon" aria-label="Toggle visibility" className="h-8 w-8 rounded-lg" onClick={() => setShowKey(showKey === key.id ? null : key.id)}>
+                  <Button variant="ghost" size="icon" aria-label="Toggle visibility" className="min-h-[44px] min-w-[44px] rounded-lg" onClick={() => setShowKey(showKey === key.id ? null : key.id)}>
                     {showKey === key.id ? <EyeOff className="w-3.5 h-3.5 text-muted-foreground" /> : <Eye className="w-3.5 h-3.5 text-muted-foreground" />}
                   </Button>
-                  <Button variant="ghost" size="icon" aria-label="Copy API key" className="h-8 w-8 rounded-lg" onClick={() => handleCopy(`${key.prefix}EXAMPLE${key.suffix}`)}>
+                  <Button variant="ghost" size="icon" aria-label="Copy API key" className="min-h-[44px] min-w-[44px] rounded-lg" onClick={() => handleCopy(`${key.prefix}EXAMPLE${key.suffix}`)}>
                     <Copy className="w-3.5 h-3.5 text-muted-foreground" />
                   </Button>
-                  <Button variant="ghost" size="icon" aria-label="Rotate API key" className="h-8 w-8 rounded-lg" onClick={() => notify.info('Key rotation coming soon')}>
+                  <Button variant="ghost" size="icon" aria-label="Rotate API key" className="min-h-[44px] min-w-[44px] rounded-lg" onClick={() => notify.info('Key rotation coming soon')}>
                     <RefreshCcw className="w-3.5 h-3.5 text-muted-foreground" />
                   </Button>
                 </div>
@@ -263,7 +263,7 @@ export default function DevelopersPage() {
               <Button 
                 variant="ghost" 
                 size="sm" 
-                className="h-7 text-[10px] text-muted-foreground hover:text-foreground"
+                className="min-h-[44px] text-xs text-muted-foreground hover:text-foreground"
                 onClick={() => handleCopy(JSON.stringify(SAMPLE_PAYLOADS[selectedEvent], null, 2))}
               >
                 <Copy className="w-3 h-3 mr-1" /> Copy JSON

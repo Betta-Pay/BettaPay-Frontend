@@ -19,10 +19,10 @@ interface StatCardProps {
 }
 
 const colorStyles = {
-  amber: { gradient: 'from-amber-50/60', box: 'bg-primary/20', icon: 'text-primary' },
-  blue: { gradient: 'from-blue-50/60', box: 'bg-blue-100', icon: 'text-blue-600' },
-  emerald: { gradient: 'from-emerald-50/60', box: 'bg-emerald-100', icon: 'text-emerald-600' },
-  purple: { gradient: 'from-purple-50/60', box: 'bg-purple-100', icon: 'text-purple-600' },
+  amber: { gradient: 'from-primary/5', box: 'bg-primary/20', icon: 'text-primary' },
+  blue: { gradient: 'from-info/5', box: 'bg-info/20', icon: 'text-info' },
+  emerald: { gradient: 'from-success/5', box: 'bg-success/20', icon: 'text-success' },
+  purple: { gradient: 'from-accent/5', box: 'bg-accent', icon: 'text-accent-foreground' },
   primary: { gradient: 'from-primary/5', box: 'bg-primary/10', icon: 'text-primary' },
 } as const;
 

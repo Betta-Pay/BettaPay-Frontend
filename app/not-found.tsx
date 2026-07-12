@@ -18,7 +18,7 @@ export default function NotFound() {
         <MerchantSidebar />
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
           <Topbar />
-          <main className="flex-1 overflow-y-auto bg-background/50 pb-20 md:pb-0">
+          <main id="main-content" tabIndex={-1} className="flex-1 overflow-y-auto bg-background/50 pb-20 md:pb-0">
             <div className="mx-auto max-w-7xl px-3 sm:px-6 py-4 sm:py-8">
               <div className="flex flex-col items-center justify-center py-20 text-center">
                 <div className="w-20 h-20 rounded-2xl bg-primary/10 dark:bg-primary/10 border border-primary/30 dark:border-primary/30 flex items-center justify-center mb-6">
@@ -59,7 +59,7 @@ export default function NotFound() {
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      <main className="flex-1">
+      <main id="main-content" tabIndex={-1} className="flex-1">
         <div className="flex flex-col items-center justify-center py-24 sm:py-32 text-center px-4">
           <div className="w-16 h-16 rounded-2xl bg-primary/10 dark:bg-primary/10 border border-primary/30 dark:border-primary/30 flex items-center justify-center mb-6 p-2 shadow-sm">
             <Image src="/logo.png" alt="BettaPay Logo" width={48} height={48} className="w-full h-full object-contain" />

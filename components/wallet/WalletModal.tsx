@@ -68,7 +68,7 @@ function ConnectErrorAlert({ connectError, onRetry }: { connectError: NonNullabl
               <Button
                 variant="outline"
                 size="sm"
-                className="mt-2 h-7 px-2.5 text-xs border-destructive/30 text-destructive hover:bg-destructive/10"
+                className="mt-2 min-h-[44px] px-3 text-xs border-destructive/30 text-destructive hover:bg-destructive/10"
                 onClick={onRetry}
               >
                 <RotateCcw className="w-3 h-3 mr-1" />

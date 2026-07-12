@@ -300,14 +300,14 @@ export default function DashboardPage() {
                   color === 'amber' && 'border-primary/30 bg-primary/10 hover:bg-primary/20',
                   color === 'blue' && 'border-info/30 bg-info/10 hover:bg-info/20',
                   color === 'emerald' && 'border-success/30 bg-success/10 hover:bg-success/20',
-                  color === 'purple' && 'border-purple-200 bg-purple-50 hover:bg-purple-100',
+                  color === 'purple' && 'border-accent bg-accent/50 hover:bg-accent/80',
                 )}>
                   <Icon className={cn(
                     'w-5 h-5',
                     color === 'amber' && 'text-primary',
                     color === 'blue' && 'text-info',
                     color === 'emerald' && 'text-success',
-                    color === 'purple' && 'text-purple-600',
+                    color === 'purple' && 'text-accent-foreground',
                   )} />
                   <p className="text-xs font-semibold text-foreground leading-tight">{label}</p>
                 </div>

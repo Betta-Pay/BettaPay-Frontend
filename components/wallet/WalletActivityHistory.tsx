@@ -47,7 +47,7 @@ const WalletActivityItem = memo(function WalletActivityItem({ tx }: { tx: Wallet
           rel="noopener noreferrer"
           aria-label="View transaction on Stellar Explorer"
         >
-          <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg">
+          <Button variant="ghost" size="icon" className="min-h-[44px] min-w-[44px] rounded-lg">
             <ExternalLink className="w-3.5 h-3.5 text-muted-foreground" />
           </Button>
         </a>
@@ -64,7 +64,7 @@ export function WalletActivityHistory() {
           <CardTitle className="text-base font-semibold text-foreground">Wallet Activity</CardTitle>
           <CardDescription>Recent on-chain transactions</CardDescription>
         </div>
-        <Button variant="ghost" aria-label="Refresh balances" className="text-xs text-muted-foreground h-7 px-2 rounded-lg">
+        <Button variant="ghost" aria-label="Refresh balances" className="text-xs text-muted-foreground min-h-[44px] px-3 rounded-lg">
           <RefreshCcw className="w-3 h-3 mr-1.5" /> Refresh
         </Button>
       </CardHeader>

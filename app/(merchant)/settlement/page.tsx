@@ -55,7 +55,7 @@ const SettlementItem = memo(function SettlementItem({ settlement: s }: Settlemen
             rel="noopener noreferrer"
             aria-label="View on Stellar Explorer"
           >
-            <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg">
+            <Button variant="ghost" size="icon" className="min-h-[44px] min-w-[44px] rounded-lg">
               <ExternalLink className="w-3.5 h-3.5 text-muted-foreground" />
             </Button>
           </a>
