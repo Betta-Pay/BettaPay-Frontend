@@ -20,9 +20,10 @@ export const apiClient = axios.create({
   withCredentials: true,
 });
 
-// Separate instance for refresh calls to avoid interceptor recursion
+// Separate instance for refresh calls to avoid interceptor recursion.
+// Must use same-origin (no baseURL) because /api/auth/refresh is a Next.js API route,
+// not a backend endpoint. Cookies are sent to the Next.js server, not the backend.
 const refreshClient = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001',
   headers: { 'Content-Type': 'application/json' },
   withCredentials: true,
 });
