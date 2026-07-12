@@ -136,7 +136,7 @@ export const signWithFreighter = async (xdr: string): Promise<string | null> => 
 export const signChallenge = async (address: string, challenge: string): Promise<string | null> => {
   try {
     const resp: any = await signMessage(challenge, {
-      accountToSign: address,
+      address,
       networkPassphrase: getPassphrase(),
     });
 

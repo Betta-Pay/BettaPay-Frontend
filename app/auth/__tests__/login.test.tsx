@@ -12,9 +12,11 @@ global.fetch = jest.fn().mockResolvedValue({
 
 // Mock useRouter
 const mockPush = jest.fn();
+const mockReplace = jest.fn();
 jest.mock('next/navigation', () => ({
   useRouter: () => ({
     push: mockPush,
+    replace: mockReplace,
   }),
 }));
 
@@ -42,6 +44,17 @@ jest.mock('framer-motion', () => ({
     div: ({ children, ...props }: any) => <div {...props}>{children}</div>,
   },
   AnimatePresence: ({ children }: any) => <>{children}</>,
+}));
+
+// Mock Google Login (requires GoogleOAuthProvider wrapper in real app)
+jest.mock('@react-oauth/google', () => ({
+  GoogleLogin: () => <button data-testid="mock-google-login">Continue with Google</button>,
+  GoogleOAuthProvider: ({ children }: any) => <>{children}</>,
+}));
+
+// Mock Freighter signChallenge
+jest.mock('@/lib/stellar/freighter', () => ({
+  signChallenge: jest.fn().mockResolvedValue('mock_signature'),
 }));
 
 // Mock layout components used by RegisterPage
@@ -96,132 +109,31 @@ describe('Authentication Form Validation & Accessibility Tests', () => {
     mockPush.mockClear();
   });
 
-  describe('Login Page Validation', () => {
-    it('shows validation errors for empty or invalid fields', async () => {
-      const user = userEvent.setup();
+  describe('Login Page', () => {
+    it('renders Google Sign-In and Freighter Wallet buttons', () => {
       render(<LoginPage />);
 
-      const emailInput = screen.getByLabelText(/Email Address/i);
-      const passwordInput = screen.getByLabelText(/Password/i);
-      const submitBtn = screen.getByRole('button', { name: /Sign In/i });
-
-      expect(emailInput).toHaveAttribute('aria-invalid', 'false');
-      expect(passwordInput).toHaveAttribute('aria-invalid', 'false');
-
-      // Submit empty form to trigger errors
-      await user.click(submitBtn);
-
-      await waitFor(() => {
-        expect(screen.getByText('Please enter a valid email address')).toBeInTheDocument();
-      });
-
-      expect(emailInput).toHaveAttribute('aria-invalid', 'true');
-      expect(emailInput).toHaveAttribute('aria-describedby', 'email-error');
-
-      // Type a short password to trigger its error
-      await user.type(passwordInput, 'short');
-      await user.click(submitBtn);
-
-      await waitFor(() => {
-        expect(screen.getByText(/Password must include:/i)).toBeInTheDocument();
-      });
-
-      expect(passwordInput).toHaveAttribute('aria-invalid', 'true');
-      expect(passwordInput).toHaveAttribute('aria-describedby', 'password-error');
+      expect(screen.getByTestId('mock-google-login')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Connect Freighter Wallet/i })).toBeInTheDocument();
     });
 
-    it('clears the email error when a valid email is typed after an invalid submission', async () => {
+    it('opens wallet modal when Freighter Wallet button is clicked', async () => {
       const user = userEvent.setup();
       render(<LoginPage />);
 
-      const emailInput = screen.getByLabelText(/Email Address/i);
-      const submitBtn = screen.getByRole('button', { name: /Sign In/i });
+      await user.click(screen.getByRole('button', { name: /Connect Freighter Wallet/i }));
 
-      await user.click(submitBtn);
-      await waitFor(() => {
-        expect(emailInput).toHaveAttribute('aria-invalid', 'true');
-      });
-
-      await user.type(emailInput, 'valid@example.com');
-
-      await waitFor(() => {
-        expect(emailInput).toHaveAttribute('aria-invalid', 'false');
-        expect(emailInput).not.toHaveAttribute('aria-describedby');
-      });
-    });
-
-    it('redirects to /dashboard on valid form submission', async () => {
-      const user = userEvent.setup();
-      render(<LoginPage />);
-
-      await user.type(screen.getByLabelText(/Email Address/i), 'user@example.com');
-      await user.type(screen.getByLabelText(/Password/i), 'SecurePwd1!');
-      await user.click(screen.getByRole('button', { name: /Sign In/i }));
-
-      await waitFor(() => {
-        expect(mockPush).toHaveBeenCalledWith('/dashboard');
-      });
+      expect(screen.getByTestId('mock-wallet-modal')).toBeInTheDocument();
     });
   });
 
-  describe('Register Page Validation', () => {
-    it('shows error messages for empty fields with correct aria attributes', async () => {
-      jest.useFakeTimers();
-      const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+  describe('Register Page', () => {
+    it('redirects to /auth/login on mount', async () => {
       render(<RegisterPage />);
 
-      const businessNameInput = screen.getByLabelText(/Business Name/i);
-      const emailInput = screen.getByLabelText(/Work Email/i);
-      const passwordInput = screen.getByLabelText(/^Password/i);
-      const submitBtn = screen.getByRole('button', { name: /Create Account/i });
-
-      await user.click(submitBtn);
-
       await waitFor(() => {
-        expect(screen.getByText('Business name must be at least 2 characters')).toBeInTheDocument();
-        expect(screen.getByText('Please enter a valid email address')).toBeInTheDocument();
-        expect(screen.getByText('Country is required')).toBeInTheDocument();
-        expect(screen.getByText(/Password must include:/i)).toBeInTheDocument();
+        expect(mockReplace).toHaveBeenCalledWith('/auth/login');
       });
-
-      expect(businessNameInput).toHaveAttribute('aria-invalid', 'true');
-      expect(businessNameInput).toHaveAttribute('aria-describedby', 'businessName-error');
-
-      expect(emailInput).toHaveAttribute('aria-invalid', 'true');
-      expect(emailInput).toHaveAttribute('aria-describedby', 'email-error');
-
-      expect(passwordInput).toHaveAttribute('aria-invalid', 'true');
-      expect(passwordInput).toHaveAttribute('aria-describedby', 'password-error');
-
-      jest.useRealTimers();
-    });
-
-    it('redirects to /auth/login on successful register submission', async () => {
-      jest.useFakeTimers();
-      const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
-      render(<RegisterPage />);
-
-      const businessNameInput = screen.getByLabelText(/Business Name/i);
-      const emailInput = screen.getByLabelText(/Work Email/i);
-      const select = screen.getByTestId('mock-select');
-      const passwordInput = screen.getByLabelText(/^Password/i);
-      const submitBtn = screen.getByRole('button', { name: /Create Account/i });
-
-      await user.type(businessNameInput, 'Stellar Biz');
-      await user.type(emailInput, 'stellar@biz.com');
-      await user.selectOptions(select, 'NG');
-      await user.type(passwordInput, 'ValidPwd1!');
-
-      await user.click(submitBtn);
-
-      // Advance past any internal timers (e.g. the 1500ms fallback in onSubmit catch)
-      jest.runAllTimers();
-
-      await waitFor(() => {
-        expect(mockPush).toHaveBeenCalledWith('/auth/login');
-      });
-
-      jest.useRealTimers();
     });
   });
 });

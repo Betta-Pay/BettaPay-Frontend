@@ -39,6 +39,24 @@ jest.mock('next/dynamic', () => {
   };
 });
 
+// Mock Google Login (requires GoogleOAuthProvider wrapper in real app)
+jest.mock('@react-oauth/google', () => ({
+  GoogleLogin: ({ onSuccess, onError }: any) => (
+    <button
+      data-testid="mock-google-login"
+      onClick={() => onSuccess?.({ credential: 'mock_google_id_token' })}
+    >
+      Continue with Google
+    </button>
+  ),
+  GoogleOAuthProvider: ({ children }: any) => <>{children}</>,
+}));
+
+// Mock Freighter signChallenge
+jest.mock('@/lib/stellar/freighter', () => ({
+  signChallenge: jest.fn().mockResolvedValue('mock_base64_signature'),
+}));
+
 // Mock sonner toast
 jest.mock('@/lib/hooks/useNotify', () => ({
   useNotify: jest.fn()
@@ -48,20 +66,24 @@ import LoginPage from '../login/page';
 import { useAuthStore } from '@/lib/store/authStore';
 import { useNotify } from '@/lib/hooks/useNotify';
 
+const MERCHANT_JWT = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJtZXJjaGFudElkIjoibWVyY2hfMTIzIiwib3duZXJJZCI6InRlc3RAdGVzdC5jb20iLCJyb2xlIjoibWVyY2hhbnQifQ.test';
+const ADMIN_JWT = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJtZXJjaGFudElkIjoibWVyY2hfNDU2Iiwib3duZXJJZCI6ImFkbWluQHRlc3QuY29tIiwicm9sZSI6ImFkbWluIn0.test';
+
 describe('Login Flow Integration Tests', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    // Dynamic fetch mock: return admin role for admin emails, merchant otherwise
-    (global.fetch as jest.Mock).mockImplementation(async (url: string, options?: RequestInit) => {
-      if (url.includes('/api/auth/login') && options?.body) {
-        const body = JSON.parse(options.body as string);
-        const isAdmin = body.email?.includes('admin');
+    // Default fetch mock: all endpoints succeed with generic responses
+    (global.fetch as jest.Mock).mockImplementation(async (url: string, _options?: RequestInit) => {
+      if (url.includes('/api/auth/wallet/challenge')) {
         return {
           ok: true,
-          json: () => Promise.resolve({
-            token: 'mock_jwt_token_12345',
-            user: { id: '1', email: body.email, name: 'Test User', role: isAdmin ? 'admin' : 'merchant' },
-          }),
+          json: () => Promise.resolve({ challenge: 'BettaPay:GBX1234567890ABCDEF:testnonce', expiresAt: Date.now() + 120000 }),
+        };
+      }
+      if (url.includes('/api/auth/wallet/verify') || url.includes('/api/auth/google')) {
+        return {
+          ok: true,
+          json: () => Promise.resolve({ token: MERCHANT_JWT }),
         };
       }
       return {
@@ -83,20 +105,26 @@ describe('Login Flow Integration Tests', () => {
     });
   });
 
-  it('submits the form for a merchant and redirects to /dashboard', async () => {
+  it('performs Google sign-in and redirects to /dashboard', async () => {
     const user = userEvent.setup();
     render(<LoginPage />);
 
-    await user.type(screen.getByLabelText(/Email Address/i), 'merchant@example.com');
-    await user.type(screen.getByLabelText(/Password/i), 'Password1!');
-    await user.click(screen.getByRole('button', { name: /Sign In/i }));
+    await user.click(screen.getByTestId('mock-google-login'));
 
     await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringMatching(/\/api\/auth\/google$/),
+        expect.objectContaining({
+          method: 'POST',
+          body: JSON.stringify({ idToken: 'mock_google_id_token' }),
+        })
+      );
+
       expect(global.fetch).toHaveBeenCalledWith(
         '/api/auth/session',
         expect.objectContaining({
           method: 'POST',
-          body: JSON.stringify({ token: 'mock_jwt_token_12345', role: 'merchant' }),
+          body: JSON.stringify({ token: MERCHANT_JWT, role: 'merchant' }),
         })
       );
 
@@ -110,89 +138,99 @@ describe('Login Flow Integration Tests', () => {
     });
   });
 
-  it('detects admin role when email contains "admin" and redirects to /overview', async () => {
-    const user = userEvent.setup();
-    render(<LoginPage />);
-
-    await user.type(screen.getByLabelText(/Email Address/i), 'superadmin@company.com');
-    await user.type(screen.getByLabelText(/Password/i), 'Password1!');
-    await user.click(screen.getByRole('button', { name: /Sign In/i }));
-
-    await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalledWith(
-        '/api/auth/session',
-        expect.objectContaining({
-          method: 'POST',
-          body: JSON.stringify({ token: 'mock_jwt_token_12345', role: 'admin' }),
-        })
-      );
-
-      const state = useAuthStore.getState();
-      expect(state.isAuthenticated).toBe(true);
-      expect(state.role).toBe('admin');
-
-      expect(mockPush).toHaveBeenCalledWith('/overview');
-    });
-  });
-
-  it('triggers wallet login flow and redirects to /dashboard upon connection', async () => {
+  it('triggers wallet login flow and redirects to /dashboard', async () => {
     const user = userEvent.setup();
     render(<LoginPage />);
 
     // Open the wallet modal
     await user.click(screen.getByRole('button', { name: /Connect Freighter Wallet/i }));
 
-    // Trigger the mocked connection callback
-    const connectBtn = screen.getByTestId('connect-wallet-button');
-    await user.click(connectBtn);
+    // Trigger the mocked wallet connection callback
+    await user.click(screen.getByTestId('connect-wallet-button'));
 
     await waitFor(() => {
+      // 1. Fetch challenge
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('/api/auth/wallet/challenge?address=GBX1234567890ABCDEF')
+      );
+
+      // 2. Verify signature
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('/api/auth/wallet/verify'),
+        expect.objectContaining({
+          method: 'POST',
+          body: JSON.stringify({
+            address: 'GBX1234567890ABCDEF',
+            challenge: 'BettaPay:GBX1234567890ABCDEF:testnonce',
+            signature: 'mock_base64_signature',
+          }),
+        })
+      );
+
+      // 3. Set session
       expect(global.fetch).toHaveBeenCalledWith(
         '/api/auth/session',
         expect.objectContaining({
           method: 'POST',
-          body: JSON.stringify({ token: 'wallet_GBX1234567890ABCDEF', role: 'merchant' }),
+          body: JSON.stringify({ token: MERCHANT_JWT, role: 'merchant' }),
         })
       );
 
       const state = useAuthStore.getState();
       expect(state.isAuthenticated).toBe(true);
       expect(state.role).toBe('merchant');
-      expect(state.user?.name).toBe('Web3 Merchant');
 
       const { success } = useNotify();
-      expect(success).toHaveBeenCalledWith('Wallet connected & Logged in!');
+      expect(success).toHaveBeenCalledWith('Login successful');
       expect(mockPush).toHaveBeenCalledWith('/dashboard');
     });
   });
 
-  it('shows an error toast when the session API call fails', async () => {
+  it('shows an error toast when the wallet challenge fetch fails', async () => {
     const user = userEvent.setup();
 
-    // Make the login fetch succeed, then the session fetch fail
-    (global.fetch as jest.Mock)
-      .mockImplementationOnce(async (_url: string, options?: RequestInit) => {
-        const body = options?.body ? JSON.parse(options.body as string) : {};
-        return {
-          ok: true,
-          json: () => Promise.resolve({
-            token: 'mock_jwt_token_12345',
-            user: { id: '1', email: body.email || 'fail@example.com', name: 'Merchant', role: 'merchant' },
-          }),
-        };
-      })
-      .mockRejectedValueOnce(new Error('Network error'));
+    (global.fetch as jest.Mock).mockImplementation(async (url: string) => {
+      if (url.includes('/api/auth/wallet/challenge')) {
+        return { ok: false, json: () => Promise.resolve({ error: 'Rate limited' }) };
+      }
+      return { ok: true, json: () => Promise.resolve({}) };
+    });
 
     render(<LoginPage />);
 
-    await user.type(screen.getByLabelText(/Email Address/i), 'fail@example.com');
-    await user.type(screen.getByLabelText(/Password/i), 'Password1!');
-    await user.click(screen.getByRole('button', { name: /Sign In/i }));
+    await user.click(screen.getByRole('button', { name: /Connect Freighter Wallet/i }));
+    await user.click(screen.getByTestId('connect-wallet-button'));
 
-    // Session fetch failure is caught internally and execution continues (login still called)
-    // so the outer try doesn't throw; verify the happy path still runs
     await waitFor(() => {
-      expect(mockPush).toHaveBeenCalledWith('/dashboard');
+      const { error } = useNotify();
+      expect(error).toHaveBeenCalled();
+    });
+  });
+
+  it('shows an error toast when the wallet verify fails', async () => {
+    const user = userEvent.setup();
+
+    (global.fetch as jest.Mock).mockImplementation(async (url: string) => {
+      if (url.includes('/api/auth/wallet/challenge')) {
+        return {
+          ok: true,
+          json: () => Promise.resolve({ challenge: 'BettaPay:GBX1234567890ABCDEF:testnonce', expiresAt: Date.now() + 120000 }),
+        };
+      }
+      if (url.includes('/api/auth/wallet/verify')) {
+        return { ok: false, json: () => Promise.resolve({ error: 'Invalid signature' }) };
+      }
+      return { ok: true, json: () => Promise.resolve({}) };
+    });
+
+    render(<LoginPage />);
+
+    await user.click(screen.getByRole('button', { name: /Connect Freighter Wallet/i }));
+    await user.click(screen.getByTestId('connect-wallet-button'));
+
+    await waitFor(() => {
+      const { error } = useNotify();
+      expect(error).toHaveBeenCalledWith('Invalid signature');
     });
   });
 });
