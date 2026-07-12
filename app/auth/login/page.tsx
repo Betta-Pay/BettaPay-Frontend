@@ -138,15 +138,14 @@ export default function LoginPage() {
 
       <div className="space-y-4">
         {/* Google button */}
-        <div className="flex justify-center">
+        <div className="flex justify-center [&>div]:w-full">
           <GoogleLogin
             onSuccess={onGoogleSuccess}
             onError={() => error('Google login failed')}
-            useOneTap
             shape="rectangular"
-            theme="filled_blue"
+            theme="outline"
             size="large"
-            width="100%"
+            width="400"
           />
         </div>
 
