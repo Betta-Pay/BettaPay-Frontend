@@ -24,6 +24,11 @@
    * - Brand Logos: Background wrappers for external logos that require specific contrast.
    */
   :root {
+    /* ── Font tokens ── */
+    /* font-heading resolves the Tailwind `font-heading` utility (card.tsx, dialog.tsx).
+       Defaults to Inter — override this variable to swap in a display font globally. */
+    --font-heading: "Inter", system-ui, sans-serif;
+
     /* ── Shadow tokens ── */
     --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.05), 0 1px 2px -1px rgb(0 0 0 / 0.05);
     --shadow-card-hover: 0 4px 6px -1px rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.07);

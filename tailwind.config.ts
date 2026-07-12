@@ -88,6 +88,12 @@ const config: Config = {
         "nav-bottom": "var(--shadow-nav-bottom)",
         "surface-xl": "var(--shadow-xl)",
       },
+      fontFamily: {
+        // Resolves the `font-heading` utility used in card.tsx and dialog.tsx.
+        // Reads from the --font-heading CSS variable set in globals.css (Inter),
+        // with a safe system-ui fallback.
+        heading: ["var(--font-heading)", "system-ui", "sans-serif"],
+      },
     },
   },
   plugins: [require("tailwindcss-animate")],
