@@ -21,7 +21,6 @@ import {
   Contract,
   rpc,
   TransactionBuilder,
-  Networks,
   nativeToScVal,
 } from "@stellar/stellar-sdk";
 import { signWithFreighter } from "@/lib/stellar/freighter";
@@ -81,22 +80,31 @@ export default function PaymentLinkPage() {
         .join("");
 
       // 2. Build Soroban Transaction
-      const server = new rpc.Server("https://soroban-testnet.stellar.org");
+      const rpcUrl = process.env.NEXT_PUBLIC_SOROBAN_RPC_URL;
+      if (!rpcUrl) throw new Error('NEXT_PUBLIC_SOROBAN_RPC_URL is not set');
+      const server = new rpc.Server(rpcUrl);
       const account = await server.getAccount(payerAddress);
 
       const contractId =
         process.env.NEXT_PUBLIC_SETTLEMENT_CONTRACT_ID ||
         "CBGBGKJSUY7XYB6HWW4CVAU6MW2KD25FSF45E5KCP53TKUK374MBZNFB";
-      // Use the seeded admin as the merchant for this demo
-      const merchantAddress =
-        "GCCHHKNI7GRA5QWC7RCTT3OHO7SKAUMKQA6IBWEQEO2SXI3GF376UHDD";
+      // Merchant address: read from env var so it can be set per-environment.
+      // In production this should be derived from the payment link data fetched
+      // via the linkId param rather than a global env var.
+      const merchantAddress = process.env.NEXT_PUBLIC_MERCHANT_ADDRESS;
+      if (!merchantAddress) {
+        throw new Error('NEXT_PUBLIC_MERCHANT_ADDRESS is not set');
+      }
 
       // Amount in stroops (1 USDC = 10^7 stroops)
       const stroopAmount = BigInt(Math.floor(Number(amount) * 10_000_000));
 
+      const networkPassphrase = process.env.NEXT_PUBLIC_STELLAR_NETWORK_PASSPHRASE;
+      if (!networkPassphrase) throw new Error('NEXT_PUBLIC_STELLAR_NETWORK_PASSPHRASE is not set');
+
       const tx = new TransactionBuilder(account, {
         fee: "10000",
-        networkPassphrase: Networks.TESTNET,
+        networkPassphrase,
       })
         .addOperation(
           new Contract(contractId).call(
