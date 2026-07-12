@@ -15,8 +15,9 @@ import { normalizeEmail } from '@/lib/utils/sanitize';
 import { useAuthStore } from '@/lib/store/authStore';
 import { useRateLimitStore } from '@/lib/store/rateLimitStore';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { AuthInput } from '@/components/auth/AuthInput';
+import { AuthLabel } from '@/components/auth/AuthLabel';
+import { AuthButton } from '@/components/auth/AuthButton';
 
 import { WalletModalFallback } from '@/components/wallet/WalletModalFallback';
 
@@ -185,17 +186,16 @@ export default function LoginPage() {
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
         {/* Email */}
         <div className="space-y-1.5">
-          <Label htmlFor="email" className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+          <AuthLabel htmlFor="email">
             Email Address
-          </Label>
-          <Input
+          </AuthLabel>
+          <AuthInput
             id="email"
             type="email"
             placeholder="name@company.com"
             {...register('email')}
             aria-invalid={errors.email ? "true" : "false"}
             aria-describedby={errors.email ? "email-error" : undefined}
-            className="h-12 bg-card border border-border text-foreground placeholder:text-muted-foreground rounded-xl text-sm focus-visible:ring-1 focus-visible:ring-ring focus-visible:border-ring transition-all"
           />
           {errors.email && <p id="email-error" className="text-xs text-destructive mt-1">{errors.email.message}</p>}
         </div>
@@ -203,35 +203,33 @@ export default function LoginPage() {
         {/* Password */}
         <div className="space-y-1.5">
           <div className="flex items-center justify-between">
-            <Label htmlFor="password" className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+            <AuthLabel htmlFor="password">
               Password
-            </Label>
+            </AuthLabel>
             <Link href="/auth/forgot-password" className="text-xs text-muted-foreground hover:text-primary transition-colors">
               Forgot password?
             </Link>
           </div>
-          <Input
+          <AuthInput
             id="password"
             type="password"
             placeholder="••••••••"
             {...register('password')}
             aria-invalid={errors.password ? "true" : "false"}
             aria-describedby={errors.password ? "password-error" : undefined}
-            className="h-12 bg-card border border-border text-foreground placeholder:text-muted-foreground rounded-xl text-sm focus-visible:ring-1 focus-visible:ring-ring focus-visible:border-ring transition-all"
           />
           {errors.password && <p id="password-error" className="text-xs text-destructive mt-1">{errors.password.message}</p>}
         </div>
 
         {/* Sign In CTA */}
         <div className="pt-1">
-          <Button
+          <AuthButton
             type="submit"
             disabled={isLoading || isWalletLoading || isRateLimited}
-            className="w-full h-12 bg-primary hover:bg-primary/90 text-white font-semibold text-sm rounded-xl border-0 transition-colors scroll-mb-52"
           >
             {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
             {isRateLimited ? `Try again in ${secondsRemaining}s` : 'Sign In'}
-          </Button>
+          </AuthButton>
         </div>
       </form>
 
