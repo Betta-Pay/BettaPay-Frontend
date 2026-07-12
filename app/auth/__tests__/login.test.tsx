@@ -173,7 +173,7 @@ describe('Authentication Form Validation & Accessibility Tests', () => {
       const businessNameInput = screen.getByLabelText(/Business Name/i);
       const emailInput = screen.getByLabelText(/Work Email/i);
       const passwordInput = screen.getByLabelText(/^Password/i);
-      const submitBtn = screen.getByRole('button', { name: /Sign Up/i });
+      const submitBtn = screen.getByRole('button', { name: /Create Account/i });
 
       await user.click(submitBtn);
 
@@ -205,7 +205,7 @@ describe('Authentication Form Validation & Accessibility Tests', () => {
       const emailInput = screen.getByLabelText(/Work Email/i);
       const select = screen.getByTestId('mock-select');
       const passwordInput = screen.getByLabelText(/^Password/i);
-      const submitBtn = screen.getByRole('button', { name: /Sign Up/i });
+      const submitBtn = screen.getByRole('button', { name: /Create Account/i });
 
       await user.type(businessNameInput, 'Stellar Biz');
       await user.type(emailInput, 'stellar@biz.com');
