@@ -53,88 +53,104 @@ export default function LoginPage() {
   const onSubmit = useCallback(async (data: LoginFormValues) => {
     setIsLoading(true);
     const sanitizedData = { ...data, email: normalizeEmail(data.email) };
-    try {
-      const isMockAdmin = sanitizedData.email.includes('admin');
-      const role = isMockAdmin ? 'admin' : 'merchant';
-      
-      let merchantId = 'GCCHHKNI7GRA5QWC7RCTT3OHO7SKAUMKQA6IBWEQEO2SXI3GF376UHDD';
-      let merchantName = isMockAdmin ? 'System Admin' : 'Merchant User';
 
-      try {
-        // Use plain fetch (no auth interceptors) to avoid triggering the 401→redirect chain
-        // during the pre-auth merchant lookup. The endpoint requires a JWT we don't have yet.
-        const apiBase = process.env.NEXT_PUBLIC_API_URL || 'https://bettapay-backend.onrender.com';
-        const res = await fetch(`${apiBase}/api/merchants/${merchantId}`, {
-          method: 'GET',
-          headers: { 'Content-Type': 'application/json' },
-        });
-        if (res.ok) {
-          const data = await res.json();
-          if (data && !data.error) {
-            merchantId = data.data?.id ?? data.id ?? merchantId;
-            merchantName = data.data?.name ?? data.name ?? merchantName;
-          }
-        }
-      } catch {
-        console.warn('Backend unavailable, falling back to mock auth for Vercel preview.');
+    try {
+      const apiBase = process.env.NEXT_PUBLIC_API_URL || 'https://bettapay-backend.onrender.com';
+
+      // Authenticate against the real backend — no mock tokens
+      const loginRes = await fetch(`${apiBase}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: sanitizedData.email,
+          password: sanitizedData.password,
+        }),
+      });
+
+      if (!loginRes.ok) {
+        const errBody = await loginRes.json().catch(() => ({}));
+        const message =
+          errBody?.message ||
+          errBody?.error ||
+          (loginRes.status === 401 ? 'Invalid email or password.' : 'Login failed. Please try again.');
+        error(message);
+        return;
       }
 
-      const mockToken = 'mock_jwt_token_12345';
-      const mockUser = {
-        id: merchantId,
-        email: sanitizedData.email,
-        name: merchantName,
-        role,
+      const loginData = await loginRes.json();
+
+      // Backend returns { token, user: { id, email, name, role, ... } }
+      const token: string = loginData.token ?? loginData.data?.token;
+      const backendUser = loginData.user ?? loginData.data?.user;
+
+      if (!token || !backendUser) {
+        error('Unexpected response from server. Please try again.');
+        return;
+      }
+
+      const user = {
+        id: backendUser.id,
+        email: backendUser.email,
+        name: backendUser.name,
+        role: backendUser.role as 'admin' | 'merchant',
       };
 
-      // Ask the backend to set an HttpOnly auth cookie and store minimal user info client-side
+      // Set the HttpOnly auth cookie via the Next.js session route
       try {
         await fetch('/api/auth/session', {
           method: 'POST',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token: mockToken, role }),
+          body: JSON.stringify({ token, role: user.role }),
         });
-      } catch (error) {
-        // Backend unavailable; continue without setting insecure client cookies.
-        console.warn('Auth session API unavailable; continuing without HttpOnly cookie.', error);
+      } catch (sessionErr) {
+        // Cookie set failure is non-fatal — in-memory auth will still work for this tab
+        console.warn('Auth session cookie API unavailable.', sessionErr);
       }
 
-      // Keep token in-memory for current session only (not persisted)
-      login(mockToken, mockUser as import('@/lib/types').User);
+      // Store token in-memory for the current session
+      login(token, user as import('@/lib/types').User);
       success('Login successful');
-      
-      router.push(role === 'admin' ? '/overview' : '/dashboard');
+
+      router.push(user.role === 'admin' ? '/overview' : '/dashboard');
     } catch (err) {
       console.error(err);
-      error('Failed to authenticate');
+      error('Network error — unable to reach the server. Please try again.');
     } finally {
       setIsLoading(false);
     }
   }, [login, router, success, error]);
 
-  // When WalletModal reports a connected address, perform the merchant login flow
+  // When WalletModal reports a connected address, perform the merchant login flow.
+  // NOTE: Full wallet-challenge authentication (sign a nonce, verify on-chain) is
+  // the intended production approach — this flow requires a backend /api/auth/wallet
+  // endpoint that issues a real JWT after verifying the signed challenge.
   const onWalletConnected = useCallback(async (address: string) => {
     setIsWalletLoading(true);
     try {
-      const mockToken = 'mock_jwt_token_12345';
       const role = 'merchant';
+
+      // Placeholder: derive a session identifier from the wallet address.
+      // Replace this with a proper wallet-challenge JWT flow when the
+      // backend /api/auth/wallet endpoint is implemented.
+      const walletSessionToken = `wallet_${address}`;
+
       try {
         await fetch('/api/auth/session', {
           method: 'POST',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token: mockToken, role }),
+          body: JSON.stringify({ token: walletSessionToken, role }),
         });
-      } catch (error) {
-        console.warn('Auth session API unavailable; continuing without HttpOnly cookie.', error);
+      } catch (sessionErr) {
+        console.warn('Auth session API unavailable; continuing without HttpOnly cookie.', sessionErr);
       }
 
-      login(mockToken, { 
-        id: address, 
-        email: `${address.substring(0,6)}...${address.slice(-4)}@freighter.app`, 
-        name: 'Web3 Merchant', 
-        role 
+      login(walletSessionToken, {
+        id: address,
+        email: `${address.substring(0, 6)}...${address.slice(-4)}@freighter.app`,
+        name: 'Web3 Merchant',
+        role,
       });
       success('Wallet connected & Logged in!');
       router.push('/dashboard');
