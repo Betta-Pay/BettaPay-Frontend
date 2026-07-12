@@ -361,14 +361,14 @@ export default function DashboardPage() {
                         </div>
                       </div>
                       <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                        <span className="text-sm font-bold text-foreground">{link.converted}</span>
-                        <span className="text-xs text-muted-foreground">{link.clicks} clicks</span>
+                        <span className="text-sm font-bold text-foreground">{link.amountNgn ? `₦${link.amountNgn.toLocaleString()}` : <CurrencyDisplay amount={link.amountUsdc} />}</span>
+                        <span className="text-xs text-muted-foreground">{link.clicks ?? 0} clicks</span>
                       </div>
                       <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Button variant="ghost" size="icon" aria-label="Copy payment link" className="min-h-[44px] min-w-[44px] rounded-lg" onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleCopy(`https://${link.url}`); }}>
+                        <Button variant="ghost" size="icon" aria-label="Copy payment link" className="min-h-[44px] min-w-[44px] rounded-lg" onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleCopy(`${baseUrl}/pay/${link.id}`); }}>
                           <Copy className="w-3 h-3 text-muted-foreground" />
                         </Button>
-                        <Button variant="ghost" size="icon" aria-label="Open payment link" className="min-h-[44px] min-w-[44px] rounded-lg" onClick={(e) => { e.preventDefault(); e.stopPropagation(); window.open(`https://${link.url}`, '_blank'); }}>
+                        <Button variant="ghost" size="icon" aria-label="Open payment link" className="min-h-[44px] min-w-[44px] rounded-lg" onClick={(e) => { e.preventDefault(); e.stopPropagation(); window.open(`${baseUrl}/pay/${link.id}`, '_blank'); }}>
                           <ExternalLink className="w-3 h-3 text-muted-foreground" />
                         </Button>
                       </div>
@@ -382,7 +382,7 @@ export default function DashboardPage() {
       </div>
 
           <TransactionDetail
-            transaction={selectedTx}
+            transaction={selectedTx as import('@/lib/mock/transactions').Transaction | null}
             isOpen={!!selectedTx}
             onClose={() => setSelectedTx(null)}
           />

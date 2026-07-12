@@ -65,7 +65,7 @@ const PaymentLinkCard = memo(function PaymentLinkCard({ link }: PaymentLinkCardP
 
 export default function PaymentsPage() {
   const { data: links, isLoading, error: fetchError, refetch } = usePayments();
-  const { notify } = useNotify();
+  const { success: notifySuccess } = useNotify();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [labelError, setLabelError] = useState('');
   const [labelValue, setLabelValue] = useState('');
@@ -79,7 +79,7 @@ export default function PaymentsPage() {
       return;
     }
     setLabelError('');
-    notify.success('Payment link created successfully');
+    notifySuccess('Payment link created successfully');
     setIsCreateOpen(false);
     setLabelValue('');
   };

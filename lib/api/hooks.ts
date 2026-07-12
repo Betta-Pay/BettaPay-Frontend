@@ -17,6 +17,8 @@ export interface ApiPayment {
   source: string | null;
   createdAt: string;
   stellarOpId?: string | null;
+  url?: string;
+  clicks?: number;
 }
 
 export interface ApiSettlement {

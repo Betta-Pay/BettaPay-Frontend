@@ -7,7 +7,7 @@ import userEvent from '@testing-library/user-event';
 // Ensure fetch is available before any module initializes
 global.fetch = jest.fn().mockResolvedValue({
   ok: true,
-  json: () => Promise.resolve({ success: true }),
+  json: () => Promise.resolve({ token: 'mock_jwt', user: { id: '1', email: 'test@example.com', name: 'Test', role: 'merchant' } }),
 });
 
 // Mock useRouter
@@ -91,7 +91,7 @@ describe('Authentication Form Validation & Accessibility Tests', () => {
     jest.clearAllMocks();
     (global.fetch as jest.Mock).mockResolvedValue({
       ok: true,
-      json: () => Promise.resolve({ success: true }),
+      json: () => Promise.resolve({ token: 'mock_jwt', user: { id: '1', email: 'test@example.com', name: 'Test', role: 'merchant' } }),
     });
     mockPush.mockClear();
   });

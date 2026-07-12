@@ -50,6 +50,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
   loading: false,
   isReconnecting: false,
   error: null,
+  connectError: null,
 
   connect: async (connector: Connector = 'freighter') => {
     try {

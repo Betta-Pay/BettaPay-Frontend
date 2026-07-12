@@ -44,12 +44,12 @@ const TransactionCard = memo(function TransactionCard({ tx, onClick }: Transacti
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <span className="text-xs text-muted-foreground">Payer</span>
-          <CopyAddress address={tx.payerAddress} />
+          <CopyAddress address={tx.payerAddress ?? ''} />
         </div>
         <div className="flex items-center justify-between">
           <span className="text-xs text-muted-foreground">Tx Hash</span>
           <div className="flex items-center gap-2">
-            <CopyAddress address={tx.txHash} />
+            <CopyAddress address={tx.txHash ?? ''} />
             {tx.txHash && (
               <a
                 href={getStellarExplorerTxUrl(tx.txHash)}
@@ -67,7 +67,7 @@ const TransactionCard = memo(function TransactionCard({ tx, onClick }: Transacti
         </div>
         <div className="flex items-center justify-between">
           <span className="text-xs text-muted-foreground">Source</span>
-          <span className="text-sm text-muted-foreground">{tx.source}</span>
+          <span className="text-sm text-muted-foreground">{tx.source ?? '—'}</span>
         </div>
         <div className="flex items-center justify-between">
           <span className="text-xs text-muted-foreground">Amount (USDC)</span>
@@ -75,7 +75,7 @@ const TransactionCard = memo(function TransactionCard({ tx, onClick }: Transacti
         </div>
         <div className="flex items-center justify-between">
           <span className="text-xs text-muted-foreground">Amount (NGN)</span>
-          <CurrencyDisplay amount={tx.amountNgn} currency="NGN" showDecimals={false} />
+                          <CurrencyDisplay amount={tx.amountNgn ?? 0} currency="NGN" showDecimals={false} />
         </div>
       </div>
     </div>
@@ -258,19 +258,19 @@ export default function TransactionsPage() {
                                   {formatDate(tx.createdAt)}
                                 </td>
                                 <td className="px-4 py-2 text-sm">
-                                  <CopyAddress address={tx.payerAddress} />
+                                  <CopyAddress address={tx.payerAddress ?? ''} />
                                 </td>
                                 <td className="px-4 py-2 text-sm">
-                                  <CopyAddress address={tx.txHash} />
+                                  <CopyAddress address={tx.txHash ?? ''} />
                                 </td>
                                 <td className="text-muted-foreground px-4 py-2 text-sm">
-                                  {tx.source}
+                                  {tx.source ?? '—'}
                                 </td>
                                 <td className="text-right font-medium px-4 py-2 text-sm">
                                   <CurrencyDisplay amount={tx.amountUsdc} currency="USDC" />
                                 </td>
                                 <td className="text-right text-muted-foreground px-4 py-2 text-sm">
-                                  <CurrencyDisplay amount={tx.amountNgn} currency="NGN" showDecimals={false} />
+                                  <CurrencyDisplay amount={tx.amountNgn ?? 0} currency="NGN" showDecimals={false} />
                                 </td>
                                 <td className="text-center px-4 py-2 text-sm">
                                   <StatusBadge status={tx.status} />
@@ -335,7 +335,7 @@ export default function TransactionsPage() {
 
       )}
       <TransactionDetail 
-        transaction={selectedTx}
+        transaction={selectedTx as import('@/lib/mock/transactions').Transaction | null}
         isOpen={!!selectedTx}
         onClose={() => setSelectedTx(null)}
       />

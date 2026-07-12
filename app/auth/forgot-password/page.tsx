@@ -23,7 +23,8 @@ export default function ForgotPasswordPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [email, setEmail] = useState('');
-  const { error } = useNotify();
+  const [error, setError] = useState('');
+  const { error: notifyError } = useNotify();
 
   const {
     register,
@@ -45,7 +46,8 @@ export default function ForgotPasswordPage() {
       setIsSubmitted(true);
     } catch (err) {
       console.error(err);
-      error('An error occurred. Please try again.');
+      setError('An error occurred. Please try again.');
+      notifyError('An error occurred. Please try again.');
     } finally {
       setIsLoading(false);
     }
