@@ -1,5 +1,26 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { generateCsrfToken } from '@/lib/utils/csrf';
+
+export async function GET(req: NextRequest) {
+  const token = req.cookies.get('auth_token')?.value;
+  const role = req.cookies.get('user_role')?.value;
+
+  if (!token) {
+    return NextResponse.json({ error: 'Session expired' }, { status: 401 });
+  }
+
+  // In production, validate the token and fetch real user data.
+  // For mock/preview mode, return a session based on the cookie values.
+  return NextResponse.json({
+    user: {
+      id: role === 'admin' ? 'admin-1' : 'GCCHHKNI7GRA5QWC7RCTT3OHO7SKAUMKQA6IBWEQEO2SXI3GF376UHDD',
+      email: role === 'admin' ? 'admin@bettapay.com' : 'merchant@bettapay.com',
+      name: role === 'admin' ? 'System Admin' : 'Merchant User',
+      role: role || 'merchant',
+    },
+    token,
+  });
+}
 
 export async function POST(req: Request) {
   try {
