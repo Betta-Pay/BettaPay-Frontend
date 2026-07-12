@@ -4,6 +4,7 @@ import {
   requestAccess,
   getNetwork,
   signTransaction,
+  signMessage,
 } from '@stellar/freighter-api';
 import { STELLAR_NETWORK } from '../utils/constants';
 
@@ -128,6 +129,31 @@ export const signWithFreighter = async (xdr: string): Promise<string | null> => 
     return signedTxResp.signedTxXdr;
   } catch (error) {
     console.error('Failed to sign transaction with Freighter', error);
+    throw classifyFreighterError(error);
+  }
+};
+
+export const signChallenge = async (address: string, challenge: string): Promise<string | null> => {
+  try {
+    const resp: any = await signMessage(challenge, {
+      accountToSign: address,
+      networkPassphrase: getPassphrase(),
+    });
+
+    if (resp.error) {
+      console.error('Freighter sign challenge error', resp.error);
+      return null;
+    }
+
+    const sig = resp.signature || resp.signedMessage || resp;
+    if (!sig) return null;
+
+    if (typeof sig === 'string') {
+      return sig;
+    }
+    return Buffer.from(sig).toString('base64');
+  } catch (error) {
+    console.error('Failed to sign challenge with Freighter', error);
     throw classifyFreighterError(error);
   }
 };

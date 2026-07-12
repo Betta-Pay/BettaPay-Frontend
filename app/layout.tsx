@@ -3,6 +3,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { Providers } from "@/components/providers";
 import "./globals.css";
 import { cn } from "@/lib/utils";
+import { GoogleOAuthProvider } from '@react-oauth/google';
 
 export const metadata: Metadata = {
   title: "BettaPay | Non-custodial Merchant Platform",
@@ -23,11 +24,13 @@ export default function RootLayout({
         >
           Skip to main content
         </a>
-        <Providers>
-          {children}
-          <Toaster />
-          <div id="announcer" aria-live="polite" aria-atomic="true" className="sr-only" />
-        </Providers>
+        <GoogleOAuthProvider clientId={process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || ''}>
+          <Providers>
+            {children}
+            <Toaster />
+            <div id="announcer" aria-live="polite" aria-atomic="true" className="sr-only" />
+          </Providers>
+        </GoogleOAuthProvider>
       </body>
     </html>
   );
