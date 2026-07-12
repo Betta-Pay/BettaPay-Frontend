@@ -1,10 +1,8 @@
 "use client";
 
-import { useState, useCallback, memo, useEffect } from 'react';
-import dynamic from 'next/dynamic';
+import { useState, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
 import { DashboardSkeleton } from '@/components/skeletons/DashboardSkeleton';
 import { CurrencyDisplay } from '@/components/shared/CurrencyDisplay';
 import { StatusBadge } from '@/components/shared/StatusBadge';
@@ -32,135 +30,21 @@ import { useAuthStore } from '@/lib/store/authStore';
 import Link from 'next/link';
 import { useNotify } from '@/lib/hooks/useNotify';
 import { cn } from '@/lib/utils';
-import { RevenueChartSection } from '@/components/dashboard/RevenueChartSection';
+import RevenueChart from '@/components/charts/RevenueChart';
 
 type Transaction = ApiPayment;
 
 const PERIOD_OPTIONS = ['7D', '30D', '90D'] as const;
 type Period = typeof PERIOD_OPTIONS[number];
 
-const QuickActions = dynamic(
-  () => import('@/components/dashboard/QuickActions').then((m) => ({ default: m.QuickActions })),
-  { loading: () => <Skeleton className="lg:col-span-3 h-48 rounded-xl" /> }
-);
-
-const PaymentLinkPerformance = dynamic(
-  () =>
-    import('@/components/dashboard/PaymentLinkPerformance').then((m) => ({
-      default: m.PaymentLinkPerformance,
-    })),
-  { loading: () => <Skeleton className="lg:col-span-4 h-48 rounded-xl" /> }
-);
-
-// ── Memoised stat cards — won't re-render when period or tx selection changes ──
-interface StatCardsProps {
-  error: boolean;
-  onRetry: () => void;
-}
-
-const StatCards = memo(function StatCards({ error, onRetry }: StatCardsProps) {
-  if (error) {
-    return (
-      <div className="col-span-full">
-        <ErrorDisplay message="Failed to load statistics" onRetry={onRetry} />
-      </div>
-    );
-  }
-  return (
-    <>
-      {/* Card 1 */}
-      <Card className="relative overflow-hidden border border-border border-t-2 border-t-amber-200 bg-card shadow-sm hover:shadow-md transition-shadow">
-        <CardHeader className="flex flex-row items-center justify-between pb-2 relative">
-          <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-            Total Volume (30d)
-          </CardTitle>
-          <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center">
-            <Activity className="h-4 w-4 text-primary" />
-          </div>
-        </CardHeader>
-        <CardContent className="p-3 sm:p-4 relative">
-          <div className="text-xl sm:text-2xl font-bold text-foreground">
-            <CurrencyDisplay amount={totalVolume} />
-          </div>
-          <p className="text-xs text-emerald-600 flex items-center mt-1.5 font-medium">
-            <ArrowUpRight className="h-3 w-3 mr-1" />
-            +20.1% from last month
-          </p>
-        </CardContent>
-      </Card>
-
-      {/* Card 2 */}
-      <Card className="relative overflow-hidden border border-border bg-card shadow-sm hover:shadow-md transition-shadow">
-        <CardHeader className="flex flex-row items-center justify-between pb-2 relative">
-          <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-            Active Payment Links
-          </CardTitle>
-          <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
-            <CreditCard className="h-4 w-4 text-blue-600" />
-          </div>
-        </CardHeader>
-        <CardContent className="p-3 sm:p-4 relative">
-          <div className="text-xl sm:text-2xl font-bold text-foreground">12</div>
-          <p className="text-xs text-muted-foreground mt-1.5 font-medium">
-            +3 new links this week
-          </p>
-        </CardContent>
-      </Card>
-
-      {/* Card 3 */}
-      <Card className="relative overflow-hidden border border-border bg-card shadow-sm hover:shadow-md transition-shadow">
-        <CardHeader className="flex flex-row items-center justify-between pb-2 relative">
-          <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-            Available to Settle
-          </CardTitle>
-          <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center">
-            <Wallet className="h-4 w-4 text-emerald-600" />
-          </div>
-        </CardHeader>
-        <CardContent className="p-3 sm:p-4 relative">
-          <div className="text-xl sm:text-2xl font-bold text-foreground">
-            <CurrencyDisplay amount={12450.0} />
-          </div>
-          <p className="text-xs text-primary flex items-center mt-1.5 font-medium">
-            <ArrowDownRight className="h-3 w-3 mr-1" />
-            Pending NGN conversion
-          </p>
-        </CardContent>
-      </Card>
-
-      {/* Card 4 */}
-      <Card className="relative overflow-hidden border border-border bg-card shadow-sm hover:shadow-md transition-shadow">
-        <CardHeader className="flex flex-row items-center justify-between pb-2 relative">
-          <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-            Current FX Rate
-          </CardTitle>
-          <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center">
-            <RefreshCcw className="h-4 w-4 text-purple-600" />
-          </div>
-        </CardHeader>
-        <CardContent className="p-3 sm:p-4 relative">
-          <div className="text-xl sm:text-2xl font-bold text-foreground">₦1,550</div>
-          <p className="text-xs text-muted-foreground mt-1.5 font-medium">
-            per USDC · Updated 5m ago
-          </p>
-        </CardContent>
-      </Card>
-    </>
-  );
-});
-
 export default function DashboardPage() {
   const { user } = useAuthStore();
   const notify = useNotify();
   const { data: payments, isLoading: paymentsLoading } = usePayments();
-  const { data: settlements, isLoading: settlementsLoading } = useSettlements();
+  const { isLoading: settlementsLoading } = useSettlements();
 
   const isLoading = paymentsLoading || settlementsLoading;
 
-  // Compute real stats
-  const totalVolume = payments.reduce((sum, p) => sum + p.amountUsdc, 0);
-  const successfulPayments = payments.filter(p => p.status === 'COMPLETED' || p.status === 'success').length;
-  const pendingSettlements = settlements.filter(s => s.status === 'PENDING' || s.status === 'PROCESSING').length;
   const recentTxs = payments.slice(0, 5);
 
   const [activePeriod, setActivePeriod] = useState<Period>('7D');
@@ -276,87 +160,6 @@ export default function DashboardPage() {
               value="₦1,550"
               trend={{ label: "per USDC · Updated 5m ago" }}
             />
-            {/* Card 1 */}
-            <Card className="relative overflow-hidden border border-border bg-card shadow-sm hover:shadow-md transition-shadow">
-              <div className="absolute inset-0 bg-gradient-to-br from-amber-50/60 to-transparent pointer-events-none" />
-              <CardHeader className="flex flex-row items-center justify-between pb-2 relative">
-                <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                  Total Volume (30d)
-                </CardTitle>
-                <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center">
-                  <Activity className="h-4 w-4 text-primary" />
-                </div>
-              </CardHeader>
-              <CardContent className="p-3 sm:p-4 relative">
-                <div className="text-xl sm:text-2xl font-bold text-foreground">
-                  <CurrencyDisplay amount={45231.89} />
-                </div>
-                <p className="text-xs text-success flex items-center mt-1.5 font-medium">
-                  <ArrowUpRight className="h-3 w-3 mr-1" />
-                  +20.1% from last month
-                </p>
-              </CardContent>
-            </Card>
-
-            {/* Card 2 */}
-            <Card className="relative overflow-hidden border border-border bg-card shadow-sm hover:shadow-md transition-shadow">
-              <div className="absolute inset-0 bg-gradient-to-br from-blue-50/60 to-transparent pointer-events-none" />
-              <CardHeader className="flex flex-row items-center justify-between pb-2 relative">
-                <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                  Active Payment Links
-                </CardTitle>
-                <div className="w-8 h-8 rounded-lg bg-info/20 flex items-center justify-center">
-                  <CreditCard className="h-4 w-4 text-info" />
-                </div>
-              </CardHeader>
-              <CardContent className="p-3 sm:p-4 relative">
-                <div className="text-xl sm:text-2xl font-bold text-foreground">12</div>
-                <p className="text-xs text-muted-foreground mt-1.5 font-medium">
-                  +3 new links this week
-                </p>
-              </CardContent>
-            </Card>
-
-            {/* Card 3 */}
-            <Card className="relative overflow-hidden border border-border bg-card shadow-sm hover:shadow-md transition-shadow">
-              <div className="absolute inset-0 bg-gradient-to-br from-emerald-50/60 to-transparent pointer-events-none" />
-              <CardHeader className="flex flex-row items-center justify-between pb-2 relative">
-                <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                  Available to Settle
-                </CardTitle>
-                <div className="w-8 h-8 rounded-lg bg-success/20 flex items-center justify-center">
-                  <Wallet className="h-4 w-4 text-success" />
-                </div>
-              </CardHeader>
-              <CardContent className="p-3 sm:p-4 relative">
-                <div className="text-xl sm:text-2xl font-bold text-foreground">
-                  <CurrencyDisplay amount={12450.00} />
-                </div>
-                <p className="text-xs text-primary flex items-center mt-1.5 font-medium">
-                  <ArrowDownRight className="h-3 w-3 mr-1" />
-                  Pending NGN conversion
-                </p>
-              </CardContent>
-            </Card>
-
-            {/* Card 4 */}
-            <Card className="relative overflow-hidden border border-border bg-card shadow-sm hover:shadow-md transition-shadow">
-              <div className="absolute inset-0 bg-gradient-to-br from-purple-50/60 to-transparent pointer-events-none" />
-              <CardHeader className="flex flex-row items-center justify-between pb-2 relative">
-                <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                  Current FX Rate
-                </CardTitle>
-                <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center">
-                  <RefreshCcw className="h-4 w-4 text-purple-600" />
-                </div>
-              </CardHeader>
-              <CardContent className="p-3 sm:p-4 relative">
-                <div className="text-xl sm:text-2xl font-bold text-foreground">₦1,550</div>
-                <p className="text-xs text-muted-foreground mt-1.5 font-medium">
-                  per USDC · Updated 5m ago
-                </p>
-              </CardContent>
-            </Card>
           </>
         )}
       </div>

@@ -9,7 +9,7 @@ describe('StatusBadge', () => {
 
     expect(screen.getByText('Success')).toBeInTheDocument();
     expect(container.querySelector('svg')).toBeInTheDocument();
-    expect(screen.getByText('Success').closest('span')).toHaveClass('text-green-500');
+    expect(screen.getByText('Success').closest('span')).toHaveClass('text-success');
   });
 
   it('renders a pending badge with the pending label and yellow styling', () => {
@@ -17,7 +17,7 @@ describe('StatusBadge', () => {
 
     expect(screen.getByText('Pending')).toBeInTheDocument();
     expect(container.querySelector('svg')).toBeInTheDocument();
-    expect(screen.getByText('Pending').closest('span')).toHaveClass('text-yellow-500');
+    expect(screen.getByText('Pending').closest('span')).toHaveClass('text-warning');
   });
 
   it('renders a processing badge with the processing label and primary styling', () => {

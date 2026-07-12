@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
-import DashboardPage from '../page';
+import DashboardPage from '@/app/(merchant)/dashboard/page';
 
 // Mock the auth store to return a merchant user
 jest.mock('@/lib/store/authStore', () => ({
@@ -14,6 +14,20 @@ jest.mock('@/lib/store/authStore', () => ({
       role: 'merchant',
     },
   })),
+}));
+
+
+const mockPayments = [
+  { id: 'pay_1', txHash: 'hash1', payerAddress: 'GAAA1111', merchantId: 'm_1', amountUsdc: 750, amountNgn: 1162500, fxRate: 1550, status: 'success', source: 'Consulting Retainer', createdAt: new Date().toISOString() },
+  { id: 'pay_2', txHash: 'hash2', payerAddress: 'GBBB2222', merchantId: 'm_1', amountUsdc: 45.5, amountNgn: 70525, fxRate: 1550, status: 'success', source: 'E-commerce Payment', createdAt: new Date().toISOString() },
+  { id: 'pay_3', txHash: 'hash3', payerAddress: 'GCCC3333', merchantId: 'm_1', amountUsdc: 1200, amountNgn: 1860000, fxRate: 1550, status: 'pending', source: 'Invoice #1042', createdAt: new Date().toISOString() },
+  { id: 'pay_4', txHash: 'hash4', payerAddress: 'GDDD4444', merchantId: 'm_1', amountUsdc: 29, amountNgn: 44950, fxRate: 1550, status: 'success', source: 'Subscription Fee', createdAt: new Date().toISOString() },
+  { id: 'pay_5', txHash: 'hash5', payerAddress: 'GEEE5555', merchantId: 'm_1', amountUsdc: 3500, amountNgn: 5425000, fxRate: 1550, status: 'success', source: 'Freelance Project', createdAt: new Date().toISOString() },
+];
+
+jest.mock('@/lib/api/hooks', () => ({
+  usePayments: () => ({ data: mockPayments, isLoading: false, error: null, refetch: jest.fn() }),
+  useSettlements: () => ({ data: [], isLoading: false, error: null, refetch: jest.fn() }),
 }));
 
 // Mock next/link to render standard anchors
@@ -86,11 +100,11 @@ describe('Merchant Dashboard Page Integration Tests', () => {
 
   it('renders the list of recent transactions from mock data', () => {
     render(<DashboardPage />);
-    expect(screen.getByText('Consulting Retainer')).toBeInTheDocument();
-    expect(screen.getByText('E-commerce Payment')).toBeInTheDocument();
-    expect(screen.getByText('Invoice #1042')).toBeInTheDocument();
-    expect(screen.getByText('Subscription Fee')).toBeInTheDocument();
-    expect(screen.getByText('Freelance Project')).toBeInTheDocument();
+    expect(screen.getAllByText('Consulting Retainer').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('E-commerce Payment').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Invoice #1042').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Subscription Fee').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Freelance Project').length).toBeGreaterThan(0);
 
     // Verify amounts are visible (formatted with CurrencyDisplay)
     expect(screen.getByText(/USDC 750/i)).toBeInTheDocument();

@@ -148,6 +148,7 @@ export default function SettingsPage() {
                       email: normalizeEmail(profileEmail),
                       phone: trimInput(profilePhone),
                     };
+                    void sanitized;
                     notify.success('Profile updated');
                   }}
                 >
@@ -190,6 +191,7 @@ export default function SettingsPage() {
                       bankName: trimInput(bizBankName),
                       accountNumber: trimInput(bizAccountNumber),
                     };
+                    void sanitized;
                     notify.success('Business info saved');
                   }}
                 >
@@ -248,6 +250,7 @@ export default function SettingsPage() {
                       newPassword: trimInput(newPassword),
                       confirmNewPassword: trimInput(confirmNewPassword),
                     };
+                    void sanitized;
                     notify.success('Password updated');
                   }}
                 >

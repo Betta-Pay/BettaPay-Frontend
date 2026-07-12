@@ -10,8 +10,7 @@ import {
   Anchor, 
   RefreshCcw, 
   ShieldAlert, 
-  Settings,
-  ShieldCheck
+  Settings
 } from 'lucide-react';
 
 export const adminNavItems = [

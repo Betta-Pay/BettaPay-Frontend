@@ -11,7 +11,6 @@ import {
   RefreshCcw,
   Settings,
   Code2,
-  ShieldCheck,
   Building2,
 } from "lucide-react";
 

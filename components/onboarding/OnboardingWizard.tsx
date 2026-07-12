@@ -11,7 +11,6 @@ import {
   Link2,
   Building2,
   Beaker,
-  ShieldCheck,
   ArrowRight,
   X,
   ChevronRight,

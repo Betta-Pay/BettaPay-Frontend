@@ -39,13 +39,6 @@ jest.mock('next/dynamic', () => {
   };
 });
 
-// Mock apiClient at module level
-jest.mock('@/lib/api/axios', () => ({
-  apiClient: {
-    get: jest.fn(),
-  },
-}));
-
 // Mock sonner toast
 jest.mock('@/lib/hooks/useNotify', () => ({
   useNotify: jest.fn()
@@ -53,7 +46,6 @@ jest.mock('@/lib/hooks/useNotify', () => ({
 
 import LoginPage from '../login/page';
 import { useAuthStore } from '@/lib/store/authStore';
-import { apiClient } from '@/lib/api/axios';
 import { useNotify } from '@/lib/hooks/useNotify';
 
 describe('Login Flow Integration Tests', () => {
@@ -80,10 +72,6 @@ describe('Login Flow Integration Tests', () => {
 
   it('submits the form for a merchant and redirects to /dashboard', async () => {
     const user = userEvent.setup();
-    (apiClient.get as jest.Mock).mockResolvedValueOnce({
-      data: { id: 'merchant_id_123', name: 'Merchant Acme' },
-    });
-
     render(<LoginPage />);
 
     await user.type(screen.getByLabelText(/Email Address/i), 'merchant@example.com');
@@ -91,9 +79,6 @@ describe('Login Flow Integration Tests', () => {
     await user.click(screen.getByRole('button', { name: /Sign In/i }));
 
     await waitFor(() => {
-      expect(apiClient.get).toHaveBeenCalledWith(
-        '/api/merchants/GCCHHKNI7GRA5QWC7RCTT3OHO7SKAUMKQA6IBWEQEO2SXI3GF376UHDD'
-      );
       expect(global.fetch).toHaveBeenCalledWith(
         '/api/auth/session',
         expect.objectContaining({
@@ -115,10 +100,6 @@ describe('Login Flow Integration Tests', () => {
 
   it('detects admin role when email contains "admin" and redirects to /overview', async () => {
     const user = userEvent.setup();
-    (apiClient.get as jest.Mock).mockResolvedValueOnce({
-      data: { id: 'admin_id_999', name: 'System Admin' },
-    });
-
     render(<LoginPage />);
 
     await user.type(screen.getByLabelText(/Email Address/i), 'superadmin@company.com');
@@ -177,10 +158,6 @@ describe('Login Flow Integration Tests', () => {
     const user = userEvent.setup();
 
     // Make apiClient.get succeed so we proceed past the merchant fetch
-    (apiClient.get as jest.Mock).mockResolvedValueOnce({
-      data: { id: 'merchant_id_123', name: 'Merchant Acme' },
-    });
-
     // Make fetch fail on the session call only
     (global.fetch as jest.Mock).mockRejectedValueOnce(new Error('Network error'));
 

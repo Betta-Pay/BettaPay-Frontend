@@ -11,7 +11,7 @@ describe('utils/format', () => {
     });
 
     it('removes falsy/conditional classes via clsx', () => {
-      const result = cn('p-2', false && 'p-4', undefined, 0 as any, 'm-1');
+      const result = cn('p-2', false && 'p-4', undefined, 0, 'm-1');
       expect(result.split(' ')).toContain('p-2');
       expect(result.split(' ')).toContain('m-1');
       expect(result).not.toContain('p-4');
@@ -58,8 +58,8 @@ describe('utils/format', () => {
     });
 
     it('returns null/undefined unchanged (runtime)', () => {
-      expect(truncateAddress(null as any)).toBe(null);
-      expect(truncateAddress(undefined as any)).toBe(undefined);
+      expect(truncateAddress(null as unknown as string)).toBe(null);
+      expect(truncateAddress(undefined as unknown as string)).toBe(undefined);
     });
   });
 
