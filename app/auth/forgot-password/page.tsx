@@ -9,9 +9,9 @@ import { z } from 'zod';
 import { Loader2, MailCheck } from 'lucide-react';
 import { useNotify } from '@/lib/hooks/useNotify';
 
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { AuthLabel } from '@/components/auth/AuthLabel';
+import { AuthInput } from '@/components/auth/AuthInput';
+import { AuthButton } from '@/components/auth/AuthButton';
 
 const forgotPasswordSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
@@ -73,9 +73,9 @@ export default function ForgotPasswordPage() {
 
         <div className="pt-1">
           <Link href="/auth/login">
-            <Button className="w-full h-12 bg-primary hover:bg-primary/90 text-white font-semibold text-sm rounded-xl border-0 transition-colors">
+            <AuthButton>
               Back to Sign In
-            </Button>
+            </AuthButton>
           </Link>
         </div>
       </div>
@@ -100,31 +100,29 @@ export default function ForgotPasswordPage() {
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
         {/* Email */}
         <div className="space-y-1.5">
-          <Label htmlFor="email" className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+          <AuthLabel htmlFor="email">
             Email Address
-          </Label>
-          <Input
+          </AuthLabel>
+          <AuthInput
             id="email"
             type="email"
             placeholder="name@company.com"
             {...register('email')}
             aria-invalid={errors.email ? "true" : "false"}
             aria-describedby={errors.email ? "email-error" : undefined}
-            className="h-12 bg-card border border-border text-foreground placeholder:text-muted-foreground rounded-xl text-sm focus-visible:ring-1 focus-visible:ring-ring focus-visible:border-ring transition-all"
           />
           {error && <p id="email-error" className="text-xs text-destructive mt-1">{error}</p>}
         </div>
 
         {/* Submit CTA */}
         <div className="pt-1">
-          <Button
+          <AuthButton
             type="submit"
             disabled={isLoading}
-            className="w-full h-12 bg-primary hover:bg-primary/90 text-white font-semibold text-sm rounded-xl border-0 transition-colors scroll-mb-52"
           >
             {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
             Send Reset Link
-          </Button>
+          </AuthButton>
         </div>
       </form>
     </div>
