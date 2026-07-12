@@ -61,14 +61,14 @@ export default function LoginPage() {
           return;
         }
       }
-    } catch (e) {
+    } catch {
       // ignore
     }
     
     router.push(user.role === 'admin' ? '/overview' : '/dashboard');
   }, [apiBase, login, router, success]);
 
-  const onGoogleSuccess = async (credentialResponse: any) => {
+  const onGoogleSuccess = async (credentialResponse: { credential?: string }) => {
     try {
       const res = await fetch(`${apiBase}/api/auth/google`, {
         method: 'POST',
@@ -113,9 +113,9 @@ export default function LoginPage() {
 
       const { token } = await verifyRes.json();
       await handleAuthSuccess(token);
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
-      error(err.message || 'Failed to complete wallet login flow');
+      error(err instanceof Error ? err.message : 'Failed to complete wallet login flow');
     } finally {
       setIsWalletLoading(false);
       setWalletModalOpen(false);

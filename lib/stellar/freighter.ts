@@ -135,10 +135,10 @@ export const signWithFreighter = async (xdr: string): Promise<string | null> => 
 
 export const signChallenge = async (address: string, challenge: string): Promise<string | null> => {
   try {
-    const resp: any = await signMessage(challenge, {
+    const resp = (await signMessage(challenge, {
       address,
       networkPassphrase: getPassphrase(),
-    });
+    })) as { error?: string; signature?: string; signedMessage?: string; [key: string]: unknown };
 
     if (resp.error) {
       console.error('Freighter sign challenge error', resp.error);

@@ -45,9 +45,9 @@ export default function OnboardingPage() {
 
       success('Business name saved successfully!');
       router.push(user.role === 'admin' ? '/overview' : '/dashboard');
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
-      error(err.message || 'Failed to save business name');
+      error(err instanceof Error ? err.message : 'Failed to save business name');
     } finally {
       setIsLoading(false);
     }
@@ -59,7 +59,7 @@ export default function OnboardingPage() {
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl font-bold tracking-tight">Welcome to BettaPay</CardTitle>
           <CardDescription>
-            Let's get started. What is the name of your business?
+            Let&apos;s get started. What is the name of your business?
           </CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>
