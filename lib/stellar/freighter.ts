@@ -145,13 +145,11 @@ export const signChallenge = async (address: string, challenge: string): Promise
       return null;
     }
 
-    const sig = resp.signature || resp.signedMessage || resp;
-    if (!sig) return null;
-
+    const sig = resp.signature || resp.signedMessage;
     if (typeof sig === 'string') {
       return sig;
     }
-    return Buffer.from(sig).toString('base64');
+    return null;
   } catch (error) {
     console.error('Failed to sign challenge with Freighter', error);
     throw classifyFreighterError(error);

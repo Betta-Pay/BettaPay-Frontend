@@ -6,11 +6,6 @@ export function middleware(request: NextRequest) {
   const role = request.cookies.get('user_role')?.value;
   
   const isAuthPage = request.nextUrl.pathname.startsWith('/auth');
-  // Allow unauthenticated access to recovery pages (users may arrive via email link while logged in)
-  const isRecoveryPage =
-    request.nextUrl.pathname === '/auth/verify-2fa' ||
-    request.nextUrl.pathname === '/auth/forgot-password' ||
-    request.nextUrl.pathname === '/auth/reset-password';
   const isPublicPage = request.nextUrl.pathname === '/' || request.nextUrl.pathname.startsWith('/pay');
   const isAdminRoute = request.nextUrl.pathname.startsWith('/admin') || 
                        request.nextUrl.pathname === '/overview' ||
@@ -27,7 +22,7 @@ export function middleware(request: NextRequest) {
   // If trying to access auth pages while logged in, redirect to dashboard
   // Exception: 2FA page is always accessible after partial login
   if (isAuthPage) {
-    if (token && !isRecoveryPage) {
+    if (token) {
       if (role === 'admin') {
         return NextResponse.redirect(new URL('/overview', request.url));
       }
