@@ -41,7 +41,7 @@ jest.mock('next/dynamic', () => {
 
 // Mock Google Login (requires GoogleOAuthProvider wrapper in real app)
 jest.mock('@react-oauth/google', () => ({
-  GoogleLogin: ({ onSuccess, onError }: any) => (
+  GoogleLogin: ({ onSuccess }: any) => (
     <button
       data-testid="mock-google-login"
       onClick={() => onSuccess?.({ credential: 'mock_google_id_token' })}
@@ -67,13 +67,12 @@ import { useAuthStore } from '@/lib/store/authStore';
 import { useNotify } from '@/lib/hooks/useNotify';
 
 const MERCHANT_JWT = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJtZXJjaGFudElkIjoibWVyY2hfMTIzIiwib3duZXJJZCI6InRlc3RAdGVzdC5jb20iLCJyb2xlIjoibWVyY2hhbnQifQ.test';
-const ADMIN_JWT = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJtZXJjaGFudElkIjoibWVyY2hfNDU2Iiwib3duZXJJZCI6ImFkbWluQHRlc3QuY29tIiwicm9sZSI6ImFkbWluIn0.test';
 
 describe('Login Flow Integration Tests', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     // Default fetch mock: all endpoints succeed with generic responses
-    (global.fetch as jest.Mock).mockImplementation(async (url: string, _options?: RequestInit) => {
+    (global.fetch as jest.Mock).mockImplementation(async (url: string) => {
       if (url.includes('/api/auth/wallet/challenge')) {
         return {
           ok: true,
