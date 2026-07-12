@@ -3,8 +3,8 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useNotify } from '@/lib/hooks/useNotify';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { AuthButton } from '@/components/auth/AuthButton';
 import { Loader2 } from 'lucide-react';
 
 const CODE_LENGTH = 6;
@@ -139,14 +139,13 @@ export default function Verify2FAPage() {
           </div>
         </fieldset>
 
-        <Button
+        <AuthButton
           type="submit"
           disabled={isLoading || digits.join('').length < CODE_LENGTH}
-          className="w-full h-12 bg-primary hover:bg-primary/90 text-white font-semibold text-sm rounded-xl border-0 transition-colors scroll-mb-52"
         >
           {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
           Verify Code
-        </Button>
+        </AuthButton>
       </form>
 
       <div className="mt-6 text-center">
