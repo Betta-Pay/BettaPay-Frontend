@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Loader2, Check } from 'lucide-react';
+import { Loader2, Check, Copy, CheckCheck } from 'lucide-react';
 import { useNotify } from '@/lib/hooks/useNotify';
 
 import { registerSchema, RegisterFormValues, passwordRequirements } from '@/lib/utils/validation';
@@ -27,6 +27,11 @@ export default function RegisterPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isWalletLoading, setIsWalletLoading] = useState(false);
   const [walletOpen, setWalletOpen] = useState(false);
+  // After successful registration the backend returns a one-time secret.
+  // We surface it in a modal so the user can copy it before proceeding.
+  const [createdSecret, setCreatedSecret] = useState<string | null>(null);
+  const [createdMerchantId, setCreatedMerchantId] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
   const { success, error } = useNotify();
 
   const {
@@ -60,24 +65,47 @@ export default function RegisterPage() {
       email: normalizeEmail(data.email),
     };
     try {
-      try {
-        const { apiClient } = await import('@/lib/api/axios');
-        await apiClient.post('/api/merchants', {
-          id: `merch_${Math.random().toString(36).substr(2, 9)}`,
+      const apiBase = process.env.NEXT_PUBLIC_API_URL || 'https://bettapay-backend.onrender.com';
+      // Use plain fetch — /api/merchants requires a service JWT via fastify.authenticate.
+      // For merchant self-registration we call it without auth; the backend must allow
+      // this endpoint unauthenticated OR a separate /api/auth/register endpoint is needed.
+      const merchantId = `G${crypto.randomUUID().replace(/-/g, '').toUpperCase().slice(0, 54)}`;
+      const ownerId = sanitizedData.email;
+
+      const res = await fetch(`${apiBase}/api/merchants`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: merchantId,
           name: sanitizedData.businessName,
-        });
-      } catch {
-        console.warn('Backend unavailable, falling back to mock registration for Vercel preview.');
-        await new Promise(resolve => setTimeout(resolve, 1500));
+          ownerId,
+        }),
+      });
+
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        error(errBody?.message || errBody?.error || 'Failed to create account. Please try again.');
+        return;
       }
 
-      success('Account created successfully! Please log in.');
-      router.push('/auth/login');
+      const body = await res.json();
+      // Backend returns { success: true, merchant: {...}, secret: '...' }
+      // The secret is shown ONCE — the user must save it to log in.
+      setCreatedSecret(body.secret);
+      setCreatedMerchantId(body.merchant?.id ?? merchantId);
     } catch (err) {
       console.error(err);
-      error('Failed to create account');
+      error('Network error — unable to reach the server. Please try again.');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleCopySecret = () => {
+    if (createdSecret) {
+      navigator.clipboard.writeText(createdSecret);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
     }
   };
 
@@ -105,6 +133,47 @@ export default function RegisterPage() {
       <Suspense fallback={<WalletModalFallback open={walletOpen} onOpenChange={setWalletOpen} />}>
         <WalletModal open={walletOpen} onOpenChange={setWalletOpen} />
       </Suspense>
+
+      {/* ── Secret reveal modal — shown after successful registration ── */}
+      {createdSecret && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md bg-card border border-border rounded-2xl p-6 shadow-surface-xl space-y-4">
+            <h2 className="text-lg font-bold text-foreground">Account Created! Save Your Secret Key</h2>
+            <p className="text-sm text-muted-foreground">
+              This key is shown <span className="text-destructive font-semibold">only once</span>. Copy it now — you&apos;ll need it every time you sign in.
+            </p>
+
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Merchant ID</p>
+              <p className="font-mono text-xs bg-muted px-3 py-2 rounded-lg break-all text-foreground select-all">{createdMerchantId}</p>
+            </div>
+
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Secret Key</p>
+              <div className="flex items-center gap-2">
+                <p className="font-mono text-xs bg-muted px-3 py-2 rounded-lg break-all text-foreground flex-1 select-all">{createdSecret}</p>
+                <button
+                  type="button"
+                  onClick={handleCopySecret}
+                  className="shrink-0 p-2 rounded-lg border border-border bg-card hover:bg-muted transition-colors"
+                  aria-label="Copy secret key"
+                >
+                  {copied ? <CheckCheck className="w-4 h-4 text-success" /> : <Copy className="w-4 h-4 text-muted-foreground" />}
+                </button>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              disabled={!copied}
+              onClick={() => router.push('/auth/login')}
+              className="w-full h-11 rounded-xl bg-primary text-white font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
+            >
+              {copied ? 'I\'ve saved it — Go to Login' : 'Copy the key above to continue'}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Heading */}
       <div className="mb-10">

@@ -11,13 +11,11 @@ import { useNotify } from '@/lib/hooks/useNotify';
 import dynamic from 'next/dynamic';
 
 import { loginSchema, LoginFormValues } from '@/lib/utils/validation';
-import { normalizeEmail } from '@/lib/utils/sanitize';
 import { useAuthStore } from '@/lib/store/authStore';
 import { useRateLimitStore } from '@/lib/store/rateLimitStore';
 import { Button } from '@/components/ui/button';
-import { AuthInput } from '@/components/auth/AuthInput';
-import { AuthLabel } from '@/components/auth/AuthLabel';
-import { AuthButton } from '@/components/auth/AuthButton';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 import { WalletModalFallback } from '@/components/wallet/WalletModalFallback';
 
@@ -53,47 +51,45 @@ export default function LoginPage() {
 
   const onSubmit = useCallback(async (data: LoginFormValues) => {
     setIsLoading(true);
-    const sanitizedData = { ...data, email: normalizeEmail(data.email) };
-
     try {
       const apiBase = process.env.NEXT_PUBLIC_API_URL || 'https://bettapay-backend.onrender.com';
 
-      // Authenticate against the real backend — no mock tokens
-      const loginRes = await fetch(`${apiBase}/api/auth/login`, {
+      // POST /api/auth/token expects { merchantId, secret }
+      const loginRes = await fetch(`${apiBase}/api/auth/token`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          email: sanitizedData.email,
-          password: sanitizedData.password,
+          merchantId: data.merchantId,
+          secret: data.secret,
         }),
       });
 
       if (!loginRes.ok) {
         const errBody = await loginRes.json().catch(() => ({}));
         const message =
-          errBody?.message ||
           errBody?.error ||
-          (loginRes.status === 401 ? 'Invalid email or password.' : 'Login failed. Please try again.');
+          errBody?.message ||
+          (loginRes.status === 401 ? 'Invalid Merchant ID or secret key.' : 'Login failed. Please try again.');
         error(message);
         return;
       }
 
-      const loginData = await loginRes.json();
+      const { token } = await loginRes.json();
 
-      // Backend returns { token, user: { id, email, name, role, ... } }
-      const token: string = loginData.token ?? loginData.data?.token;
-      const backendUser = loginData.user ?? loginData.data?.user;
-
-      if (!token || !backendUser) {
+      if (!token) {
         error('Unexpected response from server. Please try again.');
         return;
       }
 
+      // Decode the JWT payload to get merchantId and role (no signature verification needed client-side)
+      const payloadBase64 = token.split('.')[1];
+      const payload = JSON.parse(atob(payloadBase64));
+
       const user = {
-        id: backendUser.id,
-        email: backendUser.email,
-        name: backendUser.name,
-        role: backendUser.role as 'admin' | 'merchant',
+        id: payload.merchantId ?? data.merchantId,
+        email: '',
+        name: 'Merchant',
+        role: (payload.role ?? 'merchant') as 'admin' | 'merchant',
       };
 
       // Set the HttpOnly auth cookie via the Next.js session route
@@ -105,14 +101,11 @@ export default function LoginPage() {
           body: JSON.stringify({ token, role: user.role }),
         });
       } catch (sessionErr) {
-        // Cookie set failure is non-fatal — in-memory auth will still work for this tab
         console.warn('Auth session cookie API unavailable.', sessionErr);
       }
 
-      // Store token in-memory for the current session
       login(token, user as import('@/lib/types').User);
       success('Login successful');
-
       router.push(user.role === 'admin' ? '/overview' : '/dashboard');
     } catch (err) {
       console.error(err);
@@ -122,18 +115,13 @@ export default function LoginPage() {
     }
   }, [login, router, success, error]);
 
-  // When WalletModal reports a connected address, perform the merchant login flow.
-  // NOTE: Full wallet-challenge authentication (sign a nonce, verify on-chain) is
-  // the intended production approach — this flow requires a backend /api/auth/wallet
-  // endpoint that issues a real JWT after verifying the signed challenge.
+  // Wallet login: wallet address becomes the merchant identifier.
+  // A proper wallet-challenge JWT flow (sign nonce, verify on backend) is
+  // the intended production path once the backend has /api/auth/wallet.
   const onWalletConnected = useCallback(async (address: string) => {
     setIsWalletLoading(true);
     try {
       const role = 'merchant';
-
-      // Placeholder: derive a session identifier from the wallet address.
-      // Replace this with a proper wallet-challenge JWT flow when the
-      // backend /api/auth/wallet endpoint is implemented.
       const walletSessionToken = `wallet_${address}`;
 
       try {
@@ -144,7 +132,7 @@ export default function LoginPage() {
           body: JSON.stringify({ token: walletSessionToken, role }),
         });
       } catch (sessionErr) {
-        console.warn('Auth session API unavailable; continuing without HttpOnly cookie.', sessionErr);
+        console.warn('Auth session API unavailable.', sessionErr);
       }
 
       login(walletSessionToken, {
@@ -162,7 +150,6 @@ export default function LoginPage() {
       setIsWalletLoading(false);
     }
   }, [login, router, success, error]);
-
 
   return (
     <div className="w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -184,52 +171,58 @@ export default function LoginPage() {
 
       {/* Form */}
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-        {/* Email */}
+        {/* Merchant ID */}
         <div className="space-y-1.5">
-          <AuthLabel htmlFor="email">
-            Email Address
-          </AuthLabel>
-          <AuthInput
-            id="email"
-            type="email"
-            placeholder="name@company.com"
-            {...register('email')}
-            aria-invalid={errors.email ? "true" : "false"}
-            aria-describedby={errors.email ? "email-error" : undefined}
+          <Label htmlFor="merchantId" className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+            Merchant ID
+          </Label>
+          <Input
+            id="merchantId"
+            type="text"
+            placeholder="Your Stellar merchant address"
+            {...register('merchantId')}
+            aria-invalid={errors.merchantId ? "true" : "false"}
+            aria-describedby={errors.merchantId ? "merchantId-error" : undefined}
+            className="h-12 bg-card border border-border text-foreground placeholder:text-muted-foreground rounded-xl text-sm font-mono focus-visible:ring-1 focus-visible:ring-ring focus-visible:border-ring transition-all"
           />
-          {errors.email && <p id="email-error" className="text-xs text-destructive mt-1">{errors.email.message}</p>}
+          {errors.merchantId && <p id="merchantId-error" className="text-xs text-destructive mt-1">{errors.merchantId.message}</p>}
         </div>
 
-        {/* Password */}
+        {/* Secret Key */}
         <div className="space-y-1.5">
           <div className="flex items-center justify-between">
-            <AuthLabel htmlFor="password">
-              Password
-            </AuthLabel>
+            <Label htmlFor="secret" className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              Secret Key
+            </Label>
             <Link href="/auth/forgot-password" className="text-xs text-muted-foreground hover:text-primary transition-colors">
-              Forgot password?
+              Lost your secret?
             </Link>
           </div>
-          <AuthInput
-            id="password"
+          <Input
+            id="secret"
             type="password"
-            placeholder="••••••••"
-            {...register('password')}
-            aria-invalid={errors.password ? "true" : "false"}
-            aria-describedby={errors.password ? "password-error" : undefined}
+            placeholder="Your merchant secret key"
+            {...register('secret')}
+            aria-invalid={errors.secret ? "true" : "false"}
+            aria-describedby={errors.secret ? "secret-error" : undefined}
+            className="h-12 bg-card border border-border text-foreground placeholder:text-muted-foreground rounded-xl text-sm focus-visible:ring-1 focus-visible:ring-ring focus-visible:border-ring transition-all"
           />
-          {errors.password && <p id="password-error" className="text-xs text-destructive mt-1">{errors.password.message}</p>}
+          {errors.secret && <p id="secret-error" className="text-xs text-destructive mt-1">{errors.secret.message}</p>}
+          <p className="text-xs text-muted-foreground">
+            The secret key shown once when you created your account.
+          </p>
         </div>
 
         {/* Sign In CTA */}
         <div className="pt-1">
-          <AuthButton
+          <Button
             type="submit"
             disabled={isLoading || isWalletLoading || isRateLimited}
+            className="w-full h-12 bg-primary hover:bg-primary/90 text-white font-semibold text-sm rounded-xl border-0 transition-colors"
           >
             {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
             {isRateLimited ? `Try again in ${secondsRemaining}s` : 'Sign In'}
-          </AuthButton>
+          </Button>
         </div>
       </form>
 

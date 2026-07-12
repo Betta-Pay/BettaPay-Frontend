@@ -28,8 +28,8 @@ export const strongPasswordSchema = z.string().superRefine((password, ctx) => {
 });
 
 export const loginSchema = z.object({
-  email: z.string().email('Please enter a valid email address'),
-  password: strongPasswordSchema,
+  merchantId: z.string().min(1, 'Merchant ID is required'),
+  secret: z.string().min(1, 'Secret key is required'),
 });
 
 export type LoginFormValues = z.infer<typeof loginSchema>;
