@@ -38,8 +38,8 @@ export default function Footer() {
             <h3 className="font-semibold text-foreground mb-4">Product</h3>
             <ul className="space-y-3">
               <li><Link href="/auth/login" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Merchant Dashboard</Link></li>
-              <li><Link href="/payments" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Payment Links</Link></li>
-              <li><Link href="/settlement" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Fiat Settlements</Link></li>
+              <li><Link href="/payment-links" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Payment Links</Link></li>
+              <li><Link href="/fiat-settlements" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Fiat Settlements</Link></li>
               <li><Link href="/pricing" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Pricing</Link></li>
             </ul>
           </div>
