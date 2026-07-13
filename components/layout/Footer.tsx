@@ -26,10 +26,10 @@ export default function Footer() {
               The next-generation non-custodial payment gateway for African merchants. Accept global stablecoin payments and settle directly to your local bank account in seconds. Built securely on the Stellar network.
             </p>
             <div className="flex items-center gap-4 text-muted-foreground">
-              <Link href="#" className="hover:text-primary transition-colors"><MessageCircle className="w-5 h-5" /></Link>
-              <Link href="#" className="hover:text-primary transition-colors"><Code2 className="w-5 h-5" /></Link>
-              <Link href="#" className="hover:text-primary transition-colors"><Briefcase className="w-5 h-5" /></Link>
-              <Link href="#" className="hover:text-primary transition-colors"><Mail className="w-5 h-5" /></Link>
+              <Link href="/contact" className="hover:text-primary transition-colors"><MessageCircle className="w-5 h-5" /></Link>
+              <Link href="/docs" className="hover:text-primary transition-colors"><Code2 className="w-5 h-5" /></Link>
+              <Link href="/about#careers" className="hover:text-primary transition-colors"><Briefcase className="w-5 h-5" /></Link>
+              <Link href="/contact" className="hover:text-primary transition-colors"><Mail className="w-5 h-5" /></Link>
             </div>
           </div>
 
@@ -40,7 +40,7 @@ export default function Footer() {
               <li><Link href="/auth/login" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Merchant Dashboard</Link></li>
               <li><Link href="/payments" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Payment Links</Link></li>
               <li><Link href="/settlement" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Fiat Settlements</Link></li>
-              <li><Link href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Pricing</Link></li>
+              <li><Link href="/pricing" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Pricing</Link></li>
             </ul>
           </div>
 
@@ -48,10 +48,10 @@ export default function Footer() {
           <div>
             <h3 className="font-semibold text-foreground mb-4">Developers</h3>
             <ul className="space-y-3">
-              <li><Link href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors">API Documentation</Link></li>
-              <li><Link href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Integration Guides</Link></li>
-              <li><Link href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors">SDKs & Libraries</Link></li>
-              <li><Link href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Status</Link></li>
+              <li><Link href="/docs" className="text-sm text-muted-foreground hover:text-foreground transition-colors">API Documentation</Link></li>
+              <li><Link href="/guides" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Integration Guides</Link></li>
+              <li><Link href="/sdks" className="text-sm text-muted-foreground hover:text-foreground transition-colors">SDKs & Libraries</Link></li>
+              <li><Link href="/status" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Status</Link></li>
             </ul>
           </div>
 
@@ -59,10 +59,10 @@ export default function Footer() {
           <div>
             <h3 className="font-semibold text-foreground mb-4">Company</h3>
             <ul className="space-y-3">
-              <li><Link href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors">About Us</Link></li>
-              <li><Link href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Contact</Link></li>
-              <li><Link href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Privacy Policy</Link></li>
-              <li><Link href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Terms of Service</Link></li>
+              <li><Link href="/about" className="text-sm text-muted-foreground hover:text-foreground transition-colors">About Us</Link></li>
+              <li><Link href="/contact" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Contact</Link></li>
+              <li><Link href="/privacy" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Privacy Policy</Link></li>
+              <li><Link href="/terms" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Terms of Service</Link></li>
             </ul>
           </div>
         </div>
