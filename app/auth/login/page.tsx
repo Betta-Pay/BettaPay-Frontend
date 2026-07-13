@@ -2,7 +2,7 @@
 
 import { useState, Suspense, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Shield, Zap, Globe, ArrowRight } from 'lucide-react';
 import { useNotify } from '@/lib/hooks/useNotify';
 import dynamic from 'next/dynamic';
 
@@ -14,6 +14,12 @@ import { GoogleLogin } from '@react-oauth/google';
 
 const WalletModal = dynamic(() => import('@/components/wallet/WalletModal').then(m => m.WalletModal), { ssr: false });
 
+const benefits = [
+  { icon: Zap, title: 'Instant settlement', desc: 'Transactions settle in seconds on Stellar Soroban' },
+  { icon: Globe, title: 'Multi-currency', desc: 'Accept USDC, auto-convert to local fiat' },
+  { icon: Shield, title: 'Non-custodial', desc: 'You always control your funds and keys' },
+];
+
 export default function LoginPage() {
   const router = useRouter();
   const { login } = useAuthStore();
@@ -24,13 +30,12 @@ export default function LoginPage() {
   const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
   const handleAuthSuccess = useCallback(async (token: string) => {
-    // Decode JWT to get merchantId and ownerId
     const payloadBase64 = token.split('.')[1];
     const payload = JSON.parse(atob(payloadBase64));
 
     const user = {
       id: payload.merchantId,
-      email: payload.ownerId, 
+      email: payload.ownerId,
       name: 'Merchant',
       role: (payload.role ?? 'merchant') as 'admin' | 'merchant',
     };
@@ -49,7 +54,6 @@ export default function LoginPage() {
     login(token, user as import('@/lib/types').User);
     success('Login successful');
 
-    // Onboarding check: if name is still the default "My Business", redirect to onboarding
     try {
       const meRes = await fetch(`${apiBase}/api/merchants/${payload.merchantId}`, {
         headers: { 'Authorization': `Bearer ${token}` }
@@ -64,7 +68,7 @@ export default function LoginPage() {
     } catch {
       // ignore
     }
-    
+
     router.push(user.role === 'admin' ? '/overview' : '/dashboard');
   }, [apiBase, login, router, success]);
 
@@ -91,16 +95,13 @@ export default function LoginPage() {
   const onWalletConnected = useCallback(async (address: string) => {
     setIsWalletLoading(true);
     try {
-      // 1. Get challenge
       const challengeRes = await fetch(`${apiBase}/api/auth/wallet/challenge?address=${address}`);
       if (!challengeRes.ok) throw new Error('Failed to fetch challenge');
       const { challenge } = await challengeRes.json();
 
-      // 2. Sign challenge
       const signature = await signChallenge(address, challenge);
       if (!signature) throw new Error('User rejected or failed to sign challenge');
 
-      // 3. Verify
       const verifyRes = await fetch(`${apiBase}/api/auth/wallet/verify`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -129,16 +130,16 @@ export default function LoginPage() {
       </Suspense>
 
       {/* Heading */}
-      <div className="mb-10 text-center">
-        <h1 className="text-4xl font-bold text-foreground leading-tight">Sign in</h1>
-        <p className="text-muted-foreground mt-3 text-sm">
-          Continue with Google or your Stellar wallet
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-foreground tracking-tight">Welcome back</h1>
+        <p className="text-muted-foreground mt-2 text-sm leading-relaxed">
+          Sign in to manage your payments, view settlements, and accept crypto from customers worldwide.
         </p>
       </div>
 
-      <div className="space-y-4">
-        {/* Google button */}
-        <div className="flex justify-center [&>div]:w-full">
+      {/* Auth buttons */}
+      <div className="space-y-3">
+        <div className="flex justify-center [&>div]:w-full rounded-xl overflow-hidden border border-border">
           <GoogleLogin
             onSuccess={onGoogleSuccess}
             onError={() => error('Google login failed')}
@@ -149,14 +150,12 @@ export default function LoginPage() {
           />
         </div>
 
-        {/* Divider */}
-        <div className="flex items-center gap-4 my-6">
-          <div className="flex-1 h-px bg-muted" />
-          <span className="text-xs text-muted-foreground font-medium">or</span>
-          <div className="flex-1 h-px bg-muted" />
+        <div className="relative flex items-center py-1">
+          <div className="flex-1 h-px bg-border" />
+          <span className="px-3 text-xs text-muted-foreground font-medium">or</span>
+          <div className="flex-1 h-px bg-border" />
         </div>
 
-        {/* Wallet button */}
         <Button
           type="button"
           onClick={() => setWalletModalOpen(true)}
@@ -166,6 +165,31 @@ export default function LoginPage() {
           {isWalletLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
           Connect Freighter Wallet
         </Button>
+      </div>
+
+      {/* Benefits */}
+      <div className="mt-10 pt-8 border-t border-border">
+        <div className="grid gap-5">
+          {benefits.map((item) => (
+            <div key={item.title} className="flex items-start gap-3">
+              <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                <item.icon className="w-4 h-4 text-primary" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-foreground">{item.title}</p>
+                <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{item.desc}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <a
+          href="/"
+          className="mt-6 inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+        >
+          Learn more about BettaPay
+          <ArrowRight className="w-3 h-3" />
+        </a>
       </div>
     </div>
   );

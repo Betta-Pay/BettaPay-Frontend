@@ -6,15 +6,22 @@ export default function AuthLayout({
   children: React.ReactNode;
 }) {
   return (
-    <main id="main-content" tabIndex={-1} className="min-h-screen flex items-center justify-center bg-background px-4">
+    <main id="main-content" tabIndex={-1} className="relative min-h-screen flex items-center justify-center bg-background px-4 overflow-hidden">
+      {/* Subtle background decoration */}
+      <div className="absolute inset-0 -z-10">
+        <div className="absolute top-1/4 -left-32 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
+        <div className="absolute bottom-1/4 -right-32 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
+      </div>
+
       <div className="w-full max-w-[420px] mx-auto">
         {/* Top bar */}
-        <div className="flex items-center justify-center mb-12">
+        <div className="flex flex-col items-center mb-10">
           <Link href="/" className="flex items-center gap-2.5 group">
             <span className="font-bold text-foreground text-2xl tracking-tight group-hover:text-primary transition-colors">
               BettaPay
             </span>
           </Link>
+          <p className="text-xs text-muted-foreground mt-1.5">Stellar-powered merchant payments</p>
         </div>
 
         {/* Form content */}
