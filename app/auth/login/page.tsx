@@ -30,7 +30,7 @@ export default function LoginPage() {
   const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
   const handleAuthSuccess = useCallback(async (token: string) => {
-    const payloadBase64 = token.split('.')[1];
+    const payloadBase64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
     const payload = JSON.parse(atob(payloadBase64));
 
     const user = {
