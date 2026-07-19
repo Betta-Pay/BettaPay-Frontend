@@ -154,4 +154,12 @@
     box-shadow: 0 0 0 3px color-mix(in srgb, var(--ring) 30%, transparent);
     border-radius: 8px;
   }
+
+  /* Smooth anchor scrolling, scoped to the docs page and disabled for users
+     who prefer reduced motion. */
+  @media (prefers-reduced-motion: no-preference) {
+    html:has(#docs-content) {
+      scroll-behavior: smooth;
+    }
+  }
 }

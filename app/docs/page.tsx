@@ -1,7 +1,6 @@
 import type { Metadata } from 'next';
-import Header from '@/components/layout/Header';
-import Footer from '@/components/layout/Footer';
-import { Construction } from 'lucide-react';
+import { DocsLayout } from '@/components/docs/DocsLayout';
+import { docsSections } from '@/lib/docs/navigation';
 
 export const metadata: Metadata = {
   title: 'API Documentation | BettaPay',
@@ -10,24 +9,27 @@ export const metadata: Metadata = {
 
 export default function DocsPage() {
   return (
-    <div className="min-h-screen bg-card text-foreground flex flex-col">
-      <Header />
-      <main className="flex-1 flex items-center justify-center px-6">
-        <div className="text-center max-w-md">
-          <div className="w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center mx-auto mb-6">
-            <Construction className="w-7 h-7 text-primary" />
-          </div>
-          <h1 className="text-3xl font-bold tracking-tight mb-3">API Documentation</h1>
-          <p className="text-muted-foreground leading-relaxed mb-2">
-            Build custom integrations with our REST and Soroban contract APIs.
+    <DocsLayout>
+      {docsSections.map((section, index) => (
+        <section
+          key={section.id}
+          id={section.id}
+          className="scroll-mt-24 border-b border-border pb-16 pt-12 first:pt-0 last:border-0"
+        >
+          {index === 0 ? (
+            <h1 className="text-3xl font-bold tracking-tight text-foreground">
+              {section.title}
+            </h1>
+          ) : (
+            <h2 className="text-2xl font-bold tracking-tight text-foreground">
+              {section.title}
+            </h2>
+          )}
+          <p className="mt-4 leading-relaxed text-muted-foreground">
+            The {section.title} reference is documented in the sections that follow.
           </p>
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-600 text-xs font-medium">
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-            Coming soon
-          </div>
-        </div>
-      </main>
-      <Footer />
-    </div>
+        </section>
+      ))}
+    </DocsLayout>
   );
 }
