@@ -1,4 +1,6 @@
 import { createHighlighter, type Highlighter } from 'shiki';
+import type { Endpoint, HighlightedSample, SampleLanguage } from './types';
+import { generateSamples } from './snippets';
 
 // Server-side syntax highlighting. Runs at build/render time in React Server
 // Components so the client never ships Shiki's grammars or themes — the page
@@ -52,4 +54,22 @@ export async function highlight(code: string, lang: string): Promise<string> {
     defaultColor: false,
     colorReplacements: {},
   });
+}
+
+/**
+ * Generate an endpoint's request examples and highlight each one. Returns the
+ * samples with their pre-rendered HTML so a client component (RequestExample)
+ * can render tabs without any Shiki on the client.
+ */
+export async function buildHighlightedSamples(
+  endpoint: Endpoint,
+  languages?: SampleLanguage[],
+): Promise<HighlightedSample[]> {
+  const samples = generateSamples(endpoint, languages);
+  return Promise.all(
+    samples.map(async (sample) => ({
+      ...sample,
+      html: await highlight(sample.code, sample.grammar),
+    })),
+  );
 }

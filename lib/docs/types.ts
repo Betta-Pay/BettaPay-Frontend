@@ -10,6 +10,20 @@ export type HttpMethod = 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE';
 /** Languages we auto-generate request examples for. */
 export type SampleLanguage = 'curl' | 'node-fetch' | 'node-axios' | 'python' | 'react';
 
+/**
+ * A generated code sample after server-side Shiki highlighting. `html` is the
+ * pre-rendered markup; `code` is the raw text used for copy-to-clipboard. Kept
+ * in this pure module so client components can import the type without pulling
+ * Shiki into the client bundle.
+ */
+export interface HighlightedSample {
+  language: SampleLanguage;
+  label: string;
+  grammar: string;
+  code: string;
+  html: string;
+}
+
 // ─── Navigation ────────────────────────────────────────────────────────────
 
 /** A single leaf in the sidebar / a section anchor on the page. */
