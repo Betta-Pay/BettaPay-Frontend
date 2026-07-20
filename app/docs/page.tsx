@@ -1,35 +1,40 @@
 import type { Metadata } from 'next';
 import { DocsLayout } from '@/components/docs/DocsLayout';
 import { docsSections } from '@/lib/docs/navigation';
+import { SectionShell } from '@/components/docs/content/primitives';
+import { Overview } from '@/components/docs/content/Overview';
+import { Authentication } from '@/components/docs/content/Authentication';
+import { Quickstart } from '@/components/docs/content/Quickstart';
 
 export const metadata: Metadata = {
   title: 'API Documentation | BettaPay',
   description: 'REST API reference for integrating BettaPay payment processing.',
 };
 
+// Sections with dedicated content components. The rest render a lightweight
+// placeholder so the sidebar, scroll-spy and anchor links resolve while later
+// steps fill them in.
+const BUILT = new Set(['overview', 'authentication', 'quickstart']);
+
 export default function DocsPage() {
   return (
     <DocsLayout>
-      {docsSections.map((section, index) => (
-        <section
-          key={section.id}
-          id={section.id}
-          className="scroll-mt-24 border-b border-border pb-16 pt-12 first:pt-0 last:border-0"
-        >
-          {index === 0 ? (
-            <h1 className="text-3xl font-bold tracking-tight text-foreground">
-              {section.title}
-            </h1>
-          ) : (
-            <h2 className="text-2xl font-bold tracking-tight text-foreground">
-              {section.title}
-            </h2>
-          )}
-          <p className="mt-4 leading-relaxed text-muted-foreground">
-            The {section.title} reference is documented in the sections that follow.
-          </p>
-        </section>
-      ))}
+      <Overview />
+      <Authentication />
+      <Quickstart />
+
+      {docsSections
+        .filter((section) => !BUILT.has(section.id))
+        .map((section) => (
+          <SectionShell
+            key={section.id}
+            id={section.id}
+            title={section.title}
+            lead={`The ${section.title} reference is documented in the sections that follow.`}
+          >
+            <></>
+          </SectionShell>
+        ))}
     </DocsLayout>
   );
 }
