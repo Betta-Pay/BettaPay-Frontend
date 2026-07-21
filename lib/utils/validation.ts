@@ -18,3 +18,18 @@ export const paymentLinkSchema = z.object({
 });
 
 export type PaymentLinkFormValues = z.infer<typeof paymentLinkSchema>;
+
+const businessTypeEnum = z.enum(['individual', 'sole_proprietor', 'llc', 'corporation']);
+
+export const merchantProfileSchema = z.object({
+  businessName: z.string().min(1, 'Business name is required'),
+  businessType: businessTypeEnum,
+  country: z.string().min(1, 'Country is required'),
+  industry: z.string().min(1, 'Industry is required'),
+  websiteUrl: z.string().url('Invalid URL format').nullable().or(z.literal('')),
+  contactEmail: z.string().email('Invalid email format'),
+  phoneNumber: z.string().nullable().or(z.literal('')),
+  logoUrl: z.string().nullable(),
+});
+
+export type MerchantProfileFormValues = z.infer<typeof merchantProfileSchema>;
