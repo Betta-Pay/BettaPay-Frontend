@@ -41,7 +41,14 @@ function Disclosure({
  * Examples, Response and Errors sections. Highlighting happens here on the
  * server; interactive leaves (tabs, copy) are small client islands.
  */
-export async function EndpointBlock({ endpoint }: { endpoint: Endpoint }) {
+export async function EndpointBlock({
+  endpoint,
+  headingLevel = 3,
+}: {
+  endpoint: Endpoint;
+  /** 3 → appears in the right-hand TOC; 4 → excluded (for nested endpoints). */
+  headingLevel?: 3 | 4;
+}) {
   const samples = await buildHighlightedSamples(endpoint);
   const responseJson = JSON.stringify(endpoint.responseExample, null, 2);
   const responseHtml = await highlight(responseJson, 'json');
@@ -51,10 +58,17 @@ export async function EndpointBlock({ endpoint }: { endpoint: Endpoint }) {
     (endpoint.queryParams?.length ?? 0) > 0 ||
     (endpoint.requestBody?.length ?? 0) > 0;
 
+  const Heading = headingLevel === 4 ? 'h4' : 'h3';
+
   return (
-    <div id={endpoint.id} className="scroll-mt-24 rounded-2xl border border-border bg-card/40 p-5 sm:p-6">
-      {/* Header */}
-      <div className="flex flex-wrap items-center gap-2">
+    <div className="scroll-mt-24 rounded-2xl border border-border bg-card/40 p-5 sm:p-6">
+      {/* Title doubles as the anchor target so cross-links land on the heading. */}
+      <Heading id={endpoint.id} className="scroll-mt-24 text-base font-semibold text-foreground">
+        {endpoint.title}
+      </Heading>
+
+      {/* Method + path + auth indicator */}
+      <div className="mt-3 flex flex-wrap items-center gap-2">
         <span
           className={cn(
             'inline-flex items-center rounded-md px-2 py-1 font-mono text-xs font-bold',
@@ -82,8 +96,7 @@ export async function EndpointBlock({ endpoint }: { endpoint: Endpoint }) {
         </span>
       </div>
 
-      <h4 className="mt-4 text-base font-semibold text-foreground">{endpoint.title}</h4>
-      <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{endpoint.description}</p>
+      <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{endpoint.description}</p>
 
       {endpoint.rateLimit && (
         <p className="mt-3 inline-flex items-center gap-1.5 text-xs text-muted-foreground">

@@ -98,7 +98,7 @@ export function Authentication() {
           The gateway verifies the ID token with <Code>google-auth-library</Code> against your
           client id, upserts the merchant, and returns a BettaPay JWT.
         </P>
-        <EndpointBlock endpoint={byId('auth-google')} />
+        <EndpointBlock endpoint={byId('auth-google')} headingLevel={4} />
       </SubSection>
 
       {/* ── Wallet Auth ── */}
@@ -114,8 +114,8 @@ export function Authentication() {
           <li>POST the address, challenge and signature to verify — receive a JWT.</li>
         </Ol>
         <Snippet code={walletFlow} lang="typescript" filename="wallet-auth.ts" />
-        <EndpointBlock endpoint={byId('auth-wallet-challenge')} />
-        <EndpointBlock endpoint={byId('auth-wallet-verify')} />
+        <EndpointBlock endpoint={byId('auth-wallet-challenge')} headingLevel={4} />
+        <EndpointBlock endpoint={byId('auth-wallet-verify')} headingLevel={4} />
         <Callout variant="warning" title="Challenges are single-use and short-lived">
           A challenge is bound to the address that requested it and expires quickly. Always sign the
           exact string returned by the challenge endpoint — do not reconstruct or reuse it.

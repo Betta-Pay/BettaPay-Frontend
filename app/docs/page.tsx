@@ -5,6 +5,11 @@ import { SectionShell } from '@/components/docs/content/primitives';
 import { Overview } from '@/components/docs/content/Overview';
 import { Authentication } from '@/components/docs/content/Authentication';
 import { Quickstart } from '@/components/docs/content/Quickstart';
+import { Merchants } from '@/components/docs/content/Merchants';
+import { Payments } from '@/components/docs/content/Payments';
+import { Settlements } from '@/components/docs/content/Settlements';
+import { FxRates } from '@/components/docs/content/FxRates';
+import { WebhookEvents } from '@/components/docs/content/WebhookEvents';
 
 export const metadata: Metadata = {
   title: 'API Documentation | BettaPay',
@@ -14,7 +19,16 @@ export const metadata: Metadata = {
 // Sections with dedicated content components. The rest render a lightweight
 // placeholder so the sidebar, scroll-spy and anchor links resolve while later
 // steps fill them in.
-const BUILT = new Set(['overview', 'authentication', 'quickstart']);
+const BUILT = new Set([
+  'overview',
+  'authentication',
+  'quickstart',
+  'merchants',
+  'payments',
+  'settlements',
+  'fx-rates',
+  'webhook-events',
+]);
 
 export default function DocsPage() {
   return (
@@ -22,6 +36,11 @@ export default function DocsPage() {
       <Overview />
       <Authentication />
       <Quickstart />
+      <Merchants />
+      <Payments />
+      <Settlements />
+      <FxRates />
+      <WebhookEvents />
 
       {docsSections
         .filter((section) => !BUILT.has(section.id))
