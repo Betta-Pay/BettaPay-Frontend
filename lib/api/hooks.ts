@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { apiClient } from './axios';
+import type { MerchantProfile } from '../types';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -119,4 +120,33 @@ export function useRates() {
   useEffect(() => { fetch(); }, [fetch]);
 
   return { data, primaryRate, isLoading, error, refetch: fetch };
+}
+
+// ─── useMerchantProfile ───────────────────────────────────────────────────────
+
+export function useMerchantProfile(merchantId: string | undefined) {
+  const [data, setData] = useState<MerchantProfile | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetch = useCallback(async () => {
+    if (!merchantId) {
+      setIsLoading(false);
+      return;
+    }
+    setIsLoading(true);
+    setError(null);
+    try {
+      const res = await apiClient.get<{ data: MerchantProfile }>(`/api/merchants/${merchantId}`);
+      setData(res.data?.data ?? null);
+    } catch {
+      setError('Failed to load merchant profile');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [merchantId]);
+
+  useEffect(() => { fetch(); }, [fetch]);
+
+  return { data, isLoading, error, refetch: fetch };
 }
