@@ -6,7 +6,9 @@ export function middleware(request: NextRequest) {
   const role = request.cookies.get('user_role')?.value;
   
   const isAuthPage = request.nextUrl.pathname.startsWith('/auth');
-  const isPublicPage = request.nextUrl.pathname === '/' || request.nextUrl.pathname.startsWith('/pay');
+  const isPublicPage = request.nextUrl.pathname === '/' || 
+                       request.nextUrl.pathname.startsWith('/pay') ||
+                       request.nextUrl.pathname === '/contact';
   const isAdminRoute = request.nextUrl.pathname.startsWith('/admin') || 
                        request.nextUrl.pathname === '/overview' ||
                        request.nextUrl.pathname === '/merchants' ||
