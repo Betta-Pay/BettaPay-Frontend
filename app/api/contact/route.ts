@@ -8,7 +8,7 @@ const contactSchema = z.object({
   company: z.string().optional().or(z.literal("")),
   subject: z.enum(
     ["General", "Sales", "Technical Support", "Careers", "Partnership", "Bug Report", "Other"],
-    { errorMap: () => ({ message: "Please select a valid subject." }) }
+    { message: "Please select a valid subject." }
   ),
   message: z
     .string()
@@ -125,7 +125,7 @@ export async function POST(req: Request) {
     // 6. Validate form fields against Zod schema
     const validationResult = contactSchema.safeParse(formData);
     if (!validationResult.success) {
-      const errorMessages = validationResult.error.errors.map((e) => e.message).join(" ");
+      const errorMessages = validationResult.error.issues.map((e) => e.message).join(" ");
       return NextResponse.json({ error: errorMessages }, { status: 400 });
     }
 
@@ -143,7 +143,7 @@ Message: ${message}`);
     // if (process.env.RESEND_API_KEY) { ... dispatch mail ... }
 
     return NextResponse.json({ success: true, message: "Feedback recorded." });
-  } catch (error: any) {
+  } catch (error) {
     console.error("API contact error:", error);
     return NextResponse.json(
       { error: "Internal server error. Please try again." },
