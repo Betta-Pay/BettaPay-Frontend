@@ -6,16 +6,19 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Toggle } from '@/components/ui/toggle';
-import { Settings, User, Building2, Bell, Shield, LogOut } from 'lucide-react';
+import { Settings, User, Bell, Shield, LogOut } from 'lucide-react';
 import { useAuthStore } from '@/lib/store/authStore';
 import { useRouter } from 'next/navigation';
 import { useNotify } from '@/lib/hooks/useNotify';
-import { trimInput, normalizeEmail } from '@/lib/utils/sanitize';
+import { trimInput } from '@/lib/utils/sanitize';
 import { cn } from '@/lib/utils';
+import { ProfileEditor } from '@/components/settings/ProfileEditor';
+import { useMerchantProfile } from '@/lib/api/hooks';
+import { apiClient } from '@/lib/api/axios';
+import type { MerchantProfileFormValues } from '@/lib/utils/validation';
 
 const tabs = [
   { id: 'profile', label: 'Profile', icon: User },
-  { id: 'business', label: 'Business', icon: Building2 },
   { id: 'notifications', label: 'Notifications', icon: Bell },
   { id: 'security', label: 'Security', icon: Shield },
 ];
@@ -39,14 +42,12 @@ export default function SettingsPage() {
   const { user, logout } = useAuthStore();
   const notify = useNotify();
 
-  const [profileName, setProfileName] = useState(user?.name ?? '');
-  const [profileEmail, setProfileEmail] = useState(user?.email ?? '');
-  const [profilePhone, setProfilePhone] = useState('');
-
-  const [bizName, setBizName] = useState('Merchant Corp');
-  const [bizRegNumber, setBizRegNumber] = useState('');
-  const [bizBankName, setBizBankName] = useState('');
-  const [bizAccountNumber, setBizAccountNumber] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const {
+    data: profileData,
+    isLoading: profileLoading,
+    refetch: refetchProfile,
+  } = useMerchantProfile(user?.id);
 
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -61,6 +62,24 @@ export default function SettingsPage() {
   const handleTabChange = useCallback((id: string) => {
     setActiveTab(id);
   }, []);
+
+  const handleProfileSubmit = useCallback(async (data: MerchantProfileFormValues) => {
+    if (!user?.id) return;
+    setIsSubmitting(true);
+    const previousData = profileData;
+    try {
+      await apiClient.patch(`/api/merchants/${user.id}`, data);
+      notify.success('Profile updated');
+      refetchProfile();
+    } catch {
+      notify.error('Failed to update profile');
+      if (previousData) {
+        refetchProfile();
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [user?.id, profileData, notify, refetchProfile]);
 
   const toggleNotificationPreference = (id: string) => {
     setNotificationPreferences((current) => ({
@@ -111,94 +130,12 @@ export default function SettingsPage() {
         {/* Tab content */}
         <div className="flex-1 min-w-0 overflow-y-auto">
           {activeTab === 'profile' && (
-            <Card className="border border-border bg-card shadow-sm">
-              <CardHeader>
-                <CardTitle className="text-base font-semibold text-foreground">Profile Details</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-5">
-                <div className="flex items-center gap-4 p-4 bg-muted rounded-xl">
-                  <div className="w-14 h-14 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-xl font-bold">
-                    {user?.name?.charAt(0) ?? 'M'}
-                  </div>
-                  <div>
-                    <p className="font-semibold text-foreground">{user?.name ?? 'Merchant User'}</p>
-                    <p className="text-sm text-muted-foreground">{user?.email ?? 'merchant@example.com'}</p>
-                    <span className="inline-block mt-1 text-xs bg-primary/20 text-primary font-semibold px-2 py-0.5 rounded-full capitalize">{user?.role ?? 'merchant'}</span>
-                  </div>
-                </div>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Full Name</Label>
-                    <Input value={profileName} onChange={(e) => setProfileName(e.target.value)} className="h-10 border-border rounded-xl bg-card text-sm" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Email Address</Label>
-                    <Input value={profileEmail} onChange={(e) => setProfileEmail(e.target.value)} type="email" className="h-10 border-border rounded-xl bg-card text-sm" />
-                  </div>
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Phone Number</Label>
-                  <Input value={profilePhone} onChange={(e) => setProfilePhone(e.target.value)} placeholder="+234 800 000 0000" className="h-10 border-border rounded-xl bg-card text-sm" />
-                </div>
-                <Button
-                  className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-xl h-10 px-6 text-sm scroll-mb-52"
-                  onClick={() => {
-                    const sanitized = {
-                      name: trimInput(profileName),
-                      email: normalizeEmail(profileEmail),
-                      phone: trimInput(profilePhone),
-                    };
-                    void sanitized;
-                    notify.success('Profile updated');
-                  }}
-                >
-                  Save Changes
-                </Button>
-              </CardContent>
-            </Card>
-          )}
-
-          {activeTab === 'business' && (
-            <Card className="border border-border bg-card shadow-sm">
-              <CardHeader>
-                <CardTitle className="text-base font-semibold text-foreground">Business Information</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-5">
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Business Name</Label>
-                    <Input value={bizName} onChange={(e) => setBizName(e.target.value)} className="h-10 border-border rounded-xl bg-card text-sm" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Registration Number</Label>
-                    <Input value={bizRegNumber} onChange={(e) => setBizRegNumber(e.target.value)} placeholder="RC-1234567" className="h-10 border-border rounded-xl bg-card text-sm" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Bank Name</Label>
-                    <Input value={bizBankName} onChange={(e) => setBizBankName(e.target.value)} placeholder="e.g. GTBank" className="h-10 border-border rounded-xl bg-card text-sm" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Account Number</Label>
-                    <Input value={bizAccountNumber} onChange={(e) => setBizAccountNumber(e.target.value)} placeholder="0123456789" className="h-10 border-border rounded-xl bg-card text-sm" />
-                  </div>
-                </div>
-                <Button
-                  className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-xl h-10 px-6 text-sm scroll-mb-52"
-                  onClick={() => {
-                    const sanitized = {
-                      name: trimInput(bizName),
-                      regNumber: trimInput(bizRegNumber),
-                      bankName: trimInput(bizBankName),
-                      accountNumber: trimInput(bizAccountNumber),
-                    };
-                    void sanitized;
-                    notify.success('Business info saved');
-                  }}
-                >
-                  Save Changes
-                </Button>
-              </CardContent>
-            </Card>
+            <ProfileEditor
+              initialData={profileData}
+              isLoading={profileLoading}
+              onSubmit={handleProfileSubmit}
+              isSubmitting={isSubmitting}
+            />
           )}
 
           {activeTab === 'notifications' && (
