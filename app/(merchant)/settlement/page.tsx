@@ -22,6 +22,7 @@ import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorDisplay } from '@/components/shared/ErrorDisplay';
 import { useOfflineStore } from '@/lib/store/offlineStore';
 import { SettlementConfirmation } from '@/components/settlement/SettlementConfirmation';
+import { InvoiceDownloadButton, BatchInvoiceDownload } from '@/components/settlement/InvoiceGenerator';
 import { StatCard } from '@/components/shared/StatCard';
 import { memo } from 'react';
 import { useSettlements, type ApiSettlement } from '@/lib/api/hooks';
@@ -48,6 +49,7 @@ const SettlementItem = memo(function SettlementItem({ settlement: s }: Settlemen
       </div>
       <div className="flex items-center gap-2">
         <StatusBadge status={s.status as 'completed' | 'pending' | 'failed'} />
+        {s.status.toUpperCase() === 'COMPLETED' && <InvoiceDownloadButton settlement={s} />}
         {s.txHash && (
           <a
             href={getStellarExplorerTxUrl(s.txHash)}
@@ -166,16 +168,19 @@ export default function SettlementPage() {
             <CardTitle className="text-base font-semibold text-foreground">Settlement History</CardTitle>
             <CardDescription>All your past USDC → NGN conversions</CardDescription>
           </div>
-          <NetworkTooltip show={!isOnline}>
-            <Button
-              variant="outline"
-              disabled={!isOnline}
-              aria-disabled={!isOnline}
-              className="border-border text-muted-foreground rounded-xl text-xs h-8 px-3"
-            >
-              <Download className="w-3 h-3 mr-1.5" /> Export
-            </Button>
-          </NetworkTooltip>
+          <div className="flex items-center gap-2">
+            <BatchInvoiceDownload settlements={settlements} />
+            <NetworkTooltip show={!isOnline}>
+              <Button
+                variant="outline"
+                disabled={!isOnline}
+                aria-disabled={!isOnline}
+                className="border-border text-muted-foreground rounded-xl text-xs h-8 px-3"
+              >
+                <Download className="w-3 h-3 mr-1.5" /> Export
+              </Button>
+            </NetworkTooltip>
+          </div>
         </CardHeader>
         <CardContent>
           {settlementsError || fetchError ? (
