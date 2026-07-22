@@ -158,7 +158,7 @@
   /* Smooth anchor scrolling, scoped to the docs page and disabled for users
      who prefer reduced motion. */
   @media (prefers-reduced-motion: no-preference) {
-    html:has(#docs-content) {
+    html:has([data-docs-content]) {
       scroll-behavior: smooth;
     }
   }

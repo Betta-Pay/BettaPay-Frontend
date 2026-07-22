@@ -92,7 +92,10 @@ export function DocsSidebar({ activeSection, mobileOpen, onMobileClose }: DocsSi
       <div
         className={cn(
           'fixed inset-0 z-50 transition-opacity duration-300 lg:hidden',
-          mobileOpen ? 'opacity-100' : 'pointer-events-none opacity-0',
+          // `invisible` (visibility: hidden) also removes the drawer's links from
+          // the tab order — opacity alone would leave focusable content inside an
+          // aria-hidden subtree, letting keyboard users tab into an unseen menu.
+          mobileOpen ? 'opacity-100' : 'pointer-events-none invisible opacity-0',
         )}
         aria-hidden={!mobileOpen}
       >
@@ -119,7 +122,7 @@ export function DocsSidebar({ activeSection, mobileOpen, onMobileClose }: DocsSi
               aria-label="Close navigation"
               className="flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             >
-              <X className="h-5 w-5" />
+              <X className="h-5 w-5" aria-hidden="true" />
             </button>
           </div>
           <div className="flex-1 overflow-y-auto px-4 py-6">

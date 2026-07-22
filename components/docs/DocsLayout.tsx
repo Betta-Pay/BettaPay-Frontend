@@ -37,7 +37,7 @@ export function DocsLayout({ children }: DocsLayoutProps) {
           aria-expanded={mobileOpen}
           className="flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         >
-          <Menu className="h-5 w-5" />
+          <Menu className="h-5 w-5" aria-hidden="true" />
         </button>
         <DocsBreadcrumbs activeSection={activeSection} />
       </div>
@@ -49,7 +49,9 @@ export function DocsLayout({ children }: DocsLayoutProps) {
           onMobileClose={() => setMobileOpen(false)}
         />
 
-        <main id="docs-content" className="min-w-0 flex-1">
+        {/* `main-content` matches the root layout's skip link; `data-docs-content`
+            scopes the smooth-scroll rule in globals.css to this page. */}
+        <main id="main-content" tabIndex={-1} data-docs-content className="min-w-0 flex-1">
           <div className="mx-auto max-w-[800px] px-6 py-10 lg:py-12">
             <DocsBreadcrumbs activeSection={activeSection} className="mb-8 hidden lg:flex" />
             {children}

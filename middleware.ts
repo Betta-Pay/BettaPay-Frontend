@@ -6,7 +6,12 @@ export function middleware(request: NextRequest) {
   const role = request.cookies.get('user_role')?.value;
   
   const isAuthPage = request.nextUrl.pathname.startsWith('/auth');
-  const isPublicPage = request.nextUrl.pathname === '/' || request.nextUrl.pathname.startsWith('/pay');
+  // The API documentation must be readable by anonymous developers evaluating
+  // BettaPay — it is a public marketing/reference surface, not merchant data.
+  const isPublicPage =
+    request.nextUrl.pathname === '/' ||
+    request.nextUrl.pathname.startsWith('/pay') ||
+    request.nextUrl.pathname.startsWith('/docs');
   const isAdminRoute = request.nextUrl.pathname.startsWith('/admin') || 
                        request.nextUrl.pathname === '/overview' ||
                        request.nextUrl.pathname === '/merchants' ||

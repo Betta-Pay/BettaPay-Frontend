@@ -2,9 +2,13 @@ import { useEffect, useRef, useState } from 'react';
 
 interface ScrollSpyOptions {
   /**
-   * IntersectionObserver rootMargin. The default activates a target as it
-   * crosses the upper third of the viewport rather than the very top, which
-   * feels natural when reading top-to-bottom.
+   * IntersectionObserver rootMargin. The default opens the detection band a
+   * fixed 120px below the viewport top — clearing the sticky header and the
+   * `scroll-mt-24` (96px) anchor offset. Without that gap, jumping to a section
+   * leaves the *previous* section still clipping the top of the band, and since
+   * we pick the first match in document order it would win and highlight the
+   * wrong entry. A fixed pixel value (not a %) keeps this correct on short
+   * viewports too.
    */
   rootMargin?: string;
 }
@@ -17,7 +21,7 @@ interface ScrollSpyOptions {
  * Returns the active id (or the first id before any scrolling has happened).
  */
 export function useScrollSpy(ids: string[], options: ScrollSpyOptions = {}): string {
-  const { rootMargin = '-10% 0px -70% 0px' } = options;
+  const { rootMargin = '-120px 0px -60% 0px' } = options;
   const [activeId, setActiveId] = useState<string>(ids[0] ?? '');
   // Keep the last known set of intersecting ids across observer callbacks.
   const visible = useRef<Set<string>>(new Set());
