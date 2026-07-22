@@ -114,8 +114,9 @@ export function ProfileEditor({
   }, [setValue]);
 
   const handleBusinessTypeChange = useCallback(
-    (value: string) => {
-      setValue('businessType', value as MerchantProfileFormValues['businessType'], {
+    (value: MerchantProfileFormValues['businessType'] | null) => {
+      if (!value) return;
+      setValue('businessType', value, {
         shouldValidate: true,
       });
     },

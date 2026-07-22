@@ -2,8 +2,8 @@
 
 import {
   Mail,
-  Twitter,
-  Github,
+  AtSign,
+  Code2,
   MapPin,
   Clock,
   MessageCircle,
@@ -78,7 +78,7 @@ export default function ContactInfo() {
         />
 
         <ContactMethod
-          icon={<Twitter className="w-5 h-5" />}
+          icon={<AtSign className="w-5 h-5" />}
           title="Follow on Twitter"
           value="@BettaPay"
           href="https://twitter.com/BettaPay"
@@ -92,7 +92,7 @@ export default function ContactInfo() {
         />
 
         <ContactMethod
-          icon={<Github className="w-5 h-5" />}
+          icon={<Code2 className="w-5 h-5" />}
           title="Open Source GitHub"
           value="github.com/bettapay"
           href="https://github.com/bettapay"

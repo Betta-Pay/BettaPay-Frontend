@@ -19,6 +19,15 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
+declare global {
+  interface Window {
+    grecaptcha?: {
+      ready: (callback: () => void) => void;
+      execute: (siteKey: string, options: { action: string }) => Promise<string>;
+    };
+  }
+}
+
 // Define schema matching API validations
 const contactFormSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
@@ -26,7 +35,7 @@ const contactFormSchema = z.object({
   company: z.string().optional(),
   subject: z.enum(
     ["General", "Sales", "Technical Support", "Careers", "Partnership", "Bug Report", "Other"],
-    { errorMap: () => ({ message: "Please select a valid subject." }) }
+    { message: "Please select a valid subject." }
   ),
   message: z
     .string()
@@ -120,14 +129,15 @@ export default function ContactForm() {
   // Execute reCAPTCHA token generation
   const getRecaptchaToken = async (): Promise<string | null> => {
     const siteKey = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY;
-    if (!siteKey || !recaptchaLoaded || !window.grecaptcha) {
+    const grecaptcha = window.grecaptcha;
+    if (!siteKey || !recaptchaLoaded || !grecaptcha) {
       return null;
     }
 
     return new Promise((resolve) => {
-      window.grecaptcha.ready(async () => {
+      grecaptcha.ready(async () => {
         try {
-          const token = await window.grecaptcha.execute(siteKey, {
+          const token = await grecaptcha.execute(siteKey, {
             action: "contact_submit",
           });
           resolve(token);
@@ -171,9 +181,10 @@ export default function ContactForm() {
         message: "",
         website: "",
       });
-    } catch (error: any) {
+    } catch (error) {
       console.error("Submission error:", error);
-      toast.error(error.message || "Failed to send message. Please try again later.");
+      const message = error instanceof Error ? error.message : "";
+      toast.error(message || "Failed to send message. Please try again later.");
     }
   };
 
