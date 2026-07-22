@@ -4,18 +4,21 @@ import type { NextRequest } from 'next/server';
 export function middleware(request: NextRequest) {
   const token = request.cookies.get('auth_token')?.value;
   const role = request.cookies.get('user_role')?.value;
-  
+
   const isAuthPage = request.nextUrl.pathname.startsWith('/auth');
-  const isPublicPage = request.nextUrl.pathname === '/' || 
+  // Public marketing/reference surfaces. The API documentation in particular
+  // must be readable by anonymous developers evaluating BettaPay.
+  const isPublicPage = request.nextUrl.pathname === '/' ||
                        request.nextUrl.pathname.startsWith('/pay') ||
-                       request.nextUrl.pathname === '/contact';
-  const isAdminRoute = request.nextUrl.pathname.startsWith('/admin') || 
+                       request.nextUrl.pathname === '/contact' ||
+                       request.nextUrl.pathname.startsWith('/docs');
+  const isAdminRoute = request.nextUrl.pathname.startsWith('/admin') ||
                        request.nextUrl.pathname === '/overview' ||
                        request.nextUrl.pathname === '/merchants' ||
                        request.nextUrl.pathname === '/anchors' ||
                        request.nextUrl.pathname === '/fx-management' ||
                        request.nextUrl.pathname === '/compliance';
-  
+
   // Allow public access to landing page and payment links
   if (isPublicPage) {
     return NextResponse.next();
@@ -42,7 +45,7 @@ export function middleware(request: NextRequest) {
   if (isAdminRoute && role !== 'admin') {
     return NextResponse.redirect(new URL('/dashboard', request.url)); // redirect merchants from admin
   }
-  
+
   // Protect merchant routes from admins
   const isMerchantRoute = request.nextUrl.pathname === '/dashboard' ||
                           request.nextUrl.pathname === '/payments' ||
@@ -52,7 +55,7 @@ export function middleware(request: NextRequest) {
                           request.nextUrl.pathname === '/fx' ||
                           request.nextUrl.pathname === '/developers' ||
                           request.nextUrl.pathname === '/settings';
-                          
+
   if (isMerchantRoute && role === 'admin') {
     return NextResponse.redirect(new URL('/overview', request.url));
   }

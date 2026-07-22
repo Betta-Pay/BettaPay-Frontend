@@ -154,4 +154,54 @@
     box-shadow: 0 0 0 3px color-mix(in srgb, var(--ring) 30%, transparent);
     border-radius: 8px;
   }
+
+  /* Smooth anchor scrolling, scoped to the docs page and disabled for users
+     who prefer reduced motion. */
+  @media (prefers-reduced-motion: no-preference) {
+    html:has([data-docs-content]) {
+      scroll-behavior: smooth;
+    }
+  }
+}
+
+/* ── Documentation code blocks (Shiki dual-theme) ──
+   Shiki emits both light and dark token colors as CSS variables; we pick the
+   set that matches the active theme via the `.dark` class so toggling never
+   re-highlights or flashes. See lib/docs/highlight.ts. */
+.docs-code .shiki {
+  margin: 0;
+  padding: 1rem 1.25rem;
+  overflow-x: auto;
+  font-size: 0.8125rem;
+  line-height: 1.65;
+  background-color: var(--shiki-light-bg);
+  tab-size: 2;
+}
+.docs-code .shiki code {
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+}
+.docs-code .shiki,
+.docs-code .shiki span {
+  color: var(--shiki-light);
+}
+.dark .docs-code .shiki {
+  background-color: var(--shiki-dark-bg);
+}
+.dark .docs-code .shiki,
+.dark .docs-code .shiki span {
+  color: var(--shiki-dark);
+}
+
+/* ── Documentation disclosures (<details>) ── */
+details[data-docs-disclosure] > summary {
+  list-style: none;
+}
+details[data-docs-disclosure] > summary::-webkit-details-marker {
+  display: none;
+}
+.docs-chevron {
+  transition: transform 0.2s ease;
+}
+details[data-docs-disclosure][open] > summary .docs-chevron {
+  transform: rotate(90deg);
 }
