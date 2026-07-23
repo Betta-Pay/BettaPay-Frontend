@@ -11,7 +11,15 @@ export function middleware(request: NextRequest) {
   const isPublicPage = request.nextUrl.pathname === '/' ||
                        request.nextUrl.pathname.startsWith('/pay') ||
                        request.nextUrl.pathname === '/contact' ||
-                       request.nextUrl.pathname.startsWith('/docs');
+                       request.nextUrl.pathname.startsWith('/docs') ||
+                       request.nextUrl.pathname.startsWith('/privacy') ||
+                       request.nextUrl.pathname.startsWith('/terms') ||
+                       request.nextUrl.pathname.startsWith('/fiat-settlements') ||
+                       request.nextUrl.pathname.startsWith('/pricing') ||
+                       request.nextUrl.pathname.startsWith('/about') ||
+                       request.nextUrl.pathname.startsWith('/guides') ||
+                       request.nextUrl.pathname.startsWith('/sdks') ||
+                       request.nextUrl.pathname.startsWith('/status');
   const isAdminRoute = request.nextUrl.pathname.startsWith('/admin') ||
                        request.nextUrl.pathname === '/overview' ||
                        request.nextUrl.pathname === '/merchants' ||
@@ -48,7 +56,7 @@ export function middleware(request: NextRequest) {
 
   // Protect merchant routes from admins
   const isMerchantRoute = request.nextUrl.pathname === '/dashboard' ||
-                          request.nextUrl.pathname === '/payments' ||
+                          request.nextUrl.pathname.startsWith('/payments') ||
                           request.nextUrl.pathname === '/transactions' ||
                           request.nextUrl.pathname === '/settlement' ||
                           request.nextUrl.pathname === '/wallet' ||
