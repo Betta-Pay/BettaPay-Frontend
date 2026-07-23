@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { CopyAddress } from '@/components/shared/CopyAddress';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorDisplay } from '@/components/shared/ErrorDisplay';
+import { QRCodeModal } from '@/components/payments/QRCode';
 import { Plus, MoreHorizontal, QrCode, Link2 } from 'lucide-react';
 import {
   Dialog,
@@ -27,9 +28,12 @@ type PaymentLink = ApiPayment;
 
 interface PaymentLinkCardProps {
   link: PaymentLink;
+  onShowQr?: (link: PaymentLink) => void;
 }
 
-const PaymentLinkCard = memo(function PaymentLinkCard({ link }: PaymentLinkCardProps) {
+const PaymentLinkCard = memo(function PaymentLinkCard({ link, onShowQr }: PaymentLinkCardProps) {
+  const payUrl = `${process.env.NEXT_PUBLIC_API_URL ?? ''}/pay/${link.id}`;
+
   return (
     <Card className="bg-card border-border/50 shadow-sm hover:border-primary/50 transition-colors group">
       <CardHeader className="flex flex-row items-start justify-between pb-2">
@@ -48,12 +52,18 @@ const PaymentLinkCard = memo(function PaymentLinkCard({ link }: PaymentLinkCardP
         <div className="flex flex-col gap-2 mt-4 sm:flex-row sm:items-center">
           <div className="flex-1 overflow-hidden min-w-0">
             <div className="text-xs text-muted-foreground truncate max-w-[180px] sm:max-w-full bg-muted/50 p-2 rounded border border-border/50 font-mono">
-              {`${process.env.NEXT_PUBLIC_API_URL ?? ''}/pay/${link.id}`}
+              {payUrl}
             </div>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
-            <CopyAddress address={`${process.env.NEXT_PUBLIC_API_URL ?? ''}/pay/${link.id}`} showIconOnly truncate={false} />
-            <Button variant="outline" size="icon" aria-label="Show QR code" className="min-h-[44px] min-w-[44px] border-border/50 bg-background/50 text-muted-foreground hover:text-foreground">
+            <CopyAddress address={payUrl} showIconOnly truncate={false} />
+            <Button
+              variant="outline"
+              size="icon"
+              aria-label="Show QR code"
+              onClick={() => onShowQr?.(link)}
+              className="min-h-[44px] min-w-[44px] border-border/50 bg-background/50 text-muted-foreground hover:text-foreground"
+            >
               <QrCode className="h-4 w-4" />
             </Button>
           </div>
@@ -70,6 +80,7 @@ export default function PaymentsPage() {
   const [labelError, setLabelError] = useState('');
   const [labelValue, setLabelValue] = useState('');
   const [linksError, setLinksError] = useState(false);
+  const [selectedQrLink, setSelectedQrLink] = useState<PaymentLink | null>(null);
 
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
@@ -186,9 +197,21 @@ export default function PaymentsPage() {
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {links.map((link) => (
-            <PaymentLinkCard key={link.id} link={link} />
+            <PaymentLinkCard key={link.id} link={link} onShowQr={setSelectedQrLink} />
           ))}
         </div>
+      )}
+
+      {selectedQrLink && (
+        <QRCodeModal
+          open={!!selectedQrLink}
+          onOpenChange={(open) => {
+            if (!open) setSelectedQrLink(null);
+          }}
+          value={`${process.env.NEXT_PUBLIC_API_URL ?? ''}/pay/${selectedQrLink.id}`}
+          title={selectedQrLink.source ?? 'Payment Link'}
+          amountUsdc={selectedQrLink.amountUsdc}
+        />
       )}
     </div>
   );

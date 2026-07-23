@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { CurrencyDisplay } from "@/components/shared/CurrencyDisplay";
+import { QRCodeModal } from "@/components/payments/QRCode";
 import {
   Table,
   TableBody,
@@ -485,35 +486,13 @@ export default function PaymentLinkDetailPage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={qrOpen} onOpenChange={setQrOpen}>
-        <DialogContent className="sm:max-w-xs bg-card border-border/50">
-          <DialogHeader>
-            <DialogTitle className="text-center">QR Code</DialogTitle>
-            <DialogDescription className="text-center">
-              Scan to open payment link
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex flex-col items-center py-4 space-y-4">
-            <div className="w-48 h-48 bg-muted rounded-xl flex items-center justify-center border border-border">
-              <QrCode className="w-32 h-32 text-foreground/80" />
-            </div>
-            <p className="text-xs text-muted-foreground text-center font-mono max-w-full truncate">
-              {linkDetails.url}
-            </p>
-            <Button
-              variant="outline"
-              className="w-full"
-              onClick={() => {
-                notify.success("QR code downloaded");
-                setQrOpen(false);
-              }}
-            >
-              <Download className="w-4 h-4 mr-2" />
-              Download PNG
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <QRCodeModal
+        open={qrOpen}
+        onOpenChange={setQrOpen}
+        value={linkDetails.url}
+        title={linkDetails.label}
+        amountUsdc={linkDetails.amount}
+      />
     </div>
   );
 }
