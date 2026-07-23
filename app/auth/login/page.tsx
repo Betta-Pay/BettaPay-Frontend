@@ -11,16 +11,18 @@ import { Button } from '@/components/ui/button';
 import { WalletModalFallback } from '@/components/wallet/WalletModalFallback';
 import { signChallenge } from '@/lib/stellar/freighter';
 import { GoogleLogin } from '@react-oauth/google';
+import { useAppTranslation } from '@/lib/i18n/useAppTranslation';
 
 const WalletModal = dynamic(() => import('@/components/wallet/WalletModal').then(m => m.WalletModal), { ssr: false });
 
 const benefits = [
-  { icon: Zap, title: 'Instant settlement', desc: 'Transactions settle in seconds on Stellar Soroban' },
-  { icon: Globe, title: 'Multi-currency', desc: 'Accept USDC, auto-convert to local fiat' },
-  { icon: Shield, title: 'Non-custodial', desc: 'You always control your funds and keys' },
+  { icon: Zap, key: 'settlement' },
+  { icon: Globe, key: 'currency' },
+  { icon: Shield, key: 'custody' },
 ];
 
 export default function LoginPage() {
+  const { t } = useAppTranslation();
   const router = useRouter();
   const { login } = useAuthStore();
   const [isWalletLoading, setIsWalletLoading] = useState(false);
@@ -131,9 +133,9 @@ export default function LoginPage() {
 
       {/* Heading */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-foreground tracking-tight">Welcome back</h1>
+        <h1 className="text-3xl font-bold text-foreground tracking-tight">{t('login.title')}</h1>
         <p className="text-muted-foreground mt-2 text-sm leading-relaxed">
-          Sign in to manage your payments, view settlements, and accept crypto from customers worldwide.
+          {t('login.description')}
         </p>
       </div>
 
@@ -152,7 +154,7 @@ export default function LoginPage() {
 
         <div className="relative flex items-center py-1">
           <div className="flex-1 h-px bg-border" />
-          <span className="px-3 text-xs text-muted-foreground font-medium">or</span>
+          <span className="px-3 text-xs text-muted-foreground font-medium">{t('login.or')}</span>
           <div className="flex-1 h-px bg-border" />
         </div>
 
@@ -163,7 +165,7 @@ export default function LoginPage() {
           className="w-full h-12 bg-card border border-border text-foreground hover:bg-muted font-medium text-sm rounded-xl transition-colors"
         >
           {isWalletLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-          Connect Freighter Wallet
+          {t('login.connectWallet')}
         </Button>
       </div>
 
@@ -171,13 +173,13 @@ export default function LoginPage() {
       <div className="mt-10 pt-8 border-t border-border">
         <div className="grid gap-5">
           {benefits.map((item) => (
-            <div key={item.title} className="flex items-start gap-3">
+            <div key={item.key} className="flex items-start gap-3">
               <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                 <item.icon className="w-4 h-4 text-primary" />
               </div>
               <div>
-                <p className="text-sm font-medium text-foreground">{item.title}</p>
-                <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{item.desc}</p>
+                <p className="text-sm font-medium text-foreground">{t(`login.benefits.${item.key}.title`)}</p>
+                <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{t(`login.benefits.${item.key}.description`)}</p>
               </div>
             </div>
           ))}
@@ -187,7 +189,7 @@ export default function LoginPage() {
           href="/"
           className="mt-6 inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
         >
-          Learn more about BettaPay
+          {t('login.learnMore')}
           <ArrowRight className="w-3 h-3" />
         </a>
       </div>

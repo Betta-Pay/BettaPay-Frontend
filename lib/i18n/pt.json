@@ -1,0 +1,7 @@
+{
+  "common": { "language": "Idioma", "skipToContent": "Ir para o conteúdo principal" },
+  "languages": { "en": "Inglês", "fr": "Francês", "pt": "Português", "sw": "Suaíli" },
+  "navigation": { "features": "Recursos", "developers": "Desenvolvedores", "company": "Empresa", "login": "Entrar", "getStarted": "Começar" },
+  "landing": { "badge": "Disponível na testnet Soroban", "headline": "Liquide globalmente.", "headlineAccent": "Instantaneamente e sem custódia.", "primaryCta": "Começar a aceitar cripto", "secondaryCta": "Explorar recursos" },
+  "login": { "title": "Bem-vindo de volta", "or": "ou", "connectWallet": "Conectar carteira Freighter", "learnMore": "Saiba mais sobre a BettaPay" }
+}

@@ -1,0 +1,7 @@
+{
+  "common": { "language": "Langue", "skipToContent": "Aller au contenu principal" },
+  "languages": { "en": "Anglais", "fr": "Français", "pt": "Portugais", "sw": "Swahili" },
+  "navigation": { "features": "Fonctionnalités", "developers": "Développeurs", "company": "Entreprise", "login": "Se connecter", "getStarted": "Commencer" },
+  "landing": { "badge": "Disponible sur le testnet Soroban", "headline": "Réglez partout.", "headlineAccent": "Instantanément et sans garde.", "primaryCta": "Accepter les cryptomonnaies", "secondaryCta": "Découvrir les fonctionnalités" },
+  "login": { "title": "Bon retour", "or": "ou", "connectWallet": "Connecter le portefeuille Freighter", "learnMore": "En savoir plus sur BettaPay" }
+}

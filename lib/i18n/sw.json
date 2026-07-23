@@ -1,0 +1,7 @@
+{
+  "common": { "language": "Lugha", "skipToContent": "Nenda kwenye maudhui makuu" },
+  "languages": { "en": "Kiingereza", "fr": "Kifaransa", "pt": "Kireno", "sw": "Kiswahili" },
+  "navigation": { "features": "Vipengele", "developers": "Wasanidi", "company": "Kampuni", "login": "Ingia", "getStarted": "Anza" },
+  "landing": { "badge": "Sasa inapatikana kwenye Soroban Testnet", "headline": "Lipa duniani kote.", "headlineAccent": "Mara moja na bila udhamini.", "primaryCta": "Anza kupokea sarafu za kidijitali", "secondaryCta": "Chunguza vipengele" },
+  "login": { "title": "Karibu tena", "or": "au", "connectWallet": "Unganisha pochi ya Freighter", "learnMore": "Jifunze zaidi kuhusu BettaPay" }
+}
