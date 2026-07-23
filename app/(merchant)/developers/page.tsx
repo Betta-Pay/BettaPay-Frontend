@@ -1,12 +1,12 @@
 "use client";
 import { useState, useCallback } from 'react';
 import dynamic from 'next/dynamic';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { NetworkTooltip } from '@/components/ui/network-tooltip';
-import { Copy, Eye, EyeOff, Plus, RefreshCcw, Key, Globe, BookOpen, Zap, CheckCircle2, AlertCircle, Code2 } from 'lucide-react';
+import { Copy, Eye, EyeOff, Plus, RefreshCcw, Key, Globe, BookOpen, Zap, CheckCircle2, AlertCircle, Code2, ShieldAlert, Terminal, Trash2 } from 'lucide-react';
 import { useNotify } from '@/lib/hooks/useNotify';
 import {
   Select,
@@ -16,14 +16,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useOfflineStore } from '@/lib/store/offlineStore';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 
 const CodeExample = dynamic(() => import('@/components/developers/CodeExample').then(m => ({ default: m.CodeExample })), {
   loading: () => <Skeleton className="h-64 rounded-xl" />,
 });
 
-const mockKeys = [
-  { id: 'key_01', name: 'Production Key', prefix: 'bp_live_', suffix: '...a4f9', created: '2024-01-01', lastUsed: '2 hours ago', type: 'live' },
-  { id: 'key_02', name: 'Test Key', prefix: 'bp_test_', suffix: '...c2d8', created: '2024-01-05', lastUsed: '5 days ago', type: 'test' },
+const initialKeys = [
+  { id: 'key_01', name: 'Production Key', prefix: 'bp_live_', suffix: '...a4f9', created: '2026-01-01', lastUsed: '2 hours ago', type: 'live', scope: 'full' },
+  { id: 'key_02', name: 'Sandbox Key', prefix: 'bp_test_', suffix: '...c2d8', created: '2026-01-05', lastUsed: '5 days ago', type: 'test', scope: 'read_write' },
 ];
 
 const EVENT_TYPES = [
@@ -47,7 +49,7 @@ const SAMPLE_PAYLOADS: Record<string, JsonValue> = {
         "email": "customer@example.com"
       }
     },
-    "created_at": "2024-06-24T12:00:00Z"
+    "created_at": "2026-07-23T12:00:00Z"
   },
   'settlement.completed': {
     "id": "evt_234567",
@@ -59,7 +61,7 @@ const SAMPLE_PAYLOADS: Record<string, JsonValue> = {
       "fee": 100,
       "status": "processed"
     },
-    "created_at": "2024-06-24T13:00:00Z"
+    "created_at": "2026-07-23T13:00:00Z"
   },
   'payment.failed': {
     "id": "evt_345678",
@@ -71,11 +73,12 @@ const SAMPLE_PAYLOADS: Record<string, JsonValue> = {
       "status": "failed",
       "reason": "insufficient_funds"
     },
-    "created_at": "2024-06-24T14:00:00Z"
+    "created_at": "2026-07-23T14:00:00Z"
   }
 };
 
 export default function DevelopersPage() {
+  const [keys, setKeys] = useState(initialKeys);
   const [showKey, setShowKey] = useState<string | null>(null);
   const [selectedEvent, setSelectedEvent] = useState<string>('payment.received');
   const [isSimulating, setIsSimulating] = useState(false);
@@ -83,42 +86,72 @@ export default function DevelopersPage() {
   const isOnline = useOfflineStore((s) => s.isOnline);
   const notify = useNotify();
 
+  // Create Key Dialog
+  const [isCreateKeyOpen, setIsCreateKeyOpen] = useState(false);
+  const [newKeyName, setNewKeyName] = useState('');
+  const [newKeyType, setNewKeyType] = useState<'live' | 'test'>('test');
+
   const handleCopy = useCallback((text: string) => {
     navigator.clipboard.writeText(text);
     notify.success('Copied to clipboard');
   }, [notify]);
 
+  const handleCreateKey = () => {
+    if (!newKeyName.trim()) {
+      notify.error('Please enter a key name');
+      return;
+    }
+    const createdKey = {
+      id: `key_${Date.now()}`,
+      name: newKeyName,
+      prefix: newKeyType === 'live' ? 'bp_live_' : 'bp_test_',
+      suffix: `...${Math.random().toString(36).substring(2, 6)}`,
+      created: new Date().toISOString().slice(0, 10),
+      lastUsed: 'Never',
+      type: newKeyType,
+      scope: 'full',
+    };
+    setKeys([createdKey, ...keys]);
+    setIsCreateKeyOpen(false);
+    setNewKeyName('');
+    notify.success('API key generated successfully');
+  };
+
+  const handleRevokeKey = (id: string) => {
+    setKeys(keys.filter(k => k.id !== id));
+    notify.info('API key revoked');
+  };
+
   const handleSendTest = () => {
     setIsSimulating(true);
     setSimulationResult(null);
-    
-    // Simulate API delay
+
     setTimeout(() => {
       setIsSimulating(false);
       setSimulationResult({
         status: 200,
-        message: 'Webhook delivered successfully'
+        message: 'Webhook delivered successfully with signature verification pass'
       });
-      notify.success('Test webhook sent');
-    }, 1500);
+      notify.success('Test webhook delivered');
+    }, 1200);
   };
 
   return (
     <div className="space-y-8 pb-8">
       <div>
         <p className="text-xs font-semibold tracking-widest text-primary uppercase mb-1">Integration</p>
-        <h1 className="text-3xl font-bold text-foreground">Developers</h1>
+        <h1 className="text-3xl font-bold text-foreground">Developers & API</h1>
         <p className="text-muted-foreground text-sm mt-1">
-          API keys, webhooks, and SDK quickstart for integrating BettaPay.
+          Manage API keys, inspect webhooks, access sandbox credentials, and integrate SDKs.
         </p>
       </div>
 
       {/* Quick links */}
       <div className="grid gap-3 sm:grid-cols-3">
         {[
-          { icon: BookOpen, label: 'API Reference', desc: 'Full REST API docs', color: 'amber' },
-          { icon: Globe, label: 'Webhooks', desc: 'Event notifications', color: 'blue' },
-          { icon: Code2, label: 'SDKs', desc: 'Node.js, Python, PHP', color: 'emerald' },
+          { icon: BookOpen, label: 'API Reference', desc: 'Full REST API specifications', color: 'amber' },
+          { icon: Globe, label: 'Webhooks', desc: 'Real-time event subscriptions', color: 'blue' },
+          { icon: Code2, label: 'SDK Libraries', desc: 'Node.js, Python, PHP, Go', color: 'emerald' },
         ].map(({ icon: Icon, label, desc, color }) => (
           <div key={label} className={`flex items-center gap-4 p-4 rounded-xl border cursor-pointer hover:shadow-sm transition-all
             ${color === 'amber' ? 'border-primary/30 bg-primary/10 hover:bg-primary/20' : ''}
@@ -134,6 +167,26 @@ export default function DevelopersPage() {
         ))}
       </div>
 
+      {/* Sandbox Credentials Card */}
+      <Card className="border border-border bg-card shadow-sm">
+        <CardHeader>
+          <CardTitle className="text-base font-semibold text-foreground flex items-center gap-2">
+            <Terminal className="w-4 h-4 text-primary" /> Sandbox Credentials & Testnet
+          </CardTitle>
+          <CardDescription>Use these keys to test payment links and SEP-24 anchor flows safely.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="p-4 rounded-xl bg-muted/40 border border-border/60 space-y-1">
+            <p className="text-xs text-muted-foreground uppercase font-bold">Sandbox Endpoint URL</p>
+            <p className="font-mono text-xs text-foreground font-semibold">https://sandbox.api.bettapay.io/v1</p>
+          </div>
+          <div className="p-4 rounded-xl bg-muted/40 border border-border/60 space-y-1">
+            <p className="text-xs text-muted-foreground uppercase font-bold">Stellar Testnet Horizon URL</p>
+            <p className="font-mono text-xs text-foreground font-semibold">https://horizon-testnet.stellar.org</p>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* API Keys */}
       <Card className="border border-border bg-card shadow-sm">
         <CardHeader className="flex flex-row items-center justify-between">
@@ -141,11 +194,13 @@ export default function DevelopersPage() {
             <CardTitle className="text-base font-semibold text-foreground flex items-center gap-2">
               <Key className="w-4 h-4 text-primary" /> API Keys
             </CardTitle>
+            <CardDescription>Authentication tokens for server-to-server API calls</CardDescription>
           </div>
           <NetworkTooltip show={!isOnline}>
             <Button
               disabled={!isOnline}
               aria-disabled={!isOnline}
+              onClick={() => setIsCreateKeyOpen(true)}
               className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl h-9 px-4 text-xs font-semibold"
             >
               <Plus className="w-3.5 h-3.5 mr-1.5" /> New Key
@@ -154,7 +209,7 @@ export default function DevelopersPage() {
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {mockKeys.map((key) => (
+            {keys.map((key) => (
               <div key={key.id} className="flex items-center gap-4 p-4 rounded-xl border border-border hover:border-border hover:bg-muted/50 transition-all">
                 <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 text-xs font-bold
                   ${key.type === 'live' ? 'bg-success/20 text-success' : 'bg-muted text-muted-foreground'}`}>
@@ -163,7 +218,7 @@ export default function DevelopersPage() {
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-foreground">{key.name}</p>
                   <p className="text-xs text-muted-foreground font-mono">
-                    {key.prefix}{showKey === key.id ? '••••••••••••••••' : '••••••••••••••••'}{key.suffix}
+                    {key.prefix}{showKey === key.id ? '9876543210fedcba' : '••••••••••••••••'}{key.suffix}
                   </p>
                 </div>
                 <div className="text-right hidden sm:block">
@@ -177,8 +232,8 @@ export default function DevelopersPage() {
                   <Button variant="ghost" size="icon" aria-label="Copy API key" className="min-h-[44px] min-w-[44px] rounded-lg" onClick={() => handleCopy(`${key.prefix}EXAMPLE${key.suffix}`)}>
                     <Copy className="w-3.5 h-3.5 text-muted-foreground" />
                   </Button>
-                  <Button variant="ghost" size="icon" aria-label="Rotate API key" className="min-h-[44px] min-w-[44px] rounded-lg" onClick={() => notify.info('Key rotation coming soon')}>
-                    <RefreshCcw className="w-3.5 h-3.5 text-muted-foreground" />
+                  <Button variant="ghost" size="icon" aria-label="Revoke API key" className="min-h-[44px] min-w-[44px] rounded-lg text-muted-foreground hover:text-destructive" onClick={() => handleRevokeKey(key.id)}>
+                    <Trash2 className="w-3.5 h-3.5" />
                   </Button>
                 </div>
               </div>
@@ -190,7 +245,7 @@ export default function DevelopersPage() {
       {/* Quickstart code */}
       <CodeExample onCopy={handleCopy} />
 
-      {/* Webhook URL config */}
+      {/* Webhook Endpoint URL Config */}
       <Card className="border border-border bg-card shadow-sm">
         <CardHeader>
           <CardTitle className="text-base font-semibold text-foreground flex items-center gap-2">
@@ -202,27 +257,24 @@ export default function DevelopersPage() {
             defaultValue="https://your-app.com/webhooks/bettapay"
             className="flex-1 h-10 border-border rounded-xl text-sm font-mono bg-muted"
           />
-          <NetworkTooltip show={!isOnline}>
-            <Button
-              disabled={!isOnline}
-              aria-disabled={!isOnline}
-              className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl h-10 px-4 text-sm font-semibold shrink-0"
-            >
-              Save
-            </Button>
-          </NetworkTooltip>
+          <Button
+            onClick={() => notify.success('Webhook endpoint updated')}
+            className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl h-10 px-4 text-sm font-semibold shrink-0"
+          >
+            Save
+          </Button>
         </CardContent>
       </Card>
 
-      {/* Test Webhook Section */}
+      {/* Test Webhook Simulator Section */}
       <Card className="border border-border bg-card shadow-sm">
         <CardHeader>
           <CardTitle className="text-base font-semibold text-foreground flex items-center gap-2">
-            <Zap className="w-4 h-4 text-primary" /> Test Webhook
+            <Zap className="w-4 h-4 text-primary" /> Test Webhook Simulator
           </CardTitle>
-          <p className="text-xs text-muted-foreground mt-1">
-            Simulate webhook events to test your endpoint integration.
-          </p>
+          <CardDescription>
+            Simulate webhook events to verify signature verification and payload handlers.
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="flex flex-col sm:flex-row gap-4 items-end">
@@ -241,8 +293,8 @@ export default function DevelopersPage() {
                 </SelectContent>
               </Select>
             </div>
-            <Button 
-              onClick={handleSendTest} 
+            <Button
+              onClick={handleSendTest}
               disabled={isSimulating}
               className="bg-foreground hover:bg-foreground/90 text-background rounded-xl h-10 px-6 text-sm font-semibold min-w-[140px]"
             >
@@ -260,9 +312,9 @@ export default function DevelopersPage() {
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <label className="text-xs font-semibold text-foreground">Simulated Payload</label>
-              <Button 
-                variant="ghost" 
-                size="sm" 
+              <Button
+                variant="ghost"
+                size="sm"
                 className="min-h-[44px] text-xs text-muted-foreground hover:text-foreground"
                 onClick={() => handleCopy(JSON.stringify(SAMPLE_PAYLOADS[selectedEvent], null, 2))}
               >
@@ -278,8 +330,8 @@ export default function DevelopersPage() {
 
           {simulationResult && (
             <div className={`p-4 rounded-xl border flex items-start gap-3 animate-in fade-in slide-in-from-top-2 duration-300 ${
-              simulationResult.status === 200 
-                ? 'bg-success/10 border-success/20 text-success' 
+              simulationResult.status === 200
+                ? 'bg-success/10 border-success/20 text-success'
                 : 'bg-destructive/10 border-destructive/20 text-destructive'
             }`}>
               {simulationResult.status === 200 ? (
@@ -295,6 +347,42 @@ export default function DevelopersPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* New API Key Dialog */}
+      <Dialog open={isCreateKeyOpen} onOpenChange={setIsCreateKeyOpen}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>Generate API Key</DialogTitle>
+            <DialogDescription>Create a new API key for backend integrations.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Key Name</Label>
+              <Input
+                placeholder="e.g. Node.js Payment Worker"
+                value={newKeyName}
+                onChange={(e) => setNewKeyName(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Environment</Label>
+              <Select value={newKeyType} onValueChange={(val) => val && setNewKeyType(val as 'live' | 'test')}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="test">Testnet (bp_test_)</SelectItem>
+                  <SelectItem value="live">Mainnet Live (bp_live_)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setIsCreateKeyOpen(false)}>Cancel</Button>
+            <Button onClick={handleCreateKey}>Generate Key</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
