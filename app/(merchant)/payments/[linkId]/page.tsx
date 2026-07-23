@@ -44,7 +44,6 @@ import {
   CalendarDays,
   AlertTriangle,
   ChevronLeft,
-  Download,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDate, formatCurrency } from "@/lib/utils/format";
