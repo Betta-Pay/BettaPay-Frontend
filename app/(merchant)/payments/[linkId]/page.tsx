@@ -44,6 +44,10 @@ import {
   AlertTriangle,
   ChevronLeft,
   Download,
+  RotateCcw,
+  Globe,
+  Clock,
+  Activity,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDate, formatCurrency } from "@/lib/utils/format";
@@ -82,15 +86,34 @@ interface PaymentRecord {
   date: string;
 }
 
+interface PaymentAttempt {
+  id: string;
+  txHash: string | null;
+  payer: string;
+  amount: number;
+  status: "completed" | "pending" | "failed";
+  timestamp: string;
+  failureReason?: string;
+}
+
+interface WebhookLog {
+  id: string;
+  event: string;
+  url: string;
+  statusCode: number;
+  timestamp: string;
+  latencyMs: number;
+}
+
 const mockLinkDetails: Record<string, PaymentLinkDetail> = {
   link_01: {
     id: "link_01",
     label: "Consulting Retainer Q3",
-    url: "https://betta.pay/pay/link_01",
+    url: `${process.env.NEXT_PUBLIC_API_URL ?? 'https://betta.pay'}/pay/link_01`,
     type: "open",
     amount: null,
     currency: "USDC",
-    created: "2023-10-25",
+    created: "2026-07-20",
     clicks: 24,
     uniquePayers: 8,
     totalRevenue: 4500.0,
@@ -99,11 +122,11 @@ const mockLinkDetails: Record<string, PaymentLinkDetail> = {
   link_02: {
     id: "link_02",
     label: "E-commerce Checkout",
-    url: "https://betta.pay/pay/link_02",
+    url: `${process.env.NEXT_PUBLIC_API_URL ?? 'https://betta.pay'}/pay/link_02`,
     type: "fixed",
     amount: 45.5,
     currency: "USDC",
-    created: "2023-10-24",
+    created: "2026-07-18",
     clicks: 112,
     uniquePayers: 47,
     totalRevenue: 5235.5,
@@ -112,11 +135,11 @@ const mockLinkDetails: Record<string, PaymentLinkDetail> = {
   link_03: {
     id: "link_03",
     label: "Donation Campaign",
-    url: "https://betta.pay/pay/link_03",
+    url: `${process.env.NEXT_PUBLIC_API_URL ?? 'https://betta.pay'}/pay/link_03`,
     type: "open",
     amount: null,
     currency: "USDC",
-    created: "2023-10-20",
+    created: "2026-07-15",
     clicks: 58,
     uniquePayers: 19,
     totalRevenue: 2890.0,
@@ -136,6 +159,74 @@ function generateMockPayments(linkId: string): PaymentRecord[] {
   }));
 }
 
+function generatePaymentAttempts(linkId: string): PaymentAttempt[] {
+  return [
+    {
+      id: `att_${linkId}_1`,
+      txHash: "8f4a21...9b20",
+      payer: "GA2C...8811",
+      amount: 150.0,
+      status: "completed",
+      timestamp: subDays(new Date(), 0.1).toISOString(),
+    },
+    {
+      id: `att_${linkId}_2`,
+      txHash: null,
+      payer: "GB99...4321",
+      amount: 75.0,
+      status: "failed",
+      timestamp: subDays(new Date(), 0.5).toISOString(),
+      failureReason: "Insufficient XLM for trustline fee balance",
+    },
+    {
+      id: `att_${linkId}_3`,
+      txHash: "3c12aa...77eb",
+      payer: "GC44...1092",
+      amount: 300.0,
+      status: "completed",
+      timestamp: subDays(new Date(), 1.2).toISOString(),
+    },
+    {
+      id: `att_${linkId}_4`,
+      txHash: null,
+      payer: "GD11...5566",
+      amount: 50.0,
+      status: "failed",
+      timestamp: subDays(new Date(), 2.0).toISOString(),
+      failureReason: "User rejected Freighter wallet transaction signature",
+    },
+  ];
+}
+
+function generateWebhookLogs(linkId: string): WebhookLog[] {
+  return [
+    {
+      id: `wh_${linkId}_101`,
+      event: "payment.received",
+      url: "https://merchant.example.com/api/webhooks/bettapay",
+      statusCode: 200,
+      timestamp: subDays(new Date(), 0.1).toISOString(),
+      latencyMs: 142,
+    },
+    {
+      id: `wh_${linkId}_102`,
+      event: "payment.failed",
+      url: "https://merchant.example.com/api/webhooks/bettapay",
+      statusCode: 500,
+      timestamp: subDays(new Date(), 0.5).toISOString(),
+      latencyMs: 310,
+    },
+    {
+      id: `wh_${linkId}_103`,
+      event: "payment.received",
+      url: "https://merchant.example.com/api/webhooks/bettapay",
+      statusCode: 200,
+      timestamp: subDays(new Date(), 1.2).toISOString(),
+      latencyMs: 98,
+    },
+  ];
+}
+
 function generateClickTimeline(): { date: string; clicks: number }[] {
   return Array.from({ length: 30 }, (_, i) => ({
     date: format(subDays(new Date(), 29 - i), "MMM d"),
@@ -152,8 +243,23 @@ export default function PaymentLinkDetailPage() {
   const [isDeactivated, setIsDeactivated] = useState(false);
   const [qrOpen, setQrOpen] = useState(false);
 
-  const linkDetails = mockLinkDetails[linkId];
+  const linkDetails = mockLinkDetails[linkId] ?? {
+    id: linkId,
+    label: `Payment Link (${linkId})`,
+    url: `${process.env.NEXT_PUBLIC_API_URL ?? 'https://betta.pay'}/pay/${linkId}`,
+    type: "fixed",
+    amount: 100.0,
+    currency: "USDC",
+    created: "2026-07-22",
+    clicks: 42,
+    uniquePayers: 14,
+    totalRevenue: 1400.0,
+    status: "active",
+  };
+
   const payments = generateMockPayments(linkId);
+  const attempts = generatePaymentAttempts(linkId);
+  const webhooks = generateWebhookLogs(linkId);
   const clickTimeline = generateClickTimeline();
 
   const conversionRate = linkDetails
@@ -172,29 +278,13 @@ export default function PaymentLinkDetailPage() {
     notify.success("Payment link deactivated");
   }, [notify]);
 
-  const handleDownloadQR = useCallback(() => {
-    setQrOpen(true);
-  }, []);
+  const handleRetryAttempt = (attemptId: string) => {
+    notify.info(`Triggered retry for attempt ${attemptId}`);
+  };
 
-  if (!linkDetails) {
-    return (
-      <div className="space-y-8 pb-8">
-        <div className="flex flex-col items-center justify-center py-20 text-center">
-          <Link2 className="w-12 h-12 text-muted-foreground/40 mb-4" />
-          <h2 className="text-xl font-bold text-foreground mb-2">Payment link not found</h2>
-          <p className="text-sm text-muted-foreground mb-6">
-            The payment link you are looking for does not exist or has been removed.
-          </p>
-          <Link href="/payments">
-            <Button variant="outline">
-              <ChevronLeft className="w-4 h-4 mr-2" />
-              Back to Payments
-            </Button>
-          </Link>
-        </div>
-      </div>
-    );
-  }
+  const handleRetryWebhook = (webhookId: string) => {
+    notify.success(`Re-sent webhook payload for ${webhookId}`);
+  };
 
   const kpiCards = [
     {
@@ -245,7 +335,7 @@ export default function PaymentLinkDetailPage() {
           <h1 className="text-2xl sm:text-3xl font-bold text-foreground leading-tight">
             {linkDetails.label}
           </h1>
-          <p className="text-sm text-muted-foreground mt-1 flex items-center gap-2">
+          <p className="text-sm text-muted-foreground mt-1 flex flex-wrap items-center gap-2">
             <span className="font-mono text-xs">{linkDetails.url}</span>
             <span className="text-muted-foreground/50">·</span>
             <span>Created {linkDetails.created}</span>
@@ -360,7 +450,7 @@ export default function PaymentLinkDetailPage() {
               <Button
                 variant="outline"
                 className="w-full justify-start gap-2 text-muted-foreground hover:text-foreground"
-                onClick={handleDownloadQR}
+                onClick={() => setQrOpen(true)}
               >
                 <QrCode className="w-4 h-4" />
                 Download QR Code
@@ -385,57 +475,117 @@ export default function PaymentLinkDetailPage() {
         </Card>
       </div>
 
+      {/* Payment Attempts Timeline Section */}
       <Card className="border border-border bg-card shadow-sm">
         <CardHeader className="pb-3">
-          <CardTitle className="text-base font-semibold text-foreground">
-            Recent Settlements
-          </CardTitle>
-          <CardDescription>
-            Payments processed through this link
-          </CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-base font-semibold text-foreground flex items-center gap-2">
+                <Activity className="w-4 h-4 text-primary" /> Payment Attempts Timeline
+              </CardTitle>
+              <CardDescription>Full audit trail of customer payment submissions</CardDescription>
+            </div>
+          </div>
         </CardHeader>
         <CardContent className="pt-0">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Payer</TableHead>
+                <TableHead>Tx Hash</TableHead>
                 <TableHead>Amount</TableHead>
-                <TableHead>NGN Value</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Date</TableHead>
+                <TableHead>Status / Details</TableHead>
+                <TableHead>Timestamp</TableHead>
+                <TableHead className="text-right">Action</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {payments.length === 0 ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={5}
-                    className="text-center py-8 text-muted-foreground"
-                  >
-                    No payments yet for this link.
+              {attempts.map((att) => (
+                <TableRow key={att.id}>
+                  <TableCell className="font-mono text-xs font-medium">{att.payer}</TableCell>
+                  <TableCell className="font-mono text-xs text-muted-foreground">{att.txHash ?? '—'}</TableCell>
+                  <TableCell className="font-semibold"><CurrencyDisplay amount={att.amount} /></TableCell>
+                  <TableCell>
+                    <div className="flex flex-col gap-0.5">
+                      <StatusBadge status={att.status} />
+                      {att.failureReason && (
+                        <span className="text-[10px] text-destructive max-w-[200px] truncate" title={att.failureReason}>
+                          {att.failureReason}
+                        </span>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-xs text-muted-foreground">{formatDate(att.timestamp)}</TableCell>
+                  <TableCell className="text-right">
+                    {att.status === "failed" && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-8 text-xs gap-1.5"
+                        onClick={() => handleRetryAttempt(att.id)}
+                      >
+                        <RotateCcw className="w-3 h-3 text-primary" /> Retry
+                      </Button>
+                    )}
                   </TableCell>
                 </TableRow>
-              ) : (
-                payments.map((payment) => (
-                  <TableRow key={payment.id}>
-                    <TableCell className="font-mono text-xs">
-                      {payment.payer}
-                    </TableCell>
-                    <TableCell className="font-semibold">
-                      <CurrencyDisplay amount={payment.amount} />
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      ₦{payment.amountNgn.toLocaleString()}
-                    </TableCell>
-                    <TableCell>
-                      <StatusBadge status={payment.status} />
-                    </TableCell>
-                    <TableCell className="text-muted-foreground text-xs">
-                      {formatDate(payment.date)}
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      {/* Webhook Delivery Logs Section */}
+      <Card className="border border-border bg-card shadow-sm">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-base font-semibold text-foreground flex items-center gap-2">
+                <Globe className="w-4 h-4 text-info" /> Webhook Delivery Logs
+              </CardTitle>
+              <CardDescription>Real-time delivery status to your endpoint</CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="pt-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Event</TableHead>
+                <TableHead>Endpoint URL</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Latency</TableHead>
+                <TableHead>Timestamp</TableHead>
+                <TableHead className="text-right">Re-send</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {webhooks.map((wh) => (
+                <TableRow key={wh.id}>
+                  <TableCell className="font-mono text-xs font-semibold">{wh.event}</TableCell>
+                  <TableCell className="font-mono text-xs text-muted-foreground truncate max-w-[200px]">{wh.url}</TableCell>
+                  <TableCell>
+                    <span className={cn(
+                      "px-2 py-0.5 rounded-full text-xs font-mono font-bold",
+                      wh.statusCode === 200 ? "bg-success/20 text-success" : "bg-destructive/20 text-destructive"
+                    )}>
+                      HTTP {wh.statusCode}
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-xs text-muted-foreground">{wh.latencyMs} ms</TableCell>
+                  <TableCell className="text-xs text-muted-foreground">{formatDate(wh.timestamp)}</TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-8 text-xs gap-1"
+                      onClick={() => handleRetryWebhook(wh.id)}
+                    >
+                      <RotateCcw className="w-3 h-3 text-muted-foreground" /> Ping
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
             </TableBody>
           </Table>
         </CardContent>
@@ -454,10 +604,10 @@ export default function PaymentLinkDetailPage() {
             </DialogDescription>
           </DialogHeader>
           <div className="py-4 space-y-3">
-            <div className="flex items-start gap-3 p-3 rounded-xl border border-destructive/20 bg-destructive/10 dark:border-red-800 dark:bg-red-950/30">
+            <div className="flex items-start gap-3 p-3 rounded-xl border border-destructive/20 bg-destructive/10">
               <AlertTriangle className="w-4 h-4 text-destructive shrink-0 mt-0.5" />
               <div>
-                <p className="text-xs font-semibold text-destructive dark:text-red-300">
+                <p className="text-xs font-semibold text-destructive">
                   This action cannot be undone
                 </p>
                 <p className="text-xs text-red-700 dark:text-red-400 mt-0.5">
@@ -517,5 +667,3 @@ export default function PaymentLinkDetailPage() {
     </div>
   );
 }
-
-
