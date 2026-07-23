@@ -18,6 +18,7 @@ import {
 import { useOfflineStore } from '@/lib/store/offlineStore';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import { RateLimitDisplay } from '@/components/developers/RateLimitDisplay';
 
 const CodeExample = dynamic(() => import('@/components/developers/CodeExample').then(m => ({ default: m.CodeExample })), {
   loading: () => <Skeleton className="h-64 rounded-xl" />,
@@ -166,6 +167,8 @@ export default function DevelopersPage() {
           </div>
         ))}
       </div>
+
+      <RateLimitDisplay />
 
       {/* Sandbox Credentials Card */}
       <Card className="border border-border bg-card shadow-sm">
