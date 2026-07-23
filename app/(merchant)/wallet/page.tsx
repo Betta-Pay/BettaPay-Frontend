@@ -12,6 +12,10 @@ import {
   ExternalLink,
   RefreshCcw,
   Wallet,
+  Globe,
+  QrCode,
+  LogOut,
+  CheckCircle2,
 } from "lucide-react";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { useNotify } from "@/lib/hooks/useNotify";
@@ -20,6 +24,8 @@ import { useAuthStore } from "@/lib/store/authStore";
 import { useWalletStore } from "@/lib/store/walletStore";
 import Image from "next/image";
 import { useCallback, useEffect, useState } from "react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
 const WalletActivityHistory = dynamic(() => import('@/components/wallet/WalletActivityHistory').then(m => ({ default: m.WalletActivityHistory })), {
   loading: () => <Skeleton className="h-64 rounded-xl" />,
@@ -27,9 +33,23 @@ const WalletActivityHistory = dynamic(() => import('@/components/wallet/WalletAc
 
 export default function WalletPage() {
   const { user } = useAuthStore();
-  const { address: walletAddress, balances, loading, isReconnecting, error, refreshBalances } = useWalletStore();
-  const { success } = useNotify();
+  const {
+    address: walletAddress,
+    isConnected,
+    balances,
+    loading,
+    isReconnecting,
+    error,
+    network,
+    connect,
+    disconnect,
+    setNetwork,
+    refreshBalances
+  } = useWalletStore();
+
+  const { success, error: notifyError } = useNotify();
   const [balancesError, setBalancesError] = useState(false);
+  const [qrOpen, setQrOpen] = useState(false);
 
   const address = walletAddress ?? user?.id ?? "";
   const shortAddress = address ? `${address.substring(0, 8)}...${address.slice(-6)}` : "";
@@ -40,16 +60,26 @@ export default function WalletPage() {
     }
   }, [address, refreshBalances]);
 
+  const handleConnectFreighter = async () => {
+    try {
+      await connect('freighter');
+      success("Freighter wallet connected successfully");
+    } catch (err) {
+      notifyError(err instanceof Error ? err.message : "Failed to connect Freighter");
+    }
+  };
+
   const handleCopy = useCallback(() => {
     if (address) {
       navigator.clipboard.writeText(address);
-      success("Address copied");
+      success("Address copied to clipboard");
     }
   }, [address, success]);
 
   const handleRefresh = useCallback(() => {
     refreshBalances();
-  }, [refreshBalances]);
+    success("Balances updated");
+  }, [refreshBalances, success]);
 
   const primaryBalance = balances.length > 0
     ? balances.reduce((max, b) => parseFloat(b.balance) > parseFloat(max.balance) ? b : max, balances[0])
@@ -79,7 +109,7 @@ export default function WalletPage() {
 
   return (
     <div className="space-y-8 pb-8">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <p className="text-xs font-semibold tracking-widest text-primary uppercase mb-1">
             Stellar Wallet
@@ -89,17 +119,50 @@ export default function WalletPage() {
             Your non-custodial Stellar wallet for receiving crypto payments.
           </p>
         </div>
-        <Button 
-          variant="outline" 
-          className="text-xs"
-          onClick={() => setBalancesError(true)}
-        >
-          Simulate Error
-        </Button>
+
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Network Switcher */}
+          <Select value={network} onValueChange={(val) => val && setNetwork(val as 'testnet' | 'public')}>
+            <SelectTrigger className="w-[140px] bg-card border-border">
+              <Globe className="w-3.5 h-3.5 mr-2 text-primary" />
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="testnet">Testnet</SelectItem>
+              <SelectItem value="public">Mainnet</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {/* Freighter Connect / Disconnect */}
+          {isConnected ? (
+            <Button
+              variant="outline"
+              onClick={disconnect}
+              className="text-xs border-destructive/30 text-destructive hover:bg-destructive/10"
+            >
+              <LogOut className="w-3.5 h-3.5 mr-1.5" /> Disconnect
+            </Button>
+          ) : (
+            <Button
+              onClick={handleConnectFreighter}
+              className="text-xs bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
+            >
+              <Wallet className="w-3.5 h-3.5 mr-1.5" /> Connect Freighter
+            </Button>
+          )}
+
+          <Button
+            variant="outline"
+            className="text-xs"
+            onClick={() => setBalancesError(true)}
+          >
+            Simulate Error
+          </Button>
+        </div>
       </div>
 
       {/* Wallet Card */}
-      <div className="relative rounded-2xl overflow-hidden bg-foreground p-4 sm:p-6 text-background shadow-surface-xl">
+      <div className="relative rounded-2xl overflow-hidden bg-foreground p-4 sm:p-6 text-background shadow-xl">
         <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full -mr-20 -mt-20 blur-3xl pointer-events-none" />
         <div className="absolute bottom-0 left-0 w-48 h-48 bg-blue-500/10 rounded-full -ml-16 -mb-16 blur-3xl pointer-events-none" />
 
@@ -108,16 +171,23 @@ export default function WalletPage() {
             <div className="flex items-center gap-2">
               <Image
                 src="/logo.png"
-                alt=""
+                alt="BettaPay Logo"
                 width={32}
                 height={32}
                 className="w-8 h-8 rounded-lg object-contain bg-background/10"
               />
               <span className="font-bold text-lg">BettaPay</span>
             </div>
-            <span className="text-xs bg-background/10 px-3 py-1 rounded-full font-medium">
-              Stellar Network
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-xs bg-background/10 px-3 py-1 rounded-full font-mono uppercase">
+                Stellar {network}
+              </span>
+              {isConnected && (
+                <span className="text-xs bg-emerald-500/20 text-emerald-300 px-2.5 py-1 rounded-full font-medium inline-flex items-center gap-1">
+                  <CheckCircle2 className="w-3 h-3" /> Connected
+                </span>
+              )}
+            </div>
           </div>
 
           {primaryBalance && !loading && (
@@ -149,7 +219,7 @@ export default function WalletPage() {
                 Wallet
               </p>
               <p className="text-2xl font-bold text-background/60">
-                Multi-Asset Wallet
+                Multi-Asset Non-Custodial Wallet
               </p>
             </div>
           )}
@@ -168,8 +238,16 @@ export default function WalletPage() {
               >
                 <Copy className="w-3.5 h-3.5" />
               </Button>
+              <Button
+                onClick={() => setQrOpen(true)}
+                variant="ghost"
+                aria-label="Show QR code"
+                className="min-h-[44px] min-w-[44px] p-0 rounded-lg bg-background/10 hover:bg-background/20 text-primary-foreground"
+              >
+                <QrCode className="w-3.5 h-3.5" />
+              </Button>
               <a
-                href={`https://stellar.expert/explorer/testnet/account/${address}`}
+                href={`https://stellar.expert/explorer/${network}/account/${address}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="View on Stellar Expert"
@@ -204,7 +282,7 @@ export default function WalletPage() {
         <ErrorDisplay message={error} onRetry={handleRefresh} />
       )}
 
-      {/* Empty State (unfunded account) */}
+      {/* Empty State */}
       {!loading && !error && balances.length === 0 && address && (
         <Card className="border border-border bg-card shadow-sm">
           <CardContent>
@@ -212,24 +290,24 @@ export default function WalletPage() {
               icon={Wallet}
               title="No assets found"
               description="This account has no balances yet. Fund it with XLM or add a trustline to get started."
-              action={{ label: "Refresh", onClick: handleRefresh }}
+              action={{ label: "Refresh Balances", onClick: handleRefresh }}
             />
           </CardContent>
         </Card>
       )}
 
-      {/* Balances */}
+      {/* Balances Grid */}
       {!loading && balances.length > 0 && (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {balances.map((asset) => (
             <Card
               key={`${asset.assetCode}${asset.assetIssuer || ''}`}
-              className="border border-border bg-card shadow-sm"
+              className="border border-border bg-card shadow-sm hover:border-primary/50 transition-colors"
             >
               <CardContent className="p-4">
                 <div className="flex items-start justify-between mb-2">
                   <div>
-                    <p className="text-sm font-semibold text-foreground">
+                    <p className="text-sm font-bold text-foreground">
                       {asset.assetCode}
                     </p>
                     {asset.assetIssuer && (
@@ -243,6 +321,11 @@ export default function WalletPage() {
                       Stable
                     </span>
                   )}
+                  {asset.assetCode === 'XLM' && (
+                    <span className="text-xs font-semibold px-2 py-0.5 rounded-full text-primary bg-primary/10">
+                      Native
+                    </span>
+                  )}
                 </div>
                 <p className="text-2xl font-bold text-foreground">
                   {parseFloat(asset.balance).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 7 })}
@@ -253,14 +336,26 @@ export default function WalletPage() {
         </div>
       )}
 
-      {/* No address / not connected */}
-      {!address && (
-        <EmptyState
-          icon={Wallet}
-          title="No wallet connected"
-          description="Connect a Stellar wallet to view your balances."
-        />
-      )}
+      {/* QR Code Dialog */}
+      <Dialog open={qrOpen} onOpenChange={setQrOpen}>
+        <DialogContent className="sm:max-w-xs bg-card border-border text-center">
+          <DialogHeader>
+            <DialogTitle>Stellar Address QR</DialogTitle>
+            <DialogDescription>Scan to transfer Stellar assets</DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col items-center py-4 space-y-4">
+            <div className="w-48 h-48 bg-muted rounded-xl flex items-center justify-center border border-border">
+              <QrCode className="w-32 h-32 text-foreground/80" />
+            </div>
+            <p className="text-xs text-muted-foreground font-mono break-all max-w-full">
+              {address}
+            </p>
+            <Button variant="outline" className="w-full" onClick={handleCopy}>
+              Copy Address
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Transaction history */}
       <WalletActivityHistory />

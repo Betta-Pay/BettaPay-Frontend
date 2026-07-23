@@ -16,15 +16,15 @@ import { TableSkeleton } from '@/components/skeletons/TableSkeleton';
 import { usePayments, type ApiPayment } from '@/lib/api/hooks';
 import { formatDate } from '@/lib/utils/format';
 import { sanitizeSearchQuery } from '@/lib/utils/sanitize';
-import { Search, Download, Filter, SearchX, ExternalLink } from 'lucide-react';
+import { Search, Download, SearchX, ExternalLink } from 'lucide-react';
 import { getStellarExplorerTxUrl } from '@/lib/utils/explorer';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { TransactionDetail } from '@/components/transactions/TransactionDetail';
 import { useOfflineStore } from '@/lib/store/offlineStore';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useNotify } from '@/lib/hooks/useNotify';
 
 type Transaction = ApiPayment;
-
-
 
 interface TransactionCardProps {
   tx: Transaction;
@@ -75,7 +75,7 @@ const TransactionCard = memo(function TransactionCard({ tx, onClick }: Transacti
         </div>
         <div className="flex items-center justify-between">
           <span className="text-xs text-muted-foreground">Amount (NGN)</span>
-                          <CurrencyDisplay amount={tx.amountNgn ?? 0} currency="NGN" showDecimals={false} />
+          <CurrencyDisplay amount={tx.amountNgn ?? 0} currency="NGN" showDecimals={false} />
         </div>
       </div>
     </div>
@@ -84,22 +84,70 @@ const TransactionCard = memo(function TransactionCard({ tx, onClick }: Transacti
 
 export default function TransactionsPage() {
   const { data: payments, isLoading, error: fetchError, refetch } = usePayments();
+  const notify = useNotify();
+
   const [searchTerm, setSearchTerm] = useState('');
   const sanitizedOnChange = (value: string) => setSearchTerm(sanitizeSearchQuery(value));
   const [debouncedSearch] = useDebounceValue(searchTerm, 300);
-  const [filterCount] = useState(0);
+
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [assetFilter, setAssetFilter] = useState('all');
+  const [dateRangeFilter, setDateRangeFilter] = useState('all');
+
   const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
   const [txError, setTxError] = useState(false);
   const isOnline = useOfflineStore((s) => s.isOnline);
   const tableContainerRef = useRef<HTMLDivElement>(null);
 
-  const filteredTransactions = useMemo(() =>
-    payments.filter(tx =>
-      (tx.txHash ?? '').toLowerCase().includes(debouncedSearch.toLowerCase()) ||
-      (tx.payerAddress ?? '').toLowerCase().includes(debouncedSearch.toLowerCase())
-    ),
-    [payments, debouncedSearch]
-  );
+  const filteredTransactions = useMemo(() => {
+    const now = new Date();
+    return payments.filter(tx => {
+      const matchesSearch =
+        (tx.txHash ?? '').toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+        (tx.payerAddress ?? '').toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+        (tx.source ?? '').toLowerCase().includes(debouncedSearch.toLowerCase());
+
+      const matchesStatus =
+        statusFilter === 'all' ||
+        tx.status.toLowerCase() === statusFilter.toLowerCase();
+
+      const matchesAsset =
+        assetFilter === 'all' ||
+        (assetFilter === 'USDC' && tx.amountUsdc > 0) ||
+        (assetFilter === 'NGN' && (tx.amountNgn ?? 0) > 0);
+
+      let matchesDate = true;
+      if (dateRangeFilter !== 'all') {
+        const txDate = new Date(tx.createdAt);
+        const diffDays = (now.getTime() - txDate.getTime()) / (1000 * 3600 * 24);
+        if (dateRangeFilter === '7d') matchesDate = diffDays <= 7;
+        if (dateRangeFilter === '30d') matchesDate = diffDays <= 30;
+      }
+
+      return matchesSearch && matchesStatus && matchesAsset && matchesDate;
+    });
+  }, [payments, debouncedSearch, statusFilter, assetFilter, dateRangeFilter]);
+
+  const activeFilterCount = (statusFilter !== 'all' ? 1 : 0) + (assetFilter !== 'all' ? 1 : 0) + (dateRangeFilter !== 'all' ? 1 : 0);
+
+  const handleExportCsv = () => {
+    if (filteredTransactions.length === 0) {
+      notify.error("No transactions to export");
+      return;
+    }
+    const headers = "Date,Payer,TxHash,Source,AmountUSDC,AmountNGN,Status\n";
+    const rows = filteredTransactions.map(tx =>
+      `"${tx.createdAt}","${tx.payerAddress ?? ''}","${tx.txHash ?? ''}","${tx.source ?? ''}",${tx.amountUsdc},${tx.amountNgn ?? 0},"${tx.status}"`
+    ).join("\n");
+    const blob = new Blob([headers + rows], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `bettapay_transactions_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    notify.success(`Exported ${filteredTransactions.length} transactions`);
+  };
 
   const virtualizer = useVirtualizer({
     count: filteredTransactions.length,
@@ -133,208 +181,220 @@ export default function TransactionsPage() {
           </Card>
         </div>
       ) : (
-      <>
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Transactions</h1>
-          <p className="text-muted-foreground mt-1">
-            View all your incoming payments and settlements.
-          </p>
-        </div>
-      </div>
-
-      {/* Search + filter bar — sticky on mobile, static on sm+ */}
-      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm -mx-4 px-4 py-3 sm:static sm:bg-transparent sm:backdrop-blur-none sm:mx-0 sm:p-0">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <div className="relative flex-1">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              type="search"
-              placeholder="Search by hash or address..."
-              className="w-full pl-9 bg-background/50 border-border/50 focus-visible:ring-ring"
-              value={searchTerm}
-               onChange={(e) => sanitizedOnChange(e.target.value)}
-            />
-          </div>
-          <div className="flex gap-2">
-            <Button variant="outline" className="relative flex-1 sm:flex-none border-border/50 bg-card">
-              <Filter className="w-4 h-4 mr-2" />
-              Filter
-              {filterCount > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
-                  {filterCount}
-                </span>
-              )}
-            </Button>
-            <NetworkTooltip show={!isOnline}>
-              <Button
-                variant="outline"
-                disabled={!isOnline}
-                aria-disabled={!isOnline}
-                className="flex-1 sm:flex-none border-border/50 bg-card"
-              >
-                <Download className="w-4 h-4 mr-2" />
-                Export CSV
-              </Button>
-            </NetworkTooltip>
-            <Button 
-              variant="outline" 
-              className="flex-1 sm:flex-none border-border/50 bg-card"
-              onClick={() => setTxError(!txError)}
-            >
-              {txError ? "Reset API" : "Simulate Error"}
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      <p role="status" className="sr-only">
-        {searchTerm
-          ? `${filteredTransactions.length} transaction${filteredTransactions.length !== 1 ? 's' : ''} found for "${searchTerm}"`
-          : `Showing ${filteredTransactions.length} transaction${filteredTransactions.length !== 1 ? 's' : ''}`}
-      </p>
-
-      <Card className="bg-card border-border/50 shadow-sm">
-        <CardContent className="pt-4">
-          {txError || fetchError ? (
-            <div className="py-12">
-              <ErrorDisplay
-                message={fetchError ?? 'Failed to load transactions'}
-                onRetry={() => { setTxError(false); refetch(); }}
-              />
+        <>
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight">Transactions</h1>
+              <p className="text-muted-foreground mt-1">
+                View all your incoming payments and settlements.
+              </p>
             </div>
-          ) : (
-            <>
-              {filteredTransactions.length === 0 ? (
-                <EmptyState
-                  icon={SearchX}
-                  title={searchTerm ? 'No transactions match your search' : 'No transactions found'}
-                  description={
-                    searchTerm
-                      ? 'Try adjusting your search terms or clearing filters.'
-                      : 'Transactions will appear here once payments are received.'
-                  }
-                  action={
-                    searchTerm
-                      ? { label: 'Clear search', onClick: () => setSearchTerm('') }
-                      : undefined
-                  }
+          </div>
+
+          {/* Filter Bar */}
+          <div className="space-y-3">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <div className="relative flex-1">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  type="search"
+                  placeholder="Search by hash, address, or label..."
+                  className="w-full pl-9 bg-background/50 border-border/50 focus-visible:ring-ring"
+                  value={searchTerm}
+                  onChange={(e) => sanitizedOnChange(e.target.value)}
                 />
-              ) : (
-                <div className="rounded-md border border-border/50 overflow-hidden hidden md:block">
-                  <table className="w-full border-collapse">
-                    <thead className="bg-muted/50 sticky top-0 z-10">
-                      <tr className="border-border/50">
-                        <th className="w-[180px] px-4 py-2 text-left text-sm font-medium">Date</th>
-                        <th className="px-4 py-2 text-left text-sm font-medium">Payer</th>
-                        <th className="px-4 py-2 text-left text-sm font-medium">Tx Hash</th>
-                        <th className="px-4 py-2 text-left text-sm font-medium">Source</th>
-                        <th className="px-4 py-2 text-right text-sm font-medium">Amount (USDC)</th>
-                        <th className="px-4 py-2 text-right text-sm font-medium">Amount (NGN)</th>
-                        <th className="px-4 py-2 text-center text-sm font-medium">Status</th>
-                        <th className="w-[80px] px-4 py-2 text-center text-sm font-medium">Explorer</th>
-                      </tr>
-                    </thead>
-                  </table>
-                  <div
-                    ref={tableContainerRef}
-                    className="h-[600px] overflow-y-auto border-t border-border/50"
-                  >
-                    <div style={{ height: `${totalSize}px`, position: 'relative' }}>
-                      <table className="w-full border-collapse">
-                        <tbody>
-                          {virtualItems.map((virtualItem) => {
-                            const tx = filteredTransactions[virtualItem.index];
-                            return (
-                              <tr
-                                key={virtualItem.key}
-                                className="border-border/50 hover:bg-muted/30 cursor-pointer border-b"
-                                onClick={() => setSelectedTx(tx)}
-                                style={{
-                                  transform: `translateY(${virtualItem.start}px)`,
-                                }}
-                              >
-                                <td className="text-muted-foreground whitespace-nowrap px-4 py-2 text-sm">
-                                  {formatDate(tx.createdAt)}
-                                </td>
-                                <td className="px-4 py-2 text-sm">
-                                  <CopyAddress address={tx.payerAddress ?? ''} />
-                                </td>
-                                <td className="px-4 py-2 text-sm">
-                                  <CopyAddress address={tx.txHash ?? ''} />
-                                </td>
-                                <td className="text-muted-foreground px-4 py-2 text-sm">
-                                  {tx.source ?? '—'}
-                                </td>
-                                <td className="text-right font-medium px-4 py-2 text-sm">
-                                  <CurrencyDisplay amount={tx.amountUsdc} currency="USDC" />
-                                </td>
-                                <td className="text-right text-muted-foreground px-4 py-2 text-sm">
-                                  <CurrencyDisplay amount={tx.amountNgn ?? 0} currency="NGN" showDecimals={false} />
-                                </td>
-                                <td className="text-center px-4 py-2 text-sm">
-                                  <StatusBadge status={tx.status} />
-                                </td>
-                                <td className="w-[80px] text-center px-4 py-2 text-sm">
-                                  {tx.txHash && (
-                                    <a
-                                      href={getStellarExplorerTxUrl(tx.txHash)}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      aria-label="View on Stellar Explorer"
-                                      onClick={(e) => e.stopPropagation()}
-                                    >
-                                      <Button variant="ghost" size="icon" className="min-h-[44px] min-w-[44px] rounded-lg">
-                                        <ExternalLink className="w-3.5 h-3.5 text-muted-foreground" />
-                                      </Button>
-                                    </a>
-                                  )}
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              <div className="md:hidden space-y-3">
-                {filteredTransactions.length === 0 ? (
-                  <EmptyState
-                    icon={SearchX}
-                    title={searchTerm ? 'No transactions match your search' : 'No transactions found'}
-                    description={
-                      searchTerm
-                        ? 'Try adjusting your search terms or clearing filters.'
-                        : 'Transactions will appear here once payments are received.'
-                    }
-                    action={
-                      searchTerm
-                        ? { label: 'Clear search', onClick: () => setSearchTerm('') }
-                        : undefined
-                    }
-                  />
-                ) : (
-                  filteredTransactions.map((tx) => (
-                    <TransactionCard
-                      key={tx.id}
-                      tx={tx}
-                      onClick={setSelectedTx}
-                    />
-                  ))
-                )}
               </div>
-            </>
-          )}
-        </CardContent>
-      </Card>
 
-      </>
+              <div className="flex flex-wrap items-center gap-2">
+                <Select value={statusFilter} onValueChange={(val) => val && setStatusFilter(val)}>
+                  <SelectTrigger className="w-[120px] bg-card border-border/50">
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Status</SelectItem>
+                    <SelectItem value="completed">Completed</SelectItem>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="failed">Failed</SelectItem>
+                  </SelectContent>
+                </Select>
 
+                <Select value={assetFilter} onValueChange={(val) => val && setAssetFilter(val)}>
+                  <SelectTrigger className="w-[120px] bg-card border-border/50">
+                    <SelectValue placeholder="Asset" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Assets</SelectItem>
+                    <SelectItem value="USDC">USDC</SelectItem>
+                    <SelectItem value="NGN">NGN</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                <Select value={dateRangeFilter} onValueChange={(val) => val && setDateRangeFilter(val)}>
+                  <SelectTrigger className="w-[130px] bg-card border-border/50">
+                    <SelectValue placeholder="Date" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Time</SelectItem>
+                    <SelectItem value="7d">Last 7 Days</SelectItem>
+                    <SelectItem value="30d">Last 30 Days</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                <NetworkTooltip show={!isOnline}>
+                  <Button
+                    variant="outline"
+                    disabled={!isOnline}
+                    aria-disabled={!isOnline}
+                    onClick={handleExportCsv}
+                    className="border-border/50 bg-card"
+                  >
+                    <Download className="w-4 h-4 mr-2" />
+                    Export CSV
+                  </Button>
+                </NetworkTooltip>
+
+                <Button
+                  variant="outline"
+                  className="border-border/50 bg-card"
+                  onClick={() => setTxError(!txError)}
+                >
+                  {txError ? "Reset API" : "Simulate Error"}
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          <Card className="bg-card border-border/50 shadow-sm">
+            <CardContent className="pt-4">
+              {txError || fetchError ? (
+                <div className="py-12">
+                  <ErrorDisplay
+                    message={fetchError ?? 'Failed to load transactions'}
+                    onRetry={() => { setTxError(false); refetch(); }}
+                  />
+                </div>
+              ) : (
+                <>
+                  {filteredTransactions.length === 0 ? (
+                    <EmptyState
+                      icon={SearchX}
+                      title={searchTerm || activeFilterCount > 0 ? 'No transactions match filters' : 'No transactions found'}
+                      description={
+                        searchTerm || activeFilterCount > 0
+                          ? 'Try adjusting your search terms or clearing active filters.'
+                          : 'Transactions will appear here once payments are received.'
+                      }
+                      action={
+                        searchTerm || activeFilterCount > 0
+                          ? {
+                              label: 'Clear filters',
+                              onClick: () => {
+                                setSearchTerm('');
+                                setStatusFilter('all');
+                                setAssetFilter('all');
+                                setDateRangeFilter('all');
+                              }
+                            }
+                          : undefined
+                      }
+                    />
+                  ) : (
+                    <div className="rounded-md border border-border/50 overflow-hidden hidden md:block">
+                      <table className="w-full border-collapse">
+                        <thead className="bg-muted/50 sticky top-0 z-10">
+                          <tr className="border-border/50">
+                            <th className="w-[180px] px-4 py-2 text-left text-sm font-medium">Date</th>
+                            <th className="px-4 py-2 text-left text-sm font-medium">Payer</th>
+                            <th className="px-4 py-2 text-left text-sm font-medium">Tx Hash</th>
+                            <th className="px-4 py-2 text-left text-sm font-medium">Source</th>
+                            <th className="px-4 py-2 text-right text-sm font-medium">Amount (USDC)</th>
+                            <th className="px-4 py-2 text-right text-sm font-medium">Amount (NGN)</th>
+                            <th className="px-4 py-2 text-center text-sm font-medium">Status</th>
+                            <th className="w-[80px] px-4 py-2 text-center text-sm font-medium">Explorer</th>
+                          </tr>
+                        </thead>
+                      </table>
+                      <div
+                        ref={tableContainerRef}
+                        className="h-[600px] overflow-y-auto border-t border-border/50"
+                      >
+                        <div style={{ height: `${totalSize}px`, position: 'relative' }}>
+                          <table className="w-full border-collapse">
+                            <tbody>
+                              {virtualItems.map((virtualItem) => {
+                                const tx = filteredTransactions[virtualItem.index];
+                                return (
+                                  <tr
+                                    key={virtualItem.key}
+                                    className="border-border/50 hover:bg-muted/30 cursor-pointer border-b"
+                                    onClick={() => setSelectedTx(tx)}
+                                    style={{
+                                      transform: `translateY(${virtualItem.start}px)`,
+                                    }}
+                                  >
+                                    <td className="text-muted-foreground whitespace-nowrap px-4 py-2 text-sm">
+                                      {formatDate(tx.createdAt)}
+                                    </td>
+                                    <td className="px-4 py-2 text-sm">
+                                      <CopyAddress address={tx.payerAddress ?? ''} />
+                                    </td>
+                                    <td className="px-4 py-2 text-sm">
+                                      <CopyAddress address={tx.txHash ?? ''} />
+                                    </td>
+                                    <td className="text-muted-foreground px-4 py-2 text-sm">
+                                      {tx.source ?? '—'}
+                                    </td>
+                                    <td className="text-right font-medium px-4 py-2 text-sm">
+                                      <CurrencyDisplay amount={tx.amountUsdc} currency="USDC" />
+                                    </td>
+                                    <td className="text-right text-muted-foreground px-4 py-2 text-sm">
+                                      <CurrencyDisplay amount={tx.amountNgn ?? 0} currency="NGN" showDecimals={false} />
+                                    </td>
+                                    <td className="text-center px-4 py-2 text-sm">
+                                      <StatusBadge status={tx.status} />
+                                    </td>
+                                    <td className="w-[80px] text-center px-4 py-2 text-sm">
+                                      {tx.txHash && (
+                                        <a
+                                          href={getStellarExplorerTxUrl(tx.txHash)}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          aria-label="View on Stellar Explorer"
+                                          onClick={(e) => e.stopPropagation()}
+                                        >
+                                          <Button variant="ghost" size="icon" className="min-h-[44px] min-w-[44px] rounded-lg">
+                                            <ExternalLink className="w-3.5 h-3.5 text-muted-foreground" />
+                                          </Button>
+                                        </a>
+                                      )}
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="md:hidden space-y-3">
+                    {filteredTransactions.map((tx) => (
+                      <TransactionCard
+                        key={tx.id}
+                        tx={tx}
+                        onClick={setSelectedTx}
+                      />
+                    ))}
+                  </div>
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </>
       )}
-      <TransactionDetail 
+
+      <TransactionDetail
         transaction={selectedTx as import('@/lib/mock/transactions').Transaction | null}
         isOpen={!!selectedTx}
         onClose={() => setSelectedTx(null)}
