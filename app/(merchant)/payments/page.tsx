@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { CopyAddress } from '@/components/shared/CopyAddress';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorDisplay } from '@/components/shared/ErrorDisplay';
-import { Plus, QrCode, Link2, Search, Filter, Edit3, Trash2, ExternalLink, Calendar, Link as LinkIcon } from 'lucide-react';
+import { Plus, QrCode, Link2, Search, Edit3, Trash2 } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -198,12 +198,12 @@ export default function PaymentsPage() {
 
         <div className="flex items-center gap-2 w-full sm:w-auto">
           <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-            <DialogTrigger asChild>
+            <DialogTrigger render={
               <Button className="w-full sm:w-auto">
                 <Plus className="w-4 h-4 mr-2" />
                 New Payment Link
               </Button>
-            </DialogTrigger>
+            } />
             <DialogContent className="sm:max-w-[480px] bg-card border-border/50 max-h-[85dvh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Create Payment Link</DialogTitle>

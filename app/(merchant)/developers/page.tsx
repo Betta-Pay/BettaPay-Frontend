@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { NetworkTooltip } from '@/components/ui/network-tooltip';
-import { Copy, Eye, EyeOff, Plus, RefreshCcw, Key, Globe, BookOpen, Zap, CheckCircle2, AlertCircle, Code2, ShieldAlert, Terminal, Trash2 } from 'lucide-react';
+import { Copy, Eye, EyeOff, Plus, RefreshCcw, Key, Globe, BookOpen, Zap, CheckCircle2, AlertCircle, Code2, Terminal, Trash2 } from 'lucide-react';
 import { useNotify } from '@/lib/hooks/useNotify';
 import {
   Select,

@@ -43,7 +43,6 @@ export default function FxRatesPage() {
   // Conversion calculator state
   const [convertAmount, setConvertAmount] = useState('100');
   const [fromCurrency, setFromCurrency] = useState('USDC');
-  const [toCurrency, setToCurrency] = useState('NGN');
   const [isExecuting, setIsExecuting] = useState(false);
   const [conversionSuccess, setConversionSuccess] = useState(false);
 

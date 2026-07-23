@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import {
@@ -39,14 +39,11 @@ import {
   Copy,
   QrCode,
   Trash2,
-  Link2,
   CalendarDays,
   AlertTriangle,
-  ChevronLeft,
   Download,
   RotateCcw,
   Globe,
-  Clock,
   Activity,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -77,14 +74,7 @@ interface PaymentLinkDetail {
   status: "active" | "deactivated";
 }
 
-interface PaymentRecord {
-  id: string;
-  payer: string;
-  amount: number;
-  amountNgn: number;
-  status: string;
-  date: string;
-}
+
 
 interface PaymentAttempt {
   id: string;
@@ -146,18 +136,6 @@ const mockLinkDetails: Record<string, PaymentLinkDetail> = {
     status: "active",
   },
 };
-
-function generateMockPayments(linkId: string): PaymentRecord[] {
-  const baseCount = linkId === "link_02" ? 47 : linkId === "link_03" ? 19 : 8;
-  return Array.from({ length: Math.min(baseCount, 10) }, (_, i) => ({
-    id: `pay_${linkId}_${i}`,
-    payer: `G${String.fromCharCode(65 + (i % 26))}${String.fromCharCode(65 + ((i + 3) % 26))}...${(1000 + i).toString().slice(-3)}`,
-    amount: Math.round((Math.random() * 500 + 20) * 100) / 100,
-    amountNgn: Math.round(Math.random() * 775000 + 31000),
-    status: ["success", "success", "success", "pending", "success"][i % 5],
-    date: subDays(new Date(), i * 2).toISOString(),
-  }));
-}
 
 function generatePaymentAttempts(linkId: string): PaymentAttempt[] {
   return [
@@ -243,7 +221,7 @@ export default function PaymentLinkDetailPage() {
   const [isDeactivated, setIsDeactivated] = useState(false);
   const [qrOpen, setQrOpen] = useState(false);
 
-  const linkDetails = mockLinkDetails[linkId] ?? {
+  const linkDetails = useMemo(() => mockLinkDetails[linkId] ?? {
     id: linkId,
     label: `Payment Link (${linkId})`,
     url: `${process.env.NEXT_PUBLIC_API_URL ?? 'https://betta.pay'}/pay/${linkId}`,
@@ -255,9 +233,8 @@ export default function PaymentLinkDetailPage() {
     uniquePayers: 14,
     totalRevenue: 1400.0,
     status: "active",
-  };
+  }, [linkId]);
 
-  const payments = generateMockPayments(linkId);
   const attempts = generatePaymentAttempts(linkId);
   const webhooks = generateWebhookLogs(linkId);
   const clickTimeline = generateClickTimeline();

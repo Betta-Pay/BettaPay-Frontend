@@ -16,7 +16,7 @@ import { TableSkeleton } from '@/components/skeletons/TableSkeleton';
 import { usePayments, type ApiPayment } from '@/lib/api/hooks';
 import { formatDate } from '@/lib/utils/format';
 import { sanitizeSearchQuery } from '@/lib/utils/sanitize';
-import { Search, Download, Filter, SearchX, ExternalLink } from 'lucide-react';
+import { Search, Download, SearchX, ExternalLink } from 'lucide-react';
 import { getStellarExplorerTxUrl } from '@/lib/utils/explorer';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { TransactionDetail } from '@/components/transactions/TransactionDetail';
