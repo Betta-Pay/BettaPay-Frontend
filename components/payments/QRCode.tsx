@@ -74,6 +74,8 @@ export const QRCode = memo(function QRCode({
         includeMargin={includeMargin}
         bgColor={bgColor}
         fgColor={fgColor}
+        role="presentation"
+        aria-hidden="true"
       />
     </div>
   );
@@ -304,7 +306,7 @@ export function QRCodeModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md bg-card border-border/50 max-h-[90dvh] overflow-y-auto">
+      <DialogContent showCloseButton={false} className="sm:max-w-md bg-card border-border/50 max-h-[90dvh] overflow-y-auto">
         <DialogHeader className="text-center sm:text-center">
           <DialogTitle className="text-xl font-bold">{title}</DialogTitle>
           <DialogDescription>{subtitle}</DialogDescription>
@@ -415,6 +417,7 @@ export function QRCodeModal({
             type="button"
             variant="ghost"
             onClick={() => onOpenChange(false)}
+            aria-label="Close"
             className="w-full sm:w-auto"
           >
             Close

@@ -5,26 +5,25 @@ import { ArrowRight, Zap, Globe, Coins } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
+import { useAppTranslation } from '@/lib/i18n/useAppTranslation';
 
 const features = [
   {
     icon: Zap,
-    title: "Instant Settlement",
-    desc: "Transactions settle in 3-5 seconds. No more waiting days for cross-border wires to clear."
+    key: "settlement"
   },
   {
     icon: Globe,
-    title: "SEP-24 Fiat Off-Ramps",
-    desc: "Automated routing to Stellar Anchors for direct-to-bank Nigerian Naira payouts."
+    key: "offRamps"
   },
   {
     icon: Coins,
-    title: "Smart Fee Splits",
-    desc: "Soroban contracts automatically calculate and route platform fees trustlessly on-chain."
+    key: "fees"
   }
 ];
 
 export default function LandingPage() {
+  const { t } = useAppTranslation();
   return (
     <div className="min-h-screen bg-card text-foreground">
       <Header />
@@ -36,31 +35,31 @@ export default function LandingPage() {
           {/* Badge */}
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/10 border border-primary/30 text-sm text-primary font-medium mb-10">
             <span className="w-1.5 h-1.5 rounded-full bg-primary" />
-            Now live on Soroban Testnet
+            {t('landing.badge')}
           </div>
 
           {/* Headline */}
           <h1 className="text-5xl lg:text-7xl font-bold tracking-tighter max-w-4xl mx-auto leading-tight text-foreground">
-            Settle Globally.{' '}
+            {t('landing.headline')}{' '}
             <br className="hidden lg:block" />
-            <span className="text-primary">Instantly &amp; Non-Custodial.</span>
+            <span className="text-primary">{t('landing.headlineAccent')}</span>
           </h1>
 
           <p className="mt-6 text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
-            The next-generation merchant payment platform for African businesses. Accept USDC, auto-convert via SEP-24 anchors, and get settled directly to your bank.
+            {t('landing.description')}
           </p>
 
           {/* CTAs */}
           <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link href="/auth/register">
               <Button className="h-12 px-8 text-base bg-primary text-white hover:bg-primary font-semibold rounded-xl">
-                Start Accepting Crypto
+                {t('landing.primaryCta')}
                 <ArrowRight className="ml-2 w-5 h-5" />
               </Button>
             </Link>
             <Link href="#features">
               <Button variant="outline" className="h-12 px-8 text-base border-border bg-card text-foreground hover:bg-muted font-medium rounded-xl">
-                Explore Features
+                {t('landing.secondaryCta')}
               </Button>
             </Link>
           </div>
@@ -75,10 +74,10 @@ export default function LandingPage() {
         <div className="container mx-auto px-6">
           <div className="text-center mb-16">
             <h2 className="text-3xl lg:text-4xl font-bold tracking-tight mb-4 text-foreground">
-              Powered by Stellar &amp; Soroban
+              {t('landing.featuresTitle')}
             </h2>
             <p className="text-muted-foreground max-w-2xl mx-auto text-lg">
-              Enterprise-grade payment infrastructure designed for speed, low fees, and perfect transparency.
+              {t('landing.featuresDescription')}
             </p>
           </div>
 
@@ -91,8 +90,8 @@ export default function LandingPage() {
                 <div className="w-11 h-11 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center mb-6">
                   <feature.icon className="w-5 h-5 text-primary" />
                 </div>
-                <h3 className="text-lg font-semibold mb-3 text-foreground">{feature.title}</h3>
-                <p className="text-muted-foreground leading-relaxed text-sm">{feature.desc}</p>
+                <h3 className="text-lg font-semibold mb-3 text-foreground">{t(`landing.features.${feature.key}.title`)}</h3>
+                <p className="text-muted-foreground leading-relaxed text-sm">{t(`landing.features.${feature.key}.description`)}</p>
               </div>
             ))}
           </div>

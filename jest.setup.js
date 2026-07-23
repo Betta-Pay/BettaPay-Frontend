@@ -24,6 +24,17 @@ if (typeof window !== 'undefined') {
   });
 }
 
+// jsdom does not implement canvas; QR rendering tests only need a drawing surface.
+HTMLCanvasElement.prototype.getContext = jest.fn(() => ({
+  clearRect: jest.fn(), fillRect: jest.fn(), drawImage: jest.fn(),
+  getImageData: jest.fn(), putImageData: jest.fn(), createImageData: jest.fn(),
+  setTransform: jest.fn(), resetTransform: jest.fn(), scale: jest.fn(),
+  save: jest.fn(), restore: jest.fn(), beginPath: jest.fn(), closePath: jest.fn(),
+  moveTo: jest.fn(), lineTo: jest.fn(), stroke: jest.fn(), fill: jest.fn(),
+  translate: jest.fn(), rotate: jest.fn(), arc: jest.fn(), rect: jest.fn(),
+  clip: jest.fn(), measureText: jest.fn(() => ({ width: 0 })), fillText: jest.fn(),
+}));
+
 // Mock custom UI components that use complex Base UI primitives to avoid JSDOM compatibility issues
 jest.mock('@/components/ui/input', () => {
   const React = require('react');

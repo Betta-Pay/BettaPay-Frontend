@@ -3,8 +3,11 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
+import { LanguageSelector } from '@/components/i18n/LanguageSelector';
+import { useAppTranslation } from '@/lib/i18n/useAppTranslation';
 
 export default function Header() {
+  const { t } = useAppTranslation();
   return (
     <header className="w-full border-b border-border bg-card/80 backdrop-blur-sm sticky top-0 z-50">
       <div className="container mx-auto px-6 flex items-center justify-between h-16">
@@ -16,17 +19,18 @@ export default function Header() {
         </div>
 
         <nav className="hidden md:flex items-center gap-8 text-sm text-muted-foreground">
-          <Link href="#features" className="hover:text-foreground transition-colors">Features</Link>
-          <Link href="#developers" className="hover:text-foreground transition-colors">Developers</Link>
-          <Link href="#company" className="hover:text-foreground transition-colors">Company</Link>
+          <Link href="#features" className="hover:text-foreground transition-colors">{t('navigation.features')}</Link>
+          <Link href="#developers" className="hover:text-foreground transition-colors">{t('navigation.developers')}</Link>
+          <Link href="#company" className="hover:text-foreground transition-colors">{t('navigation.company')}</Link>
         </nav>
 
         <div className="flex items-center gap-3">
+          <LanguageSelector />
           <Link href="/auth/login">
-            <Button variant="ghost" className="text-muted-foreground hover:text-foreground font-medium">Log in</Button>
+            <Button variant="ghost" className="hidden text-muted-foreground hover:text-foreground font-medium sm:inline-flex">{t('navigation.login')}</Button>
           </Link>
           <Link href="/auth/register">
-            <Button className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-button">Get started</Button>
+            <Button className="hidden bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-button md:inline-flex">{t('navigation.getStarted')}</Button>
           </Link>
         </div>
       </div>

@@ -4,6 +4,7 @@ import { Providers } from "@/components/providers";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 import { GoogleOAuthProvider } from '@react-oauth/google';
+import { I18nProvider } from '@/components/i18n/I18nProvider';
 
 export const metadata: Metadata = {
   // Resolves relative canonical/openGraph URLs declared by individual pages.
@@ -27,11 +28,13 @@ export default function RootLayout({
           Skip to main content
         </a>
         <GoogleOAuthProvider clientId={process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || ''}>
-          <Providers>
-            {children}
-            <Toaster />
-            <div id="announcer" aria-live="polite" aria-atomic="true" className="sr-only" />
-          </Providers>
+          <I18nProvider>
+            <Providers>
+              {children}
+              <Toaster />
+              <div id="announcer" aria-live="polite" aria-atomic="true" className="sr-only" />
+            </Providers>
+          </I18nProvider>
         </GoogleOAuthProvider>
       </body>
     </html>

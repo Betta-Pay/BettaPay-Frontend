@@ -1,0 +1,47 @@
+{
+  "common": {
+    "brand": "BettaPay",
+    "language": "Language",
+    "skipToContent": "Skip to main content"
+  },
+  "languages": {
+    "en": "English",
+    "fr": "French",
+    "pt": "Portuguese",
+    "sw": "Swahili"
+  },
+  "navigation": {
+    "features": "Features",
+    "developers": "Developers",
+    "company": "Company",
+    "login": "Log in",
+    "getStarted": "Get started"
+  },
+  "landing": {
+    "badge": "Now live on Soroban Testnet",
+    "headline": "Settle Globally.",
+    "headlineAccent": "Instantly & Non-Custodial.",
+    "description": "The next-generation merchant payment platform for African businesses. Accept USDC, auto-convert via SEP-24 anchors, and get settled directly to your bank.",
+    "primaryCta": "Start Accepting Crypto",
+    "secondaryCta": "Explore Features",
+    "featuresTitle": "Powered by Stellar & Soroban",
+    "featuresDescription": "Enterprise-grade payment infrastructure designed for speed, low fees, and perfect transparency.",
+    "features": {
+      "settlement": { "title": "Instant Settlement", "description": "Transactions settle in 3-5 seconds. No more waiting days for cross-border wires to clear." },
+      "offRamps": { "title": "SEP-24 Fiat Off-Ramps", "description": "Automated routing to Stellar Anchors for direct-to-bank Nigerian Naira payouts." },
+      "fees": { "title": "Smart Fee Splits", "description": "Soroban contracts automatically calculate and route platform fees trustlessly on-chain." }
+    }
+  },
+  "login": {
+    "title": "Welcome back",
+    "description": "Sign in to manage your payments, view settlements, and accept crypto from customers worldwide.",
+    "or": "or",
+    "connectWallet": "Connect Freighter Wallet",
+    "learnMore": "Learn more about BettaPay",
+    "benefits": {
+      "settlement": { "title": "Instant settlement", "description": "Transactions settle in seconds on Stellar Soroban" },
+      "currency": { "title": "Multi-currency", "description": "Accept USDC, auto-convert to local fiat" },
+      "custody": { "title": "Non-custodial", "description": "You always control your funds and keys" }
+    }
+  }
+}
