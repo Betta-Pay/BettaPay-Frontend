@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { CopyAddress } from '@/components/shared/CopyAddress';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorDisplay } from '@/components/shared/ErrorDisplay';
+import { QRCodeModal } from '@/components/payments/QRCode';
 import { Plus, QrCode, Link2, Search, Edit3, Trash2 } from 'lucide-react';
 import {
   Dialog,
@@ -30,10 +31,10 @@ interface PaymentLinkCardProps {
   link: PaymentLink;
   onEdit: (link: PaymentLink) => void;
   onDelete: (link: PaymentLink) => void;
-  onQr: (link: PaymentLink) => void;
+  onShowQr: (link: PaymentLink) => void;
 }
 
-const PaymentLinkCard = memo(function PaymentLinkCard({ link, onEdit, onDelete, onQr }: PaymentLinkCardProps) {
+const PaymentLinkCard = memo(function PaymentLinkCard({ link, onEdit, onDelete, onShowQr }: PaymentLinkCardProps) {
   const baseUrl = process.env.NEXT_PUBLIC_API_URL ?? '';
   const fullUrl = `${baseUrl}/pay/${link.id}`;
 
@@ -85,7 +86,7 @@ const PaymentLinkCard = memo(function PaymentLinkCard({ link, onEdit, onDelete, 
               size="icon"
               aria-label="Show QR code"
               className="min-h-[44px] min-w-[44px] border-border/50 bg-background/50 text-muted-foreground hover:text-foreground"
-              onClick={() => onQr(link)}
+              onClick={() => onShowQr(link)}
             >
               <QrCode className="h-4 w-4" />
             </Button>
@@ -113,7 +114,7 @@ export default function PaymentsPage() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingLink, setEditingLink] = useState<PaymentLink | null>(null);
   const [deletingLink, setDeletingLink] = useState<PaymentLink | null>(null);
-  const [qrLink, setQrLink] = useState<PaymentLink | null>(null);
+  const [selectedQrLink, setSelectedQrLink] = useState<PaymentLink | null>(null);
   const [linksError, setLinksError] = useState(false);
 
   // Form states
@@ -366,7 +367,7 @@ export default function PaymentsPage() {
                 link={link}
                 onEdit={setEditingLink}
                 onDelete={setDeletingLink}
-                onQr={setQrLink}
+                onShowQr={setSelectedQrLink}
               />
             ))}
           </div>
@@ -442,23 +443,17 @@ export default function PaymentsPage() {
       </Dialog>
 
       {/* QR Code Dialog */}
-      <Dialog open={!!qrLink} onOpenChange={(open) => !open && setQrLink(null)}>
-        <DialogContent className="sm:max-w-[340px] bg-card border-border/50 text-center">
-          <DialogHeader>
-            <DialogTitle>{qrLink?.source}</DialogTitle>
-            <DialogDescription>Scan QR Code to pay</DialogDescription>
-          </DialogHeader>
-          <div className="flex flex-col items-center justify-center p-6 bg-muted/30 rounded-xl border border-border/50 my-2">
-            <QrCode className="w-36 h-36 text-primary" />
-            <p className="text-xs font-mono text-muted-foreground mt-3 truncate max-w-full">
-              {`${process.env.NEXT_PUBLIC_API_URL ?? ''}/pay/${qrLink?.id}`}
-            </p>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" className="w-full" onClick={() => setQrLink(null)}>Close</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {selectedQrLink && (
+        <QRCodeModal
+          open={!!selectedQrLink}
+          onOpenChange={(open) => {
+            if (!open) setSelectedQrLink(null);
+          }}
+          value={`${process.env.NEXT_PUBLIC_API_URL ?? ''}/pay/${selectedQrLink.id}`}
+          title={selectedQrLink.source ?? 'Payment Link'}
+          amountUsdc={selectedQrLink.amountUsdc}
+        />
+      )}
     </div>
   );
 }
