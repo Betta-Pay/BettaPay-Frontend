@@ -26,6 +26,7 @@ import {
 import { signWithFreighter } from "@/lib/stellar/freighter";
 import { apiClient } from "@/lib/api/axios";
 import { WalletModalFallback } from "@/components/wallet/WalletModalFallback";
+import { QRCodeModal } from "@/components/payments/QRCode";
 const WalletModal = dynamic(
   () => import("@/components/wallet/WalletModal").then((m) => m.WalletModal),
   { ssr: false },
@@ -36,6 +37,7 @@ export default function PaymentLinkPage() {
   const { isConnected, connect, address } = useWalletStore();
   const { error: notifyError } = useNotify();
   const [walletModalOpen, setWalletModalOpen] = useState(false);
+  const [qrModalOpen, setQrModalOpen] = useState(false);
 
   // Mock data for this link
   const linkData = {
@@ -235,6 +237,7 @@ export default function PaymentLinkPage() {
                   <Button
                     variant="ghost"
                     className="w-full h-12 text-muted-foreground"
+                    onClick={() => setQrModalOpen(true)}
                   >
                     <QrCode className="w-4 h-4 mr-2" />
                     Show QR Code
@@ -349,6 +352,15 @@ export default function PaymentLinkPage() {
             </div>
           </div>
         </footer>
+
+        <QRCodeModal
+          open={qrModalOpen}
+          onOpenChange={setQrModalOpen}
+          value={typeof window !== "undefined" ? window.location.href : ""}
+          title={linkData.label}
+          subtitle={`Pay ${linkData.merchantName}`}
+          amountUsdc={amount ? Number(amount) : undefined}
+        />
       </div>
     </div>
   );
