@@ -205,7 +205,7 @@ pnpm lint && pnpm build && pnpm test
 **Symptom:** "Freighter not installed" error or wallet connection button does nothing.
 
 **Fix:**
-1. Install the [Freighter browser extension](https://www.freighter.app/).
+1. Install the [Freighter browser extension](http://web.archive.org/web/20260602205949/https://freighter.app/).
 2. Refresh the page after installing — extensions require a page reload to be detected.
 3. Make sure Freighter is set to the same network as `NEXT_PUBLIC_STELLAR_NETWORK` (testnet vs mainnet).
 4. If still not detected, check that the extension is enabled for the site in your browser's extension settings.
