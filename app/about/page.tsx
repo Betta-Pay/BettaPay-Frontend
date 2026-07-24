@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import Header from "@/components/layout/Header";
-import Footer from "@/components/layout/Footer";
+import Header from "@/components/layout";
+import Footer from "@/components/layout";
 import { Hero } from "@/components/about/Hero";
 import { Team } from "@/components/about/Team";
 import { Investors } from "@/components/about/Investors";
@@ -9,7 +9,7 @@ import { Timeline } from "@/components/about/Timeline";
 import { Values } from "@/components/about/Values";
 import { Careers } from "@/components/about/Careers";
 import { Press } from "@/components/about/Press";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui";
 import { ArrowRight, MessageSquare } from "lucide-react";
 
 export const metadata: Metadata = {

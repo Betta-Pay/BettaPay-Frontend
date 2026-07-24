@@ -1,11 +1,11 @@
 "use client";
 
 import { useState } from 'react';
-import { AdminSidebar, adminNavItems } from '@/components/layout/AdminSidebar';
-import { PageTransition } from '@/components/shared/PageTransition';
-import { MobileNavDrawer } from '@/components/layout/MobileNavDrawer';
-import { Topbar } from '@/components/layout/Topbar';
-import Footer from '@/components/layout/Footer';
+import { AdminSidebar, adminNavItems } from '@/components/layout';
+import { PageTransition } from '@/components/shared';
+import { MobileNavDrawer } from '@/components/layout';
+import { Topbar } from '@/components/layout';
+import Footer from '@/components/layout';
 import Image from 'next/image';
 
 export default function AdminLayout({

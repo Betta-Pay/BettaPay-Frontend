@@ -5,8 +5,8 @@ import {
   Card,
   CardContent,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui";
+import { Skeleton } from "@/components/ui";
 import {
   Copy,
   ExternalLink,
@@ -17,15 +17,15 @@ import {
   LogOut,
   CheckCircle2,
 } from "lucide-react";
-import { EmptyState } from "@/components/shared/EmptyState";
+import { EmptyState } from "@/components/shared";
 import { useNotify } from "@/lib/hooks/useNotify";
-import { ErrorDisplay } from "@/components/shared/ErrorDisplay";
+import { ErrorDisplay } from "@/components/shared";
 import { useAuthStore } from "@/lib/store/authStore";
 import { useWalletStore } from "@/lib/store/walletStore";
 import Image from "next/image";
 import { useCallback, useEffect, useState } from "react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui";
 
 const WalletActivityHistory = dynamic(() => import('@/components/wallet/WalletActivityHistory').then(m => ({ default: m.WalletActivityHistory })), {
   loading: () => <Skeleton className="h-64 rounded-xl" />,

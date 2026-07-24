@@ -2,11 +2,11 @@
 
 import { memo } from 'react';
 import dynamic from 'next/dynamic';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { CurrencyDisplay } from '@/components/shared/CurrencyDisplay';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui';
+import { CurrencyDisplay } from '@/components/shared';
 import { Users, AlertTriangle, ArrowUpRight, Activity, DollarSign } from 'lucide-react';
-import { Skeleton } from '@/components/ui/skeleton';
-import { StatCard } from '@/components/shared/StatCard';
+import { Skeleton } from '@/components/ui';
+import { StatCard } from '@/components/shared';
 
 const PlatformVolumeChart = dynamic(() => import('@/components/charts/PlatformVolumeChart'), {
   ssr: false,

@@ -11,8 +11,8 @@ import {
   CardContent,
   CardAction,
 } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Badge } from "@/components/ui";
+import { Button, buttonVariants } from "@/components/ui";
 import { cn } from "@/lib/utils";
 
 interface SDKCardProps {

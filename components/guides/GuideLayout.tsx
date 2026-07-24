@@ -8,9 +8,9 @@ import {
   Clock,
   User,
 } from "lucide-react";
-import Header from "@/components/layout/Header";
-import Footer from "@/components/layout/Footer";
-import { Badge } from "@/components/ui/badge";
+import Header from "@/components/layout";
+import Footer from "@/components/layout";
+import { Badge } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import GuideProgress from "@/components/guides/GuideProgress";
 import GuideTOC from "@/components/guides/GuideTOC";

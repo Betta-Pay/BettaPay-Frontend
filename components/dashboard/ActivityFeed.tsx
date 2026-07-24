@@ -1,10 +1,10 @@
 "use client";
 
 import { memo } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
-import { ErrorDisplay } from "@/components/shared/ErrorDisplay";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui";
+import { Button } from "@/components/ui";
+import { Skeleton } from "@/components/ui";
+import { ErrorDisplay } from "@/components/shared";
 import { useActivityFeed, type ActivityEvent, type ActivityEventType } from "@/lib/hooks/useActivityFeed";
 import {
   ArrowRight,

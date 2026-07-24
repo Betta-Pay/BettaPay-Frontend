@@ -2,8 +2,8 @@
 
 import React, { useCallback } from 'react';
 import { ExternalLink, AlertTriangle, Info, RotateCcw } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui';
+import { Button } from '@/components/ui';
 import { useWalletStore } from '@/lib/store/walletStore';
 import { useNotify } from '@/lib/hooks/useNotify';
 

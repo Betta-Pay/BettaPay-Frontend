@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 
 jest.mock('@/components/ui/input', () => jest.requireActual('../input'));
 
-import { Input } from '@/components/ui/input';
+import { Input } from '@/components/ui';
 
 describe('Input', () => {
   it('renders with the provided placeholder text', () => {

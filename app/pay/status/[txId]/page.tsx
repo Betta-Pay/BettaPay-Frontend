@@ -3,10 +3,10 @@
 import { useEffect, useState } from 'react';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui';
+import { Button } from '@/components/ui';
 import { Check, X, Loader2, ExternalLink, ArrowLeft } from 'lucide-react';
-import { CurrencyDisplay } from '@/components/shared/CurrencyDisplay';
+import { CurrencyDisplay } from '@/components/shared';
 import { truncateAddress } from '@/lib/utils/format';
 import { apiClient } from '@/lib/api/axios';
 

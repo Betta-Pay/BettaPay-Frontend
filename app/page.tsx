@@ -2,9 +2,9 @@
 
 import Link from 'next/link';
 import { ArrowRight, Zap, Globe, Coins } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import Header from '@/components/layout/Header';
-import Footer from '@/components/layout/Footer';
+import { Button } from '@/components/ui';
+import Header from '@/components/layout';
+import Footer from '@/components/layout';
 import { useAppTranslation } from '@/lib/i18n/useAppTranslation';
 
 const features = [

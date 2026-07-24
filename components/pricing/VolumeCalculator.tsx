@@ -4,8 +4,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { ArrowRight, TrendingDown } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui';
+import { Label } from '@/components/ui';
 import { cn } from '@/lib/utils';
 import {
   PRICING_TIERS,

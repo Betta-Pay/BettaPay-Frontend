@@ -1,11 +1,11 @@
 "use client";
 
 import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { NetworkTooltip } from '@/components/ui/network-tooltip';
-import { CurrencyDisplay } from '@/components/shared/CurrencyDisplay';
-import { StatusBadge } from '@/components/shared/StatusBadge';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui';
+import { Button } from '@/components/ui';
+import { NetworkTooltip } from '@/components/ui';
+import { CurrencyDisplay } from '@/components/shared';
+import { StatusBadge } from '@/components/shared';
 import {
   Building2,
   Clock,
@@ -18,12 +18,12 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { getStellarExplorerTxUrl } from '@/lib/utils/explorer';
-import { EmptyState } from '@/components/shared/EmptyState';
-import { ErrorDisplay } from '@/components/shared/ErrorDisplay';
+import { EmptyState } from '@/components/shared';
+import { ErrorDisplay } from '@/components/shared';
 import { useOfflineStore } from '@/lib/store/offlineStore';
 import { SettlementConfirmation } from '@/components/settlement/SettlementConfirmation';
 import { InvoiceDownloadButton, BatchInvoiceDownload } from '@/components/settlement/InvoiceGenerator';
-import { StatCard } from '@/components/shared/StatCard';
+import { StatCard } from '@/components/shared';
 import { memo } from 'react';
 import { useSettlements, type ApiSettlement } from '@/lib/api/hooks';
 

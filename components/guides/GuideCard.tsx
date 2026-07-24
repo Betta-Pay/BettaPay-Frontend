@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ArrowRight, Clock } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import {
   difficultyBadgeStyles,

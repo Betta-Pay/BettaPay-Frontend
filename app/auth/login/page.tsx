@@ -7,7 +7,7 @@ import { useNotify } from '@/lib/hooks/useNotify';
 import dynamic from 'next/dynamic';
 
 import { useAuthStore } from '@/lib/store/authStore';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui';
 import { WalletModalFallback } from '@/components/wallet/WalletModalFallback';
 import { signChallenge } from '@/lib/stellar/freighter';
 import { GoogleLogin } from '@react-oauth/google';

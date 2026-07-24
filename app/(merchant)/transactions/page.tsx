@@ -2,16 +2,16 @@
 
 import { useState, memo, useMemo, useRef } from 'react';
 import { useDebounceValue } from 'usehooks-ts';
-import { Card, CardContent } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
-import { NetworkTooltip } from '@/components/ui/network-tooltip';
-import { StatusBadge } from '@/components/shared/StatusBadge';
-import { CopyAddress } from '@/components/shared/CopyAddress';
-import { CurrencyDisplay } from '@/components/shared/CurrencyDisplay';
-import { ErrorDisplay } from '@/components/shared/ErrorDisplay';
-import { EmptyState } from '@/components/shared/EmptyState';
+import { Card, CardContent } from '@/components/ui';
+import { Input } from '@/components/ui';
+import { Button } from '@/components/ui';
+import { Skeleton } from '@/components/ui';
+import { NetworkTooltip } from '@/components/ui';
+import { StatusBadge } from '@/components/shared';
+import { CopyAddress } from '@/components/shared';
+import { CurrencyDisplay } from '@/components/shared';
+import { ErrorDisplay } from '@/components/shared';
+import { EmptyState } from '@/components/shared';
 import { TableSkeleton } from '@/components/skeletons/TableSkeleton';
 import { usePayments, type ApiPayment } from '@/lib/api/hooks';
 import { formatDate } from '@/lib/utils/format';
@@ -21,7 +21,7 @@ import { getStellarExplorerTxUrl } from '@/lib/utils/explorer';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { TransactionDetail } from '@/components/transactions/TransactionDetail';
 import { useOfflineStore } from '@/lib/store/offlineStore';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui';
 import { useNotify } from '@/lib/hooks/useNotify';
 
 type Transaction = ApiPayment;

@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Copy, Check } from 'lucide-react';
 import { truncateAddress } from '@/lib/utils/format';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui';
 import { cn } from '@/lib/utils';
 import { useNotify } from '@/lib/hooks/useNotify';
 

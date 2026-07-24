@@ -10,10 +10,10 @@ import {
   CardFooter,
   CardHeader,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui";
+import { Input } from "@/components/ui";
 import { useWalletStore } from "@/lib/store/walletStore";
-import { CurrencyDisplay } from "@/components/shared/CurrencyDisplay";
+import { CurrencyDisplay } from "@/components/shared";
 import { CurrencySelector } from "@/components/payments/CurrencySelector";
 import { ArrowRight, QrCode } from "lucide-react";
 import { useNotify } from "@/lib/hooks/useNotify";

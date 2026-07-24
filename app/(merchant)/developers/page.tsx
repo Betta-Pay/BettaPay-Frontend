@@ -1,11 +1,11 @@
 "use client";
 import { useState, useCallback } from 'react';
 import dynamic from 'next/dynamic';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Skeleton } from '@/components/ui/skeleton';
-import { NetworkTooltip } from '@/components/ui/network-tooltip';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui';
+import { Button } from '@/components/ui';
+import { Input } from '@/components/ui';
+import { Skeleton } from '@/components/ui';
+import { NetworkTooltip } from '@/components/ui';
 import { Copy, Eye, EyeOff, Plus, RefreshCcw, Key, Globe, BookOpen, Zap, CheckCircle2, AlertCircle, Code2, Terminal, Trash2 } from 'lucide-react';
 import { useNotify } from '@/lib/hooks/useNotify';
 import {
@@ -16,8 +16,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useOfflineStore } from '@/lib/store/offlineStore';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui';
+import { Label } from '@/components/ui';
 import { RateLimitDisplay } from '@/components/developers/RateLimitDisplay';
 
 const CodeExample = dynamic(() => import('@/components/developers/CodeExample').then(m => ({ default: m.CodeExample })), {

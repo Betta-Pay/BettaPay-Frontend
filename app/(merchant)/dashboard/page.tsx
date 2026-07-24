@@ -1,12 +1,12 @@
 "use client";
 
 import { useState, useCallback } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui';
+import { Button } from '@/components/ui';
 import { DashboardSkeleton } from '@/components/skeletons/DashboardSkeleton';
-import { CurrencyDisplay } from '@/components/shared/CurrencyDisplay';
-import { StatCard } from '@/components/shared/StatCard';
-import { ErrorDisplay } from '@/components/shared/ErrorDisplay';
+import { CurrencyDisplay } from '@/components/shared';
+import { StatCard } from '@/components/shared';
+import { ErrorDisplay } from '@/components/shared';
 import {
   ArrowUpRight,
   ArrowDownRight,

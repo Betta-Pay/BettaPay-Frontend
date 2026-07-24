@@ -1,13 +1,13 @@
 "use client";
 
 import { useState, memo, useMemo } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { CopyAddress } from '@/components/shared/CopyAddress';
-import { EmptyState } from '@/components/shared/EmptyState';
-import { ErrorDisplay } from '@/components/shared/ErrorDisplay';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui';
+import { Button } from '@/components/ui';
+import { Input } from '@/components/ui';
+import { Label } from '@/components/ui';
+import { CopyAddress } from '@/components/shared';
+import { EmptyState } from '@/components/shared';
+import { ErrorDisplay } from '@/components/shared';
 import { QRCodeModal } from '@/components/payments/QRCode';
 import { CurrencySelector } from '@/components/payments/CurrencySelector';
 import { Plus, QrCode, Link2, Search, Edit3, Trash2 } from 'lucide-react';
@@ -20,7 +20,7 @@ import {
   DialogTrigger,
   DialogFooter
 } from '@/components/ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui';
 import { trimInput } from '@/lib/utils/sanitize';
 import { useNotify } from '@/lib/hooks/useNotify';
 import { usePayments, type ApiPayment } from '@/lib/api/hooks';
