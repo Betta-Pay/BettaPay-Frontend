@@ -8,8 +8,8 @@ export default function RegisterPage() {
   const router = useRouter();
   useEffect(() => { router.replace('/auth/login'); }, [router]);
   return (
-    <div className="flex items-center justify-center py-20 text-muted-foreground">
-      <Loader2 className="w-5 h-5 animate-spin mr-2" />
+    <div className="flex items-center justify-center py-20 text-muted-foreground" role="status" aria-live="polite">
+      <Loader2 className="w-5 h-5 animate-spin mr-2" aria-hidden="true" />
       <span className="text-sm">Redirecting to sign in...</span>
     </div>
   );

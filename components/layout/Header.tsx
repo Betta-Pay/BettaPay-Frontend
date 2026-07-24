@@ -18,10 +18,10 @@ export default function Header() {
           <Link href="/" className="text-lg font-bold text-foreground">BettaPay</Link>
         </div>
 
-        <nav className="hidden md:flex items-center gap-8 text-sm text-muted-foreground">
+        <nav className="hidden md:flex items-center gap-8 text-sm text-muted-foreground" aria-label="Main navigation">
           <Link href="#features" className="hover:text-foreground transition-colors">{t('navigation.features')}</Link>
-          <Link href="#developers" className="hover:text-foreground transition-colors">{t('navigation.developers')}</Link>
-          <Link href="#company" className="hover:text-foreground transition-colors">{t('navigation.company')}</Link>
+          <Link href="/docs" className="hover:text-foreground transition-colors">{t('navigation.developers')}</Link>
+          <Link href="/about" className="hover:text-foreground transition-colors">{t('navigation.company')}</Link>
         </nav>
 
         <div className="flex items-center gap-3">

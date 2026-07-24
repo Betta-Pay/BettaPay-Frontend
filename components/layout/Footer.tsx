@@ -18,7 +18,7 @@ export default function Footer() {
           <div className="lg:col-span-2 space-y-6">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center p-1">
-                <Image src="/logo.png" alt="BettaPay Logo" width={28} height={28} className="w-full h-full object-contain" />
+                <Image src="/logo.png" alt="" width={28} height={28} className="w-full h-full object-contain" />
               </div>
               <span className="text-xl font-bold text-foreground">BettaPay</span>
             </div>
@@ -26,10 +26,10 @@ export default function Footer() {
               The next-generation non-custodial payment gateway for African merchants. Accept global stablecoin payments and settle directly to your local bank account in seconds. Built securely on the Stellar network.
             </p>
             <div className="flex items-center gap-4 text-muted-foreground">
-              <Link href="/contact" className="hover:text-primary transition-colors"><MessageCircle className="w-5 h-5" /></Link>
-              <Link href="/docs" className="hover:text-primary transition-colors"><Code2 className="w-5 h-5" /></Link>
-              <Link href="/about#careers" className="hover:text-primary transition-colors"><Briefcase className="w-5 h-5" /></Link>
-              <Link href="/contact" className="hover:text-primary transition-colors"><Mail className="w-5 h-5" /></Link>
+              <Link href="/contact" className="hover:text-primary transition-colors" aria-label="Contact us"><MessageCircle className="w-5 h-5" /></Link>
+              <Link href="/docs" className="hover:text-primary transition-colors" aria-label="API Documentation"><Code2 className="w-5 h-5" /></Link>
+              <Link href="/about#careers" className="hover:text-primary transition-colors" aria-label="Careers"><Briefcase className="w-5 h-5" /></Link>
+              <Link href="/contact" className="hover:text-primary transition-colors" aria-label="Email us"><Mail className="w-5 h-5" /></Link>
             </div>
           </div>
 
@@ -73,10 +73,14 @@ export default function Footer() {
             &copy; {currentYear} BettaPay Inc. All rights reserved.
           </p>
           <div className="flex items-center gap-6">
-            <span className="text-sm text-muted-foreground flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            <Link
+              href="/status"
+              className="text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5"
+              aria-label="View system status"
+            >
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" aria-hidden="true"></span>
               All systems operational
-            </span>
+            </Link>
           </div>
         </div>
       </div>
