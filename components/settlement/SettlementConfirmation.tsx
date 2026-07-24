@@ -9,8 +9,8 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { CurrencyDisplay } from "@/components/shared/CurrencyDisplay";
+import { Button } from "@/components/ui";
+import { CurrencyDisplay } from "@/components/shared";
 import { TransactionProgress } from "@/components/settlement/TransactionProgress";
 import {
   Building2,

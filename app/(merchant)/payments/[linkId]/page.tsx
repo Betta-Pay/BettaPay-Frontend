@@ -10,10 +10,10 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
-import { StatusBadge } from "@/components/shared/StatusBadge";
-import { CurrencyDisplay } from "@/components/shared/CurrencyDisplay";
+import { Button } from "@/components/ui";
+import { Skeleton } from "@/components/ui";
+import { StatusBadge } from "@/components/shared";
+import { CurrencyDisplay } from "@/components/shared";
 import { QRCodeModal } from "@/components/payments/QRCode";
 import { LinkAnalytics } from "@/components/payments/LinkAnalytics";
 import {

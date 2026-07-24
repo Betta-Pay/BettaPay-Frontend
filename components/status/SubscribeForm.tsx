@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { Mail, Rss, CheckCircle2 } from "lucide-react";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui";
+import { Button } from "@/components/ui";
 
 export function SubscribeForm() {
   const [email, setEmail] = useState("");

@@ -3,9 +3,9 @@
 import { useState, useCallback, useEffect } from "react";
 import { Bell, Search, Menu, LogOut, Settings, KeyRound, Moon, Sun, Monitor, Repeat } from "lucide-react";
 import { useTheme } from "next-themes";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui";
+import { Input } from "@/components/ui";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui";
 import {
   DropdownMenu,
   DropdownMenuContent,

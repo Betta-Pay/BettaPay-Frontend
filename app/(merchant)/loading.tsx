@@ -1,5 +1,5 @@
-import { Skeleton } from '@/components/ui/skeleton';
-import { Card, CardHeader, CardContent } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui';
+import { Card, CardHeader, CardContent } from '@/components/ui';
 
 export default function MerchantLoading() {
   return (

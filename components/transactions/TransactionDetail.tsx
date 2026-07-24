@@ -8,7 +8,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui';
 import { 
   Copy, 
   ExternalLink, 
@@ -21,8 +21,8 @@ import {
 } from 'lucide-react';
 import { Transaction } from '@/lib/mock/transactions';
 import { formatDate } from '@/lib/utils/format';
-import { CurrencyDisplay } from '@/components/shared/CurrencyDisplay';
-import { StatusBadge } from '@/components/shared/StatusBadge';
+import { CurrencyDisplay } from '@/components/shared';
+import { StatusBadge } from '@/components/shared';
 import { useNotify } from '@/lib/hooks/useNotify';
 
 interface TransactionDetailProps {

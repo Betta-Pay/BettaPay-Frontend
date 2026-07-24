@@ -7,7 +7,7 @@ import { useSessionTimeout } from "@/lib/hooks/useSessionTimeout";
 import { useSessionCheck } from "@/lib/hooks/useSessionCheck";
 import { useCrossTabAuth } from "@/lib/hooks/useCrossTabAuth";
 import { SessionTimeoutModal } from "@/components/SessionTimeoutModal";
-import { OfflineBanner } from "@/components/ui/offline-banner";
+import { OfflineBanner } from "@/components/ui";
 
 export function Providers({ children }: { children: ReactNode }) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);

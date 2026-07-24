@@ -2,9 +2,9 @@
 
 import { useState, useCallback, memo } from 'react';
 import dynamic from 'next/dynamic';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
-import { ErrorDisplay } from '@/components/shared/ErrorDisplay';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui';
+import { Skeleton } from '@/components/ui';
+import { ErrorDisplay } from '@/components/shared';
 import { TrendingUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
 

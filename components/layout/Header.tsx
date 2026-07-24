@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui';
 import { LanguageSelector } from '@/components/i18n/LanguageSelector';
 import { useAppTranslation } from '@/lib/i18n/useAppTranslation';
 

@@ -1,9 +1,9 @@
 "use client";
 
 import { memo } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { EmptyState } from '@/components/shared/EmptyState';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui';
+import { Button } from '@/components/ui';
+import { EmptyState } from '@/components/shared';
 import { ArrowUpRight, ArrowDownLeft, Inbox, RefreshCcw, ExternalLink } from 'lucide-react';
 import { getStellarExplorerTxUrl } from '@/lib/utils/explorer';
 

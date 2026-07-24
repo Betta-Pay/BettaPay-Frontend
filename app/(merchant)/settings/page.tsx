@@ -1,11 +1,11 @@
 "use client";
 
 import { useState, useCallback } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Toggle } from '@/components/ui/toggle';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui';
+import { Button } from '@/components/ui';
+import { Input } from '@/components/ui';
+import { Label } from '@/components/ui';
+import { Toggle } from '@/components/ui';
 import { Settings, User, Bell, Shield, LogOut, Key, Globe, Percent, Plus, Trash2, RefreshCcw, Eye, EyeOff } from 'lucide-react';
 import { useAuthStore } from '@/lib/store/authStore';
 import { useRouter } from 'next/navigation';
@@ -15,8 +15,8 @@ import { ProfileEditor } from '@/components/settings/ProfileEditor';
 import { useMerchantProfile } from '@/lib/api/hooks';
 import { apiClient } from '@/lib/api/axios';
 import type { MerchantProfileFormValues } from '@/lib/utils/validation';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui';
 
 const tabs = [
   { id: 'profile', label: 'Profile', icon: User },

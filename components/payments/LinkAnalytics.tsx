@@ -11,7 +11,7 @@ import { Eye, Users, TrendingUp, DollarSign, Globe, ExternalLink } from "lucide-
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/utils/format";
 import dynamic from "next/dynamic";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton } from "@/components/ui";
 import { subDays, format } from "date-fns";
 
 const ClicksChart = dynamic(

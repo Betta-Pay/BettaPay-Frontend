@@ -1,4 +1,4 @@
-import { Badge } from '@/components/ui/badge';
+import { Badge } from '@/components/ui';
 import { PAYMENT_STATUS } from '@/lib/utils/constants';
 import { cn } from '@/lib/utils';
 import { CheckCircle2, Clock, XCircle, Loader2 } from 'lucide-react';

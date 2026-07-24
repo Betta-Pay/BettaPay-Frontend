@@ -1,4 +1,4 @@
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui";
 import type { OnboardingData } from "@/app/onboarding/page";
 type Props = { data: OnboardingData; onEdit: (step: number) => void };
 const rows = (data: OnboardingData) => [["Business", `${data.businessName} · ${data.businessType} · ${data.country}`, 0], ["Currency", `${data.settlementCurrency} · Auto-convert ${data.autoConvert ? "on" : "off"}`, 1], ["Settlement", `${data.preferredAnchor} · Auto-settle ${data.autoSettle ? "on" : "off"}`, 2], ["Webhook", data.webhookUrl || "Not configured", 3]] as const;

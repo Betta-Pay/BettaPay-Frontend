@@ -1,4 +1,4 @@
-import { Toggle } from "@/components/ui/toggle";
+import { Toggle } from "@/components/ui";
 import type { OnboardingData } from "@/app/onboarding/page";
 type Props = { data: OnboardingData; errors: Record<string, string>; onChange: (data: Partial<OnboardingData>) => void };
 const anchors = ["Cowry", "ClickPesa", "KachinTech"];

@@ -1,9 +1,9 @@
 "use client";
 
 import Link from 'next/link';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ErrorDisplay } from '@/components/shared/ErrorDisplay';
+import { Button } from '@/components/ui';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui';
+import { ErrorDisplay } from '@/components/shared';
 import { CreditCard, Copy, ExternalLink, ArrowRight } from 'lucide-react';
 
 interface PaymentLink {

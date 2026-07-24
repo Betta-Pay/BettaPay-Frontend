@@ -1,8 +1,8 @@
 "use client";
 
 import React from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui';
+import { Skeleton } from '@/components/ui';
 
 export function WalletModalFallback({ open, onOpenChange }: { open: boolean; onOpenChange?: (v: boolean) => void }) {
   if (!open) return null;

@@ -2,7 +2,7 @@
 
 import { useRef, useCallback, useState, memo } from "react";
 import { QRCodeCanvas, QRCodeSVG } from "qrcode.react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui";
 import {
   Dialog,
   DialogContent,
