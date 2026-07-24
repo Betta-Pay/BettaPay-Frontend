@@ -15,6 +15,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { CurrencyDisplay } from "@/components/shared/CurrencyDisplay";
 import { QRCodeModal } from "@/components/payments/QRCode";
+import { LinkAnalytics } from "@/components/payments/LinkAnalytics";
 import {
   Table,
   TableBody,
@@ -45,6 +46,7 @@ import {
   RotateCcw,
   Globe,
   Activity,
+  BarChart3,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDate, formatCurrency } from "@/lib/utils/format";
@@ -363,6 +365,30 @@ export default function PaymentLinkDetailPage() {
           );
         })}
       </div>
+
+      {/* Analytics Section */}
+      <Card className="border border-border bg-card shadow-sm">
+        <CardHeader className="pb-3">
+          <div className="flex items-center gap-2">
+            <BarChart3 className="w-4 h-4 text-primary" />
+            <CardTitle className="text-base font-semibold text-foreground">
+              Link Analytics
+            </CardTitle>
+          </div>
+          <CardDescription>
+            Detailed analytics for this payment link including views, geographic data, and referrers
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="pt-0">
+          <LinkAnalytics
+            views={linkDetails.clicks}
+            uniquePayers={linkDetails.uniquePayers}
+            conversionRate={conversionRate}
+            revenue={linkDetails.totalRevenue}
+            currency={linkDetails.currency}
+          />
+        </CardContent>
+      </Card>
 
       <div className="grid gap-6 lg:grid-cols-7">
         <Card className="lg:col-span-4 border border-border bg-card shadow-sm">

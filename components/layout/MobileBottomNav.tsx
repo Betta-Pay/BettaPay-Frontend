@@ -32,6 +32,7 @@ export const MobileBottomNav = () => {
           <Link
             key={item.href}
             href={item.href}
+            aria-current={isActive ? 'page' : undefined}
             className={cn(
               "flex flex-col items-center justify-center w-[68px] gap-1 py-1.5 rounded-lg transition-all",
               isActive

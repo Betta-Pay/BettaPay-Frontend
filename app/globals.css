@@ -151,8 +151,22 @@
   }
 
   :focus-visible {
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--ring) 30%, transparent);
-    border-radius: 8px;
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--ring) 25%, transparent);
+    border-radius: 4px;
+  }
+
+  /* Ensure all focusable elements have visible focus indicators */
+  a:focus-visible,
+  button:focus-visible,
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible,
+  [tabindex]:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--ring) 25%, transparent);
   }
 
   /* Smooth anchor scrolling, scoped to the docs page and disabled for users

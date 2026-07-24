@@ -1,30 +1,66 @@
-import type { Metadata } from 'next';
-import Header from '@/components/layout/Header';
-import Footer from '@/components/layout/Footer';
-import { Construction } from 'lucide-react';
+"use client";
 
-export const metadata: Metadata = {
-  title: 'System Status | BettaPay',
-  description: 'Real-time availability and incident history for BettaPay services.',
-};
+import Header from "@/components/layout/Header";
+import Footer from "@/components/layout/Footer";
+import { OverallBanner } from "@/components/status/OverallBanner";
+import { ComponentStatusGrid } from "@/components/status/ComponentStatus";
+import { IncidentTimeline } from "@/components/status/IncidentTimeline";
+import { SubscribeForm } from "@/components/status/SubscribeForm";
+import {
+  mockComponents,
+  mockIncidents,
+  getOverallStatus,
+} from "@/lib/status/data";
 
 export default function StatusPage() {
+  const overall = getOverallStatus(mockComponents);
+
   return (
     <div className="min-h-screen bg-card text-foreground flex flex-col">
       <Header />
-      <main className="flex-1 flex items-center justify-center px-6">
-        <div className="text-center max-w-md">
-          <div className="w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center mx-auto mb-6">
-            <Construction className="w-7 h-7 text-primary" />
+      <main className="flex-1 px-6 py-10">
+        <div className="max-w-4xl mx-auto space-y-8">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight mb-2">
+              System Status
+            </h1>
+            <p className="text-muted-foreground">
+              Real-time monitoring and incident history for all BettaPay
+              services.
+            </p>
           </div>
-          <h1 className="text-3xl font-bold tracking-tight mb-3">System Status</h1>
-          <p className="text-muted-foreground leading-relaxed mb-2">
-            Real-time monitoring and incident history for all BettaPay services and APIs.
-          </p>
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-600 text-xs font-medium">
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-            Coming soon
-          </div>
+
+          <OverallBanner status={overall.level} label={overall.label} />
+
+          <section aria-labelledby="components-heading">
+            <h2
+              id="components-heading"
+              className="text-lg font-semibold text-foreground mb-4"
+            >
+              Services
+            </h2>
+            <ComponentStatusGrid components={mockComponents} />
+          </section>
+
+          <section aria-labelledby="incidents-heading">
+            <h2
+              id="incidents-heading"
+              className="text-lg font-semibold text-foreground mb-4"
+            >
+              Incident History
+            </h2>
+            <IncidentTimeline incidents={mockIncidents} />
+          </section>
+
+          <section aria-labelledby="subscribe-heading" className="space-y-3">
+            <h2
+              id="subscribe-heading"
+              className="text-lg font-semibold text-foreground"
+            >
+              Subscribe to Updates
+            </h2>
+            <SubscribeForm />
+          </section>
         </div>
       </main>
       <Footer />

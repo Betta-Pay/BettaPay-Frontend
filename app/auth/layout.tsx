@@ -8,7 +8,7 @@ export default function AuthLayout({
   return (
     <main id="main-content" tabIndex={-1} className="relative min-h-screen flex items-center justify-center bg-background px-4 overflow-hidden">
       {/* Subtle background decoration */}
-      <div className="absolute inset-0 -z-10">
+      <div className="absolute inset-0 -z-10" aria-hidden="true">
         <div className="absolute top-1/4 -left-32 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
         <div className="absolute bottom-1/4 -right-32 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
       </div>
@@ -33,13 +33,13 @@ export default function AuthLayout({
         <div className="mt-12 text-center">
           <p className="text-xs text-muted-foreground">
             By signing in, you agree to our{" "}
-            <a href="#" className="underline hover:text-muted-foreground">
+            <Link href="/terms" className="underline hover:text-muted-foreground">
               Terms of Service
-            </a>{" "}
+            </Link>{" "}
             and{" "}
-            <a href="#" className="underline hover:text-muted-foreground">
+            <Link href="/privacy" className="underline hover:text-muted-foreground">
               Privacy Policy
-            </a>
+            </Link>
             .
           </p>
         </div>

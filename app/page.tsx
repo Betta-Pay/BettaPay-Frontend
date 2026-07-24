@@ -34,7 +34,7 @@ export default function LandingPage() {
 
           {/* Badge */}
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/10 border border-primary/30 text-sm text-primary font-medium mb-10">
-            <span className="w-1.5 h-1.5 rounded-full bg-primary" />
+            <span className="w-1.5 h-1.5 rounded-full bg-primary" aria-hidden="true" />
             {t('landing.badge')}
           </div>
 
@@ -54,7 +54,7 @@ export default function LandingPage() {
             <Link href="/auth/register">
               <Button className="h-12 px-8 text-base bg-primary text-white hover:bg-primary font-semibold rounded-xl">
                 {t('landing.primaryCta')}
-                <ArrowRight className="ml-2 w-5 h-5" />
+                <ArrowRight className="ml-2 w-5 h-5" aria-hidden="true" />
               </Button>
             </Link>
             <Link href="#features">
@@ -67,7 +67,7 @@ export default function LandingPage() {
       </main>
 
       {/* Divider */}
-      <div className="border-t border-border" />
+      <div className="border-t border-border" aria-hidden="true" />
 
       {/* Features Section */}
       <section id="features" className="py-24 bg-muted">
@@ -81,13 +81,14 @@ export default function LandingPage() {
             </p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-6">
+          <div className="grid md:grid-cols-3 gap-6" role="list">
             {features.map((feature, i) => (
               <div
                 key={i}
                 className="p-8 rounded-2xl bg-card border border-border hover:border-primary/40 hover:shadow-md transition-all duration-200"
+                role="listitem"
               >
-                <div className="w-11 h-11 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center mb-6">
+                <div className="w-11 h-11 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center mb-6" aria-hidden="true">
                   <feature.icon className="w-5 h-5 text-primary" />
                 </div>
                 <h3 className="text-lg font-semibold mb-3 text-foreground">{t(`landing.features.${feature.key}.title`)}</h3>
