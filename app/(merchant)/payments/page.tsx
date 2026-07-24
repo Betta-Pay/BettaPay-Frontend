@@ -1,13 +1,9 @@
 "use client";
 
 import { useState, memo, useMemo } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui';
-import { Button } from '@/components/ui';
-import { Input } from '@/components/ui';
-import { Label } from '@/components/ui';
-import { CopyAddress } from '@/components/shared';
-import { EmptyState } from '@/components/shared';
-import { ErrorDisplay } from '@/components/shared';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, Button, Input, Label } from '@/components/ui';
+import { CopyAddress, EmptyState, ErrorDisplay } from '@/components/shared';
+import { PageHeader } from '@/components/shared/PageHeader';
 import { QRCodeModal } from '@/components/payments/QRCode';
 import { CurrencySelector } from '@/components/payments/CurrencySelector';
 import { Plus, QrCode, Link2, Search, Edit3, Trash2 } from 'lucide-react';
@@ -196,15 +192,11 @@ export default function PaymentsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Payment Links</h1>
-          <p className="text-muted-foreground mt-1">
-            Create and manage links to accept crypto payments.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2 w-full sm:w-auto">
+      <PageHeader
+        title="Payment Links"
+        description="Create and manage links to accept crypto payments."
+        actions={
+          <>
           <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
             <DialogTrigger render={
               <Button className="w-full sm:w-auto">
@@ -369,8 +361,9 @@ export default function PaymentsPage() {
           >
             {linksError ? "Reset API" : "Simulate Error"}
           </Button>
-        </div>
-      </div>
+          </>
+        }
+      />
 
       {/* Filter & Search Bar */}
       <div className="flex flex-col sm:flex-row items-center gap-3">
