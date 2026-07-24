@@ -9,6 +9,7 @@ import { CopyAddress } from '@/components/shared/CopyAddress';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorDisplay } from '@/components/shared/ErrorDisplay';
 import { QRCodeModal } from '@/components/payments/QRCode';
+import { CurrencySelector } from '@/components/payments/CurrencySelector';
 import { Plus, QrCode, Link2, Search, Edit3, Trash2 } from 'lucide-react';
 import {
   Dialog,
@@ -121,6 +122,9 @@ export default function PaymentsPage() {
   const [labelValue, setLabelValue] = useState('');
   const [amountValue, setAmountValue] = useState('');
   const [currencyValue, setCurrencyValue] = useState('USDC');
+  const [currencyMode, setCurrencyMode] = useState<'single' | 'multi'>('single');
+  const [selectedCurrencies, setSelectedCurrencies] = useState<string[]>(['USDC']);
+  const [multiCurrencyAmounts, setMultiCurrencyAmounts] = useState<Record<string, string>>({});
   const [expiryValue, setExpiryValue] = useState('');
   const [redirectUrlValue, setRedirectUrlValue] = useState('');
   const [referenceValue, setReferenceValue] = useState('');
@@ -181,6 +185,9 @@ export default function PaymentsPage() {
     setLabelValue('');
     setAmountValue('');
     setCurrencyValue('USDC');
+    setCurrencyMode('single');
+    setSelectedCurrencies(['USDC']);
+    setMultiCurrencyAmounts({});
     setExpiryValue('');
     setRedirectUrlValue('');
     setReferenceValue('');
@@ -226,32 +233,93 @@ export default function PaymentsPage() {
                   {labelError && <p className="text-xs text-destructive mt-1">{labelError}</p>}
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-2">
-                    <Label htmlFor="amount">Amount (Optional)</Label>
-                    <Input
-                      id="amount"
-                      type="number"
-                      placeholder="0.00"
-                      className="bg-background/50 border-border/50"
-                      value={amountValue}
-                      onChange={(e) => setAmountValue(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="currency">Currency</Label>
-                    <Select value={currencyValue} onValueChange={(val) => val && setCurrencyValue(val)}>
-                      <SelectTrigger className="bg-background/50 border-border/50">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="USDC">USDC</SelectItem>
-                        <SelectItem value="XLM">XLM</SelectItem>
-                        <SelectItem value="NGN">NGN (Fiat equivalent)</SelectItem>
-                      </SelectContent>
-                    </Select>
+                <div className="space-y-3">
+                  <Label>Payment Mode</Label>
+                  <div className="flex rounded-lg border border-border/50 bg-background/50 p-0.5">
+                    <button
+                      type="button"
+                      className={`flex-1 rounded-md py-2 text-sm font-medium transition-colors ${
+                        currencyMode === 'single'
+                          ? 'bg-primary text-primary-foreground shadow-sm'
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                      onClick={() => setCurrencyMode('single')}
+                    >
+                      Single Currency
+                    </button>
+                    <button
+                      type="button"
+                      className={`flex-1 rounded-md py-2 text-sm font-medium transition-colors ${
+                        currencyMode === 'multi'
+                          ? 'bg-primary text-primary-foreground shadow-sm'
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                      onClick={() => setCurrencyMode('multi')}
+                    >
+                      Multi-Currency
+                    </button>
                   </div>
                 </div>
+
+                {currencyMode === 'single' ? (
+                  <>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-2">
+                        <Label htmlFor="amount">Amount (Optional)</Label>
+                        <Input
+                          id="amount"
+                          type="number"
+                          placeholder="0.00"
+                          className="bg-background/50 border-border/50"
+                          value={amountValue}
+                          onChange={(e) => setAmountValue(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="currency">Currency</Label>
+                        <Select value={currencyValue} onValueChange={(val) => val && setCurrencyValue(val)}>
+                          <SelectTrigger className="bg-background/50 border-border/50">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="USDC">USDC</SelectItem>
+                            <SelectItem value="XLM">XLM</SelectItem>
+                            <SelectItem value="USDT">USDT</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="space-y-3">
+                    <Label>Accepted Currencies</Label>
+                    <CurrencySelector
+                      selectedCurrencies={selectedCurrencies}
+                      onSelectionChange={setSelectedCurrencies}
+                      mode="multi"
+                      showRates
+                    />
+                    {selectedCurrencies.length > 0 && (
+                      <div className="space-y-2 mt-3">
+                        <Label>Default Amounts (Optional)</Label>
+                        {selectedCurrencies.map((code) => (
+                          <div key={code} className="flex items-center gap-2">
+                            <span className="text-sm font-medium w-14 shrink-0">{code}</span>
+                            <Input
+                              type="number"
+                              placeholder="0.00"
+                              className="bg-background/50 border-border/50"
+                              value={multiCurrencyAmounts[code] ?? ''}
+                              onChange={(e) =>
+                                setMultiCurrencyAmounts((prev) => ({ ...prev, [code]: e.target.value }))
+                              }
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 <div className="space-y-2">
                   <Label htmlFor="reference">Internal Reference</Label>
