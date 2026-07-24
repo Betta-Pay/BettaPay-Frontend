@@ -5,7 +5,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { DashboardSkeleton } from '@/components/skeletons/DashboardSkeleton';
 import { CurrencyDisplay } from '@/components/shared/CurrencyDisplay';
-import { StatusBadge } from '@/components/shared/StatusBadge';
 import { StatCard } from '@/components/shared/StatCard';
 import { ErrorDisplay } from '@/components/shared/ErrorDisplay';
 import {
@@ -16,23 +15,19 @@ import {
   CreditCard,
   RefreshCcw,
   Plus,
-  Zap,
-  ChevronRight,
   TrendingUp,
   BarChart3,
   Copy,
   ExternalLink,
   ArrowRight,
 } from 'lucide-react';
-import { TransactionDetail } from '@/components/transactions/TransactionDetail';
-import { usePayments, useSettlements, type ApiPayment } from '@/lib/api/hooks';
+import { ActivityFeed } from '@/components/dashboard/ActivityFeed';
+import { usePayments, useSettlements } from '@/lib/api/hooks';
 import { useAuthStore } from '@/lib/store/authStore';
 import Link from 'next/link';
 import { useNotify } from '@/lib/hooks/useNotify';
 import { cn } from '@/lib/utils';
 import RevenueChart from '@/components/charts/RevenueChart';
-
-type Transaction = ApiPayment;
 
 const PERIOD_OPTIONS = ['7D', '30D', '90D'] as const;
 type Period = typeof PERIOD_OPTIONS[number];
@@ -45,16 +40,12 @@ export default function DashboardPage() {
 
   const isLoading = paymentsLoading || settlementsLoading;
 
-  const recentTxs = payments.slice(0, 5);
-
   const [activePeriod, setActivePeriod] = useState<Period>('7D');
-  const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
 
   // Error simulation states
   const [simulationEnabled, setSimulationEnabled] = useState(false);
   const [statsError, setStatsError] = useState(false);
   const [chartError, setChartError] = useState(false);
-  const [activityError, setActivityError] = useState(false);
   const [linksError, setLinksError] = useState(false);
 
   const firstName = user?.name?.split(' ')[0] ?? 'Merchant';
@@ -76,7 +67,6 @@ export default function DashboardPage() {
     setSimulationEnabled(nextState);
     setStatsError(nextState);
     setChartError(nextState);
-    setActivityError(nextState);
     setLinksError(nextState);
   };
 
@@ -222,61 +212,8 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Recent Transactions */}
-        <Card className="lg:col-span-3 border border-border bg-card shadow-sm">
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-base font-semibold text-foreground">Recent Activity</CardTitle>
-              <Link href="/transactions">
-                <Button
-                  variant="ghost"
-                  className="text-xs text-primary hover:text-primary hover:bg-primary/10 min-h-[44px] px-2 rounded-lg font-semibold"
-                >
-                  View all <ChevronRight className="w-3 h-3 ml-0.5" />
-                </Button>
-              </Link>
-            </div>
-          </CardHeader>
-          <CardContent className="pt-0">
-            {activityError ? (
-              <div className="py-8">
-                <ErrorDisplay
-                  message="Failed to load recent activity"
-                  onRetry={() => setActivityError(false)}
-                />
-              </div>
-            ) : (
-              <div className="space-y-1">
-                {recentTxs.map((tx) => (
-                  <div
-                    key={tx.id}
-                    className="flex items-center gap-3 py-2.5 px-2 rounded-xl hover:bg-muted transition-colors group cursor-pointer"
-                    onClick={() => setSelectedTx(tx)}
-                  >
-                    <div className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center flex-shrink-0 group-hover:bg-primary/20 transition-colors">
-                      <Zap className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-foreground truncate">{tx.source ?? 'Payment'}</p>
-                      <p className="text-xs text-muted-foreground font-mono">
-                        {(tx.payerAddress ?? '').slice(0, 8)}... · {new Date(tx.createdAt).toLocaleTimeString()}
-                      </p>
-                    </div>
-                    <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                      <span className={cn(
-                        'text-sm font-semibold',
-                        tx.status === 'failed' || tx.status === 'FAILED' ? 'text-destructive' : 'text-success'
-                      )}>
-                        {tx.status === 'failed' || tx.status === 'FAILED' ? '-' : '+'}<CurrencyDisplay amount={tx.amountUsdc} showDecimals={false} />
-                      </span>
-                      <StatusBadge status={tx.status as 'completed' | 'pending' | 'failed'} />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        {/* Recent Activity */}
+        <ActivityFeed className="lg:col-span-3" />
       </div>
 
       {/* ── Bottom Row: Quick Actions + Payment Link Performance ── */}
@@ -380,12 +317,6 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
-
-          <TransactionDetail
-            transaction={selectedTx as import('@/lib/mock/transactions').Transaction | null}
-            isOpen={!!selectedTx}
-            onClose={() => setSelectedTx(null)}
-          />
         </>
       )}
     </div>
