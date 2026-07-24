@@ -4,6 +4,7 @@ import { useRateLimitStore } from '../store/rateLimitStore';
 import { getCsrfTokenFromCookie, CSRF_HEADER_NAME } from '../utils/csrf';
 import { toast } from 'sonner';
 import { announce } from '@/lib/utils/announce';
+import { parseApiError } from '../utils/apiError';
 
 function notifyError(message: string) {
   toast.error(message, { duration: 5000 });
@@ -97,7 +98,7 @@ apiClient.interceptors.response.use(
       } catch (refreshError) {
         processQueue(refreshError, null);
         redirectToLogin();
-        return Promise.reject(refreshError);
+        return Promise.reject(parseApiError(refreshError));
       } finally {
         isRefreshing = false;
       }
@@ -109,13 +110,13 @@ apiClient.interceptors.response.use(
       const seconds = parseInt(retryAfter, 10) || 30;
       useRateLimitStore.getState().setRateLimited(seconds);
       notifyError(`Too many attempts. Please try again in ${seconds} seconds.`);
-    }
-
-    // Show toast for network errors
-    if (!error.response) {
+    } else if (!error.response) {
+      // Show toast for network errors
       notifyError('Network error. Please check your connection.');
+    } else if (error.response?.status >= 500) {
+      notifyError('A server error occurred. Please try again later.');
     }
 
-    return Promise.reject(error);
+    return Promise.reject(parseApiError(error));
   }
 );

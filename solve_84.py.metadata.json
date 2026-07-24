@@ -1,0 +1,4 @@
+{
+  "summary":  "Python script to fix issue 84 by adding barrel exports to components/ui, components/layout, and components/shared, and replacing their imports globally.",
+  "updatedAt":  "2026-07-24T17:15:19.059309Z"
+}

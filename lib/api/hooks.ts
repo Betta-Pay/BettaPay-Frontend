@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { apiClient } from './axios';
 import type { MerchantProfile } from '../types';
+import { getErrorMessage } from '../utils/apiError';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -55,8 +56,8 @@ export function usePayments() {
     try {
       const res = await apiClient.get<{ data: ApiPayment[] }>('/api/payments');
       setData(res.data?.data ?? res.data ?? []);
-    } catch {
-      setError('Failed to load payments');
+    } catch (err) {
+      setError(getErrorMessage(err) || 'Failed to load payments');
     } finally {
       setIsLoading(false);
     }
@@ -80,8 +81,8 @@ export function useSettlements() {
     try {
       const res = await apiClient.get<{ data: ApiSettlement[] }>('/api/settlements');
       setData(res.data?.data ?? res.data ?? []);
-    } catch {
-      setError('Failed to load settlements');
+    } catch (err) {
+      setError(getErrorMessage(err) || 'Failed to load settlements');
     } finally {
       setIsLoading(false);
     }
@@ -110,8 +111,8 @@ export function useRates() {
       // Primary USDC/NGN rate
       const primary = res.data?.usdcNgn ?? rates.find(r => r.from === 'USDC' && r.to === 'NGN')?.rate ?? null;
       setPrimaryRate(primary);
-    } catch {
-      setError('Failed to load exchange rates');
+    } catch (err) {
+      setError(getErrorMessage(err) || 'Failed to load exchange rates');
     } finally {
       setIsLoading(false);
     }
@@ -139,8 +140,8 @@ export function useMerchantProfile(merchantId: string | undefined) {
     try {
       const res = await apiClient.get<{ data: MerchantProfile }>(`/api/merchants/${merchantId}`);
       setData(res.data?.data ?? null);
-    } catch {
-      setError('Failed to load merchant profile');
+    } catch (err) {
+      setError(getErrorMessage(err) || 'Failed to load merchant profile');
     } finally {
       setIsLoading(false);
     }
