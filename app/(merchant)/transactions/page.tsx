@@ -19,7 +19,7 @@ import { sanitizeSearchQuery } from '@/lib/utils/sanitize';
 import { Search, Download, SearchX, ExternalLink } from 'lucide-react';
 import { getStellarExplorerTxUrl } from '@/lib/utils/explorer';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { TransactionDetail } from '@/components/transactions/TransactionDetail';
+import { TransactionDrawer } from '@/components/transactions/TransactionDrawer';
 import { useOfflineStore } from '@/lib/store/offlineStore';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useNotify } from '@/lib/hooks/useNotify';
@@ -394,8 +394,8 @@ export default function TransactionsPage() {
         </>
       )}
 
-      <TransactionDetail
-        transaction={selectedTx as import('@/lib/mock/transactions').Transaction | null}
+      <TransactionDrawer
+        transaction={selectedTx}
         isOpen={!!selectedTx}
         onClose={() => setSelectedTx(null)}
       />
