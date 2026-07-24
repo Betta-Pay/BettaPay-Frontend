@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useWalletStore } from "@/lib/store/walletStore";
 import { CurrencyDisplay } from "@/components/shared/CurrencyDisplay";
+import { CurrencySelector } from "@/components/payments/CurrencySelector";
 import { ArrowRight, QrCode } from "lucide-react";
 import { useNotify } from "@/lib/hooks/useNotify";
 import Image from "next/image";
@@ -25,6 +26,7 @@ import {
 } from "@stellar/stellar-sdk";
 import { signWithFreighter } from "@/lib/stellar/freighter";
 import { apiClient } from "@/lib/api/axios";
+import { MULTI_CURRENCY_ASSETS, MOCK_RATES } from "@/lib/utils/constants";
 import { WalletModalFallback } from "@/components/wallet/WalletModalFallback";
 import { QRCodeModal } from "@/components/payments/QRCode";
 const WalletModal = dynamic(
@@ -43,10 +45,15 @@ export default function PaymentLinkPage() {
   const linkData = {
     merchantName: "Merchant Corp",
     label: "Consulting Retainer Q3",
-    type: "open", // 'fixed' or 'open'
+    type: "open" as "fixed" | "open",
     currency: "USDC",
     fixedAmount: 0,
+    isMultiCurrency: true,
+    acceptedCurrencies: ["USDC", "XLM", "USDT"],
   };
+
+  const [selectedCurrency, setSelectedCurrency] = useState<string[]>([linkData.currency]);
+  const activeCurrency = selectedCurrency[0] ?? linkData.currency;
 
   const [amount, setAmount] = useState(
     linkData.type === "fixed" ? linkData.fixedAmount.toString() : "",
@@ -98,8 +105,9 @@ export default function PaymentLinkPage() {
         throw new Error('NEXT_PUBLIC_MERCHANT_ADDRESS is not set');
       }
 
-      // Amount in stroops (1 USDC = 10^7 stroops)
-      const stroopAmount = BigInt(Math.floor(Number(amount) * 10_000_000));
+      // Calculate stroop amount based on selected asset decimals
+      const assetConfig = MULTI_CURRENCY_ASSETS[activeCurrency] ?? MULTI_CURRENCY_ASSETS.USDC;
+      const stroopAmount = BigInt(Math.floor(Number(amount) * assetConfig.stroopMultiplier));
 
       const networkPassphrase = process.env.NEXT_PUBLIC_STELLAR_NETWORK_PASSPHRASE;
       if (!networkPassphrase) throw new Error('NEXT_PUBLIC_STELLAR_NETWORK_PASSPHRASE is not set');
@@ -132,7 +140,7 @@ export default function PaymentLinkPage() {
         merchantId: merchantAddress,
         payerId: payerAddress,
         amount: Number(amount),
-        asset: linkData.currency,
+        asset: activeCurrency,
       });
 
       // Redirect to status page with the backend payment ID
@@ -195,26 +203,41 @@ export default function PaymentLinkPage() {
                   </h2>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                  {linkData.isMultiCurrency && linkData.acceptedCurrencies.length > 1 && (
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-muted-foreground">
+                        Pay with
+                      </label>
+                      <CurrencySelector
+                        selectedCurrencies={selectedCurrency}
+                        onSelectionChange={(currencies) => setSelectedCurrency(currencies)}
+                        mode="single"
+                        showRates
+                      />
+                    </div>
+                  )}
+
                   {linkData.type === "fixed" ? (
                     <div className="text-center py-6">
                       <div className="text-4xl font-bold text-foreground">
                         <CurrencyDisplay
                           amount={linkData.fixedAmount}
-                          currency={linkData.currency}
+                          currency={activeCurrency}
                         />
                       </div>
                       <p className="text-sm text-muted-foreground mt-2">
-                        ≈ ₦{(linkData.fixedAmount * 1550).toLocaleString()}
+                        {(MOCK_RATES[activeCurrency] ?? 1) !== 1 &&
+                          `≈ $${(linkData.fixedAmount * (MOCK_RATES[activeCurrency] ?? 1)).toFixed(2)} USD`}
                       </p>
                     </div>
                   ) : (
                     <div className="space-y-2">
                       <label className="text-sm font-medium text-muted-foreground">
-                        Amount ({linkData.currency})
+                        Amount ({activeCurrency})
                       </label>
                       <div className="relative">
                         <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground">
-                          $
+                          {MULTI_CURRENCY_ASSETS[activeCurrency]?.icon ?? '$'}
                         </span>
                         <Input
                           type="number"
@@ -224,6 +247,11 @@ export default function PaymentLinkPage() {
                           onChange={(e) => setAmount(e.target.value)}
                         />
                       </div>
+                      {amount && Number(amount) > 0 && (MOCK_RATES[activeCurrency] ?? 1) !== 1 && (
+                        <p className="text-xs text-muted-foreground text-right">
+                          ≈ ${(Number(amount) * (MOCK_RATES[activeCurrency] ?? 1)).toFixed(2)} USD
+                        </p>
+                      )}
                     </div>
                   )}
                 </CardContent>
@@ -267,7 +295,7 @@ export default function PaymentLinkPage() {
                       <span className="font-semibold">
                         <CurrencyDisplay
                           amount={Number(amount)}
-                          currency={linkData.currency}
+                          currency={activeCurrency}
                         />
                       </span>
                     </div>
@@ -281,7 +309,7 @@ export default function PaymentLinkPage() {
                       <span className="font-bold text-primary">
                         <CurrencyDisplay
                           amount={Number(amount)}
-                          currency={linkData.currency}
+                          currency={activeCurrency}
                         />
                       </span>
                     </div>
