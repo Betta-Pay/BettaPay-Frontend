@@ -4,9 +4,8 @@ import { useState, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui';
 import { Button } from '@/components/ui';
 import { DashboardSkeleton } from '@/components/skeletons/DashboardSkeleton';
-import { CurrencyDisplay } from '@/components/shared';
-import { StatCard } from '@/components/shared';
-import { ErrorDisplay } from '@/components/shared';
+import { CurrencyDisplay, StatCard, ErrorDisplay } from '@/components/shared';
+import { PageHeader } from '@/components/shared/PageHeader';
 import {
   ArrowUpRight,
   ArrowDownRight,
@@ -77,39 +76,34 @@ export default function DashboardPage() {
       ) : (
         <>
       {/* ── Welcome Header ── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <p className="text-xs font-semibold tracking-widest text-primary uppercase mb-1">
-            Merchant Dashboard
-          </p>
-          <h1 className="text-3xl font-bold text-foreground leading-tight">
-            Good day, {firstName} 👋
-          </h1>
-          <p className="text-muted-foreground text-sm mt-1">
-            Here&apos;s what&apos;s happening with your BettaPay account today.
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            className={cn(
-              'rounded-xl h-10 px-4 text-sm transition-all border',
-              simulationEnabled
-                ? 'bg-primary/10 text-primary border-primary/30 hover:bg-primary/20'
-                : 'border-border text-muted-foreground hover:bg-muted'
-            )}
-            onClick={toggleSimulation}
-          >
-            {simulationEnabled ? 'Reset API' : 'Simulate API Error'}
-          </Button>
-          <Link href="/payments">
-            <Button className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-xl h-10 px-4 text-sm shadow-button transition-all">
-              <Plus className="w-4 h-4 mr-2" />
-              New Payment Link
+      <PageHeader
+        preTitle="Merchant Dashboard"
+        title={`Good day, ${firstName} 👋`}
+        titleClassName="leading-tight"
+        description="Here's what's happening with your BettaPay account today."
+        actions={
+          <>
+            <Button
+              variant="outline"
+              className={cn(
+                'rounded-xl h-10 px-4 text-sm transition-all border',
+                simulationEnabled
+                  ? 'bg-primary/10 text-primary border-primary/30 hover:bg-primary/20'
+                  : 'border-border text-muted-foreground hover:bg-muted'
+              )}
+              onClick={toggleSimulation}
+            >
+              {simulationEnabled ? 'Reset API' : 'Simulate API Error'}
             </Button>
-          </Link>
-        </div>
-      </div>
+            <Link href="/payments">
+              <Button className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-xl h-10 px-4 text-sm shadow-button transition-all">
+                <Plus className="w-4 h-4 mr-2" />
+                New Payment Link
+              </Button>
+            </Link>
+          </>
+        }
+      />
 
       {/* ── KPI Stat Cards (memoised — not affected by period changes) ── */}
       <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
