@@ -9,6 +9,8 @@ export interface User {
   role: Role;
   businessName?: string;
   kybStatus?: 'pending' | 'approved' | 'rejected' | 'none';
+  twoFactorEnabled?: boolean;
+  twoFactorSecret?: string;
 }
 
 export interface AssetBalance {

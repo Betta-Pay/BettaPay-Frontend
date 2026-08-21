@@ -3,5 +3,24 @@
   "languages": { "en": "Anglais", "fr": "Français", "pt": "Portugais", "sw": "Swahili" },
   "navigation": { "features": "Fonctionnalités", "developers": "Développeurs", "company": "Entreprise", "login": "Se connecter", "getStarted": "Commencer" },
   "landing": { "badge": "Disponible sur le testnet Soroban", "headline": "Réglez partout.", "headlineAccent": "Instantanément et sans garde.", "primaryCta": "Accepter les cryptomonnaies", "secondaryCta": "Découvrir les fonctionnalités" },
-  "login": { "title": "Bon retour", "or": "ou", "connectWallet": "Connecter le portefeuille Freighter", "learnMore": "En savoir plus sur BettaPay" }
+  "login": { "title": "Bon retour", "or": "ou", "connectWallet": "Connecter le portefeuille Freighter", "learnMore": "En savoir plus sur BettaPay" },
+  "twoFactor": {
+    "enroll": {
+      "title": "Configurer l'authentification à deux facteurs",
+      "description": "Scannez le code QR avec votre application d'authentification pour activer la 2FA",
+      "manualEntry": "Ou entrez ce code manuellement si vous ne pouvez pas scanner le code QR",
+      "enterCode": "Entrez le code à 6 chiffres de votre application d'authentification",
+      "verifying": "Vérification...",
+      "verifyAndEnable": "Vérifier et activer la 2FA",
+      "skip": "Ignorer pour le moment"
+    },
+    "verify": {
+      "title": "Authentification à deux facteurs",
+      "description": "Entrez le code à 6 chiffres de votre application d'authentification pour terminer la connexion",
+      "enterCode": "Code d'authentification",
+      "verifying": "Vérification...",
+      "verify": "Vérifier",
+      "backToLogin": "Retour à la connexion"
+    }
+  }
 }
