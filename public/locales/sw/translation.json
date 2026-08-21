@@ -3,5 +3,24 @@
   "languages": { "en": "Kiingereza", "fr": "Kifaransa", "pt": "Kireno", "sw": "Kiswahili" },
   "navigation": { "features": "Vipengele", "developers": "Wasanidi", "company": "Kampuni", "login": "Ingia", "getStarted": "Anza" },
   "landing": { "badge": "Sasa inapatikana kwenye Soroban Testnet", "headline": "Lipa duniani kote.", "headlineAccent": "Mara moja na bila udhamini.", "primaryCta": "Anza kupokea sarafu za kidijitali", "secondaryCta": "Chunguza vipengele" },
-  "login": { "title": "Karibu tena", "or": "au", "connectWallet": "Unganisha pochi ya Freighter", "learnMore": "Jifunze zaidi kuhusu BettaPay" }
+  "login": { "title": "Karibu tena", "or": "au", "connectWallet": "Unganisha pochi ya Freighter", "learnMore": "Jifunze zaidi kuhusu BettaPay" },
+  "twoFactor": {
+    "enroll": {
+      "title": "Weka usalama wa kipengele mbili",
+      "description": "Piga msimbo wa QR kwa programu yako ya uthibitishaji kuwezesha 2FA",
+      "manualEntry": "Au ingiza msimbo huu kwa mkono ikiwa hupweki kupiga msimbo wa QR",
+      "enterCode": "Ingiza msimbo wa tarakimu 6 kutoka kwa programu yako ya uthibitishaji",
+      "verifying": "Inathibitisha...",
+      "verifyAndEnable": "Thibitisha na Wezesha 2FA",
+      "skip": "Ruka kwa sasa"
+    },
+    "verify": {
+      "title": "Uthibitishaji wa kipengele mbili",
+      "description": "Ingiza msimbo wa tarakimu 6 kutoka kwa programu yako ya uthibitishaji kukamilisha kuingia",
+      "enterCode": "Msimbo wa uthibitishaji",
+      "verifying": "Inathibitisha...",
+      "verify": "Thibitisha",
+      "backToLogin": "Rudi kwenye kuingia"
+    }
+  }
 }

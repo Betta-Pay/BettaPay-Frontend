@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui';
 import { Button } from '@/components/ui';
 import { Input } from '@/components/ui';
@@ -402,81 +402,85 @@ export default function SettingsPage() {
             <Card className="border border-border bg-card shadow-sm">
               <CardHeader>
                 <CardTitle className="text-base font-semibold text-foreground">Security</CardTitle>
-                <CardDescription>Update your account password. Passwords must be at least 8 characters long and include an uppercase letter and a number.</CardDescription>
+                <CardDescription>Manage your password and two-factor authentication settings.</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-5">
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Current Password</Label>
-                  <Input
-                    value={currentPassword}
-                    onChange={(e) => {
-                      setCurrentPassword(e.target.value);
-                      setPasswordTouched((prev) => ({ ...prev, current: true }));
-                    }}
-                    onBlur={() => setPasswordTouched((prev) => ({ ...prev, current: true }))}
-                    type="password"
-                    placeholder="••••••••"
-                    className={cn("h-10 border-border rounded-xl bg-card text-sm", currentPasswordError && "border-destructive focus-visible:ring-destructive")}
-                  />
-                  {currentPasswordError && (
-                    <p className="text-xs text-destructive mt-1 font-medium">{currentPasswordError}</p>
+              <CardContent className="space-y-6">
+                {/* Two-Factor Authentication Section */}
+                <div className="space-y-4 pb-6 border-b border-border">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">Two-Factor Authentication</p>
+                      <p className="text-xs text-muted-foreground mt-1">Add an extra layer of security to your account</p>
+                    </div>
+                    <Toggle
+                      checked={user?.twoFactorEnabled || false}
+                      label="Two-Factor Authentication"
+                      onClick={() => {
+                        if (user?.twoFactorEnabled) {
+                          // Handle disable - would require verification
+                          notify.info('To disable 2FA, please contact support');
+                        } else {
+                          // Navigate to enrollment
+                          router.push('/auth/two-factor/enroll');
+                        }
+                      }}
+                    />
+                  </div>
+                  {user?.twoFactorEnabled && (
+                    <div className="flex items-center gap-2 text-xs text-green-600 bg-green-50 dark:bg-green-950/20 px-3 py-2 rounded-lg">
+                      <Shield className="w-3.5 h-3.5" />
+                      <span>2FA is enabled and protecting your account</span>
+                    </div>
                   )}
-                  <Input value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} type="password" placeholder="••••••••" className="h-10 border-border rounded-xl bg-card text-sm" />
-                  {passwordErrors.current && <p className="text-xs text-destructive mt-1">{passwordErrors.current}</p>}
                 </div>
 
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">New Password</Label>
-                  <Input
-                    value={newPassword}
-                    onChange={(e) => {
-                      setNewPassword(e.target.value);
-                      setPasswordTouched((prev) => ({ ...prev, new: true }));
-                    }}
-                    onBlur={() => setPasswordTouched((prev) => ({ ...prev, new: true }))}
-                    type="password"
-                    placeholder="••••••••"
-                    className={cn("h-10 border-border rounded-xl bg-card text-sm", newPasswordError && "border-destructive focus-visible:ring-destructive")}
-                  />
-                  {newPasswordError ? (
-                    <p className="text-xs text-destructive mt-1 font-medium">{newPasswordError}</p>
-                  ) : (
-                    <p className="text-xs text-muted-foreground mt-1">Must be at least 8 characters with 1 uppercase letter and 1 number</p>
-                  )}
-                  <Input value={newPassword} onChange={(e) => setNewPassword(e.target.value)} type="password" placeholder="••••••••" className="h-10 border-border rounded-xl bg-card text-sm" />
-                  {passwordErrors.newPass && <p className="text-xs text-destructive mt-1">{passwordErrors.newPass}</p>}
-                </div>
+                {/* Password Change Section */}
+                <div className="space-y-4">
+                  <p className="text-sm font-semibold text-foreground">Change Password</p>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Current Password</Label>
+                    <Input
+                      value={currentPassword}
+                      onChange={(e) => setCurrentPassword(e.target.value)}
+                      type="password"
+                      placeholder="••••••••"
+                      className="h-10 border-border rounded-xl bg-card text-sm"
+                    />
+                    {passwordErrors.current && <p className="text-xs text-destructive mt-1">{passwordErrors.current}</p>}
+                  </div>
 
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Confirm New Password</Label>
-                  <Input
-                    value={confirmNewPassword}
-                    onChange={(e) => {
-                      setConfirmNewPassword(e.target.value);
-                      setPasswordTouched((prev) => ({ ...prev, confirm: true }));
-                    }}
-                    onBlur={() => setPasswordTouched((prev) => ({ ...prev, confirm: true }))}
-                    type="password"
-                    placeholder="••••••••"
-                    className={cn("h-10 border-border rounded-xl bg-card text-sm", confirmPasswordError && "border-destructive focus-visible:ring-destructive")}
-                  />
-                  {confirmPasswordError && (
-                    <p className="text-xs text-destructive mt-1 font-medium">{confirmPasswordError}</p>
-                  )}
-                  <Input value={confirmNewPassword} onChange={(e) => setConfirmNewPassword(e.target.value)} type="password" placeholder="••••••••" className="h-10 border-border rounded-xl bg-card text-sm" />
-                  {passwordErrors.confirm && <p className="text-xs text-destructive mt-1">{passwordErrors.confirm}</p>}
-                </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">New Password</Label>
+                    <Input
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      type="password"
+                      placeholder="••••••••"
+                      className="h-10 border-border rounded-xl bg-card text-sm"
+                    />
+                    {passwordErrors.newPass && <p className="text-xs text-destructive mt-1">{passwordErrors.newPass}</p>}
+                  </div>
 
-                <Button
-                  disabled={!isPasswordFormValid}
-                  className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-xl h-10 px-6 text-sm disabled:opacity-50"
-                  onClick={handleUpdatePassword}
-                  className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-xl h-10 px-6 text-sm"
-                  onClick={handlePasswordChange}
-                  disabled={!isPasswordValid || isSubmitting}
-                >
-                  Update Password
-                </Button>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Confirm New Password</Label>
+                    <Input
+                      value={confirmNewPassword}
+                      onChange={(e) => setConfirmNewPassword(e.target.value)}
+                      type="password"
+                      placeholder="••••••••"
+                      className="h-10 border-border rounded-xl bg-card text-sm"
+                    />
+                    {passwordErrors.confirm && <p className="text-xs text-destructive mt-1">{passwordErrors.confirm}</p>}
+                  </div>
+
+                  <Button
+                    onClick={handlePasswordChange}
+                    disabled={!isPasswordValid || isSubmitting}
+                    className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-xl h-10 px-6 text-sm"
+                  >
+                    Update Password
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           )}

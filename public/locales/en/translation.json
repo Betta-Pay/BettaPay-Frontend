@@ -43,5 +43,24 @@
       "currency": { "title": "Multi-currency", "description": "Accept USDC, auto-convert to local fiat" },
       "custody": { "title": "Non-custodial", "description": "You always control your funds and keys" }
     }
+  },
+  "twoFactor": {
+    "enroll": {
+      "title": "Set up two-factor authentication",
+      "description": "Scan the QR code with your authenticator app to enable 2FA",
+      "manualEntry": "Or enter this code manually if you can't scan the QR code",
+      "enterCode": "Enter the 6-digit code from your authenticator app",
+      "verifying": "Verifying...",
+      "verifyAndEnable": "Verify and Enable 2FA",
+      "skip": "Skip for now"
+    },
+    "verify": {
+      "title": "Two-factor authentication",
+      "description": "Enter the 6-digit code from your authenticator app to complete sign in",
+      "enterCode": "Authentication code",
+      "verifying": "Verifying...",
+      "verify": "Verify",
+      "backToLogin": "Back to login"
+    }
   }
 }
