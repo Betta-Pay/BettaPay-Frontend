@@ -29,9 +29,17 @@ interface Props {
   meta: KybDocTypeMeta;
   document: KybDocument | null;
   disabled?: boolean;
+  /** Demo affordance: send the next upload for a forced reviewer rejection. */
+  simulateReject?: boolean;
 }
 
-export function KybDocumentRow({ merchantId, meta, document, disabled }: Props) {
+export function KybDocumentRow({
+  merchantId,
+  meta,
+  document,
+  disabled,
+  simulateReject,
+}: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [rejection, setRejection] = useState<FileRejection | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -69,7 +77,7 @@ export function KybDocumentRow({ merchantId, meta, document, disabled }: Props) 
     setPreviewName(file.name);
 
     try {
-      await upload({ type: meta.type, file });
+      await upload({ type: meta.type, file, simulateReject });
     } catch {
       // The hook surfaces `error`; nothing more to do here.
     }
