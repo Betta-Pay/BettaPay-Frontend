@@ -6,6 +6,7 @@ import { CurrencyDisplay, ErrorDisplay, StatCard, ErrorBoundary } from '@/compon
 import { Users, AlertTriangle, ArrowUpRight, Activity, DollarSign } from 'lucide-react';
 import { useAdminStats } from '@/lib/api/hooks';
 import PlatformVolumeChart from '@/components/charts/PlatformVolumeChart';
+import { PlatformTicker } from '@/components/admin/PlatformTicker';
 
 
 
@@ -53,6 +54,9 @@ export default function AdminOverviewPage() {
           Monitor system health, total volume, and compliance alerts.
         </p>
       </div>
+
+      {/* ── Real-Time Platform Volume & Fees Ticker (#473) ── */}
+      <PlatformTicker />
 
       {error && (
         <ErrorDisplay
