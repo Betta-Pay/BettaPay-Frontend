@@ -4,6 +4,8 @@
  * The onboarding flow and `/settings/kyb` share these types. `kybStatus` is
  * the merchant-level rollup the backend already exposes on the auth user;
  * `KybDocStatus` is the per-document state a reviewer moves through.
+ *
+ * Status → colour/label mapping lives in `./status`, not here.
  */
 
 export type KybDocType =
@@ -58,10 +60,19 @@ export function kybDocLabel(type: KybDocType): string {
   return KYB_DOC_TYPES.find((d) => d.type === type)?.label ?? type;
 }
 
+export const REQUIRED_KYB_DOC_TYPES: readonly KybDocType[] = KYB_DOC_TYPES.filter(
+  (d) => d.required,
+).map((d) => d.type);
+
 /** Per-document lifecycle. */
 export type KybDocStatus = 'uploaded' | 'under_review' | 'verified' | 'rejected';
 
-/** Merchant-level rollup — matches the value on the auth user object. */
+/**
+ * Merchant-level rollup. The auth user object carries this as
+ * `kybStatus?: 'pending' | 'approved' | 'rejected' | 'none'`; `none` and the
+ * absence of the field both mean "not started" — normalised to `unverified`
+ * by `normalizeKybStatus` in `./status`.
+ */
 export type KybStatus = 'unverified' | 'pending' | 'approved' | 'rejected';
 
 export interface KybDocument {
@@ -84,31 +95,6 @@ export interface MerchantKyb {
   submittedAt: string | null;
   reviewedAt: string | null;
   documents: KybDocument[];
-}
-
-export type StatusTone = 'neutral' | 'info' | 'warning' | 'success' | 'danger';
-
-export const KYB_STATUS_META: Record<KybStatus, { label: string; tone: StatusTone }> = {
-  unverified: { label: 'Not started', tone: 'neutral' },
-  pending: { label: 'Under review', tone: 'warning' },
-  approved: { label: 'Verified', tone: 'success' },
-  rejected: { label: 'Action required', tone: 'danger' },
-};
-
-export const KYB_DOC_STATUS_META: Record<KybDocStatus, { label: string; tone: StatusTone }> = {
-  uploaded: { label: 'Uploaded', tone: 'info' },
-  under_review: { label: 'Under review', tone: 'warning' },
-  verified: { label: 'Verified', tone: 'success' },
-  rejected: { label: 'Rejected', tone: 'danger' },
-};
-
-/**
- * Settlement rule configuration is gated until identity verification has at
- * least been submitted (`kycStatus` is at least "pending"). `rejected` still
- * counts — the merchant has engaged and can keep working while they fix docs.
- */
-export function isSettlementUnlocked(status: KybStatus | null | undefined): boolean {
-  return status === 'pending' || status === 'approved' || status === 'rejected';
 }
 
 /** An empty KYB profile for a merchant that has never uploaded anything. */

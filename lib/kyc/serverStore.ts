@@ -53,7 +53,7 @@ export function upsertDocument(input: UploadInput): MerchantKyb {
   const now = new Date().toISOString();
 
   const rejected = Boolean(input.simulateReject);
-  const status: KybDocStatus = rejected ? 'rejected' : 'under_review';
+  const status: KybDocStatus = rejected ? 'rejected' : 'uploaded';
   const rejectionReason = rejected
     ? 'The document was unreadable. Please upload a clear, full-page scan or photo.'
     : null;
