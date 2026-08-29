@@ -15,6 +15,8 @@ import { initErrorReporting } from "@/lib/errorReporting";
 import { useRouteChange } from "@/lib/rum/useRouteChange";
 import { useHydrationCapture } from "@/lib/rum/useHydrationCapture";
 import { isPublicRoute, isAuthRoute } from "@/lib/auth/session";
+import { ServiceWorkerRegistration } from "@/components/ui/service-worker-registration";
+import { triggerSync } from "@/lib/offline/syncQueue";
 
 export function Providers({ children }: { children: ReactNode }) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
@@ -42,6 +44,11 @@ export function Providers({ children }: { children: ReactNode }) {
             staleTime: 30_000,
             refetchOnWindowFocus: false,
             retry: 1,
+            // OfflineFirst lets queries fire while the browser reports being
+            // offline so the service worker can answer them from its
+            // stale-while-revalidate cache; without this, React Query would
+            // short-circuit on navigator.onLine before the SW gets a chance.
+            networkMode: 'offlineFirst',
           },
         },
       })
@@ -49,11 +56,15 @@ export function Providers({ children }: { children: ReactNode }) {
 
   // Purge cached merchant data when the user logs out so the next account
   // never sees stale payment/settlement/rate/profile data from the previous
-  // session.
+  // session. The service worker's API cache holds the same data for offline
+  // use, so ask it to drop those responses too.
   const wasAuthenticatedRef = useRef(isAuthenticated);
   useEffect(() => {
     if (wasAuthenticatedRef.current && !isAuthenticated) {
       queryClient.clear();
+      if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator && navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage({ type: 'CLEAR_API_CACHE' });
+      }
     }
     wasAuthenticatedRef.current = isAuthenticated;
   }, [isAuthenticated, queryClient]);
@@ -74,6 +85,17 @@ export function Providers({ children }: { children: ReactNode }) {
   useHydrationCapture();
   const { isVerifying } = useSessionCheck();
   useCrossTabAuth();
+
+  // Replay offline-queued mutations (payment links, webhook tests) the moment
+  // the browser reports connectivity again. The service worker also drains on
+  // its own `online`/`sync` events; this is the deterministic client fallback.
+  useEffect(() => {
+    const handleOnline = () => {
+      void triggerSync();
+    };
+    window.addEventListener("online", handleOnline);
+    return () => window.removeEventListener("online", handleOnline);
+  }, []);
   const pathname = usePathname();
   const isLoggedIn = useAuthStore((s) => s.isLoggedIn);
   // Prevent flash of protected page for logged-out users (fix #575):
@@ -88,6 +110,7 @@ export function Providers({ children }: { children: ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider attribute="class" defaultTheme="system" enableSystem={true}>
+        <ServiceWorkerRegistration />
         <OfflineBanner />
         {showFlashGuard ? (
           <div className="min-h-[60vh] flex items-center justify-center p-8" aria-busy="true" aria-live="polite">

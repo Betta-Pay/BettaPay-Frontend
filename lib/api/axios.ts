@@ -182,6 +182,10 @@ function resolveRequestTimeout(url: string | undefined): number {
   return PAYMENT_TIMEOUT_PATHS.some((path) => safeUrl.includes(path)) ? PAYMENT_TIMEOUT_MS : DEFAULT_TIMEOUT_MS;
 }
 
+/** Error code used for requests refused locally because the app is offline
+ *  or the API is unreachable (never reached the network). */
+export const OFFLINE_ERROR_CODE = 'network_error';
+
 /** Error code used for requests refused locally by the shared 429 window. */
 export const RATE_LIMIT_BLOCKED_CODE = 'RATE_LIMIT_BLOCKED';
 
@@ -198,14 +202,22 @@ function isSessionExpiredError(error: unknown): boolean {
 }
 
 apiClient.interceptors.request.use((config) => {
-  // Reject requests immediately if offline or API is unreachable
+  // Reject requests immediately if offline or API is unreachable.
+  // Read-only GET/HEAD requests are exempt: the service worker answers them
+  // stale-while-revalidate from its offline cache, so letting them through is
+  // what keeps the dashboard rendering with data while disconnected. Mutations
+  // are refused fast so callers can queue them for background sync instead of
+  // wasting a doomed round trip.
   const { isOnline, isApiReachable } = useOfflineStore.getState();
   if (!isOnline || !isApiReachable) {
-    throw new ApiError(
-      "You're offline. Please check your connection.",
-      'network_error',
-      0
-    );
+    const method = (config.method || 'get').toLowerCase();
+    if (method !== 'get' && method !== 'head') {
+      throw new ApiError(
+        "You're offline. Please check your connection.",
+        OFFLINE_ERROR_CODE,
+        0
+      );
+    }
   }
 
   // Reject a request whose session token has already expired instead of
@@ -376,7 +388,7 @@ apiClient.interceptors.response.use(
       } else {
         useOfflineStore.getState().setIsOnline(false);
       }
-      notifyError("You're offline. Please check your connection.", 'network_error');
+      notifyError("You're offline. Please check your connection.", OFFLINE_ERROR_CODE);
       reportApiFailure(error, 'network');
     } else if (error.response?.status >= 500) {
       const endpoint = originalRequest?.url || error.config?.url || 'unknown';

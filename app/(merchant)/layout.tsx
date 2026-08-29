@@ -13,6 +13,7 @@ import { useSessionTimeout } from "@/lib/hooks/useSessionTimeout";
 import { useRateLimitCountdown } from "@/lib/hooks/useRateLimitCountdown";
 import { SessionTimeoutModal } from "@/components/SessionTimeoutModal";
 import { CommandPalette } from "@/components/command/CommandPalette";
+import { InstallPrompt } from "@/components/layout/InstallPrompt";
 
 export default function MerchantLayout({
   children,
@@ -113,6 +114,8 @@ export default function MerchantLayout({
       </div>
 
       <CommandPalette role="merchant" />
+
+      <InstallPrompt />
 
       {isAuthenticated && (
         <SessionTimeoutModal

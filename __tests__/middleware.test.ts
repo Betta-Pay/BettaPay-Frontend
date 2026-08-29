@@ -118,17 +118,28 @@ describe('Next.js Middleware Auth & RBAC', () => {
   describe('Middleware config matcher', () => {
     const matcherPattern = config.matcher[0];
     const isExcludedByPattern = (path: string) => {
-      const testRegex = /^\/((?!api|_next\/static|_next\/image|favicon\.ico).*)$/;
+      // Mirror of the matcher in middleware.ts. Kept next to the string equality
+      // assertion so both stay in sync.
+      const testRegex =
+        /^\/((?!api|_next\/static|_next\/image|favicon\.ico|sw\.js|manifest\.webmanifest|icons|logo\.png).*)$/;
       return !testRegex.test(path);
     };
 
-    it('should match the expected paths and exclude api, static files, and favicon', () => {
-      expect(matcherPattern).toBe('/((?!api|_next/static|_next/image|favicon.ico).*)');
-      
+    it('should match the expected paths and exclude api, static files, and PWA assets', () => {
+      expect(matcherPattern).toBe(
+        '/((?!api|_next/static|_next/image|favicon.ico|sw.js|manifest.webmanifest|icons|logo.png).*)'
+      );
+
       expect(isExcludedByPattern('/api/auth/session')).toBe(true);
       expect(isExcludedByPattern('/_next/static/chunks/main.js')).toBe(true);
       expect(isExcludedByPattern('/_next/image?url=logo.png')).toBe(true);
       expect(isExcludedByPattern('/favicon.ico')).toBe(true);
+      // PWA assets must never be redirected so the service worker can install
+      // and the manifest/icons resolve for the install prompt.
+      expect(isExcludedByPattern('/sw.js')).toBe(true);
+      expect(isExcludedByPattern('/manifest.webmanifest')).toBe(true);
+      expect(isExcludedByPattern('/icons/icon-192.png')).toBe(true);
+      expect(isExcludedByPattern('/logo.png')).toBe(true);
 
       expect(isExcludedByPattern('/dashboard')).toBe(false);
       expect(isExcludedByPattern('/overview')).toBe(false);

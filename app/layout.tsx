@@ -28,6 +28,22 @@ export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://betta.pay"),
   title: "BettaPay | Non-custodial Merchant Platform",
   description: "Accept USDC and stablecoins easily across Africa",
+  // PWA: web manifest, theme colour and icons drive the install prompt and the
+  // installed (standalone) merchant dashboard experience.
+  manifest: "/manifest.webmanifest",
+  themeColor: "#F0A500",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "BettaPay",
+  },
+  icons: {
+    icon: [
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+  },
 };
 
 

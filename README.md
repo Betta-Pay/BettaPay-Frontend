@@ -326,6 +326,42 @@ export function ExampleComponent() {
 - Prefer accessible and keyboard-friendly UI patterns.
 
 
+## Offline support (PWA)
+
+The merchant dashboard is installable and works offline after the first visit:
+
+- **App shell** — a Workbox service worker (`scripts/sw-template.js`, bundled to
+  `public/sw.js` by `scripts/build-sw.mjs` as part of `npm run build`) precaches
+  the Next.js JS/CSS/fonts and serves navigations network-first with a cached
+  shell fallback, so reloading a visited page while offline renders normally.
+- **Stale-while-revalidate API reads** — same-origin `/api/*` and the configured
+  `NEXT_PUBLIC_API_URL` destination are cached stale-while-revalidate, keeping
+  list pages (payments, settlements, rates, …) populated offline. `/healthz` is
+  never cached, so the offline banner reflects real API reachability.
+- **Background sync** — payment links created and webhook test events sent while
+  offline are queued in IndexedDB (`lib/offline/syncQueue.ts`) and replayed by
+  the service worker when connectivity returns (native `sync` + `online` event
+  + client-side reconnect trigger). The offline banner shows how many changes
+  are waiting to sync.
+- **Install prompt & manifest** — `public/manifest.webmanifest` with icons
+  (`scripts/generate-icons.mjs`) drives Chrome's install prompt, surfaced by
+  `components/layout/InstallPrompt.tsx` in the merchant layout.
+
+The service worker is only registered in production builds. `public/sw.js` is
+generated and git-ignored.
+
+To verify the offline behaviours end-to-end:
+
+```bash
+NEXT_PUBLIC_API_URL=http://localhost:3000 npm run build
+npm run verify:offline
+```
+
+`npm run verify:offline` boots the production server and drives a headless
+Chromium through: first-load caching, an offline reload rendering from cache with
+the banner, creating a payment link offline, and watching it sync back in when
+connectivity returns.
+
 ## Next steps
 
 - Implement proper server-side auth and refresh token endpoints

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui";
 import { Button } from "@/components/ui";
 import { Input } from "@/components/ui";
@@ -35,6 +35,13 @@ import {
 import { cn } from "@/lib/utils";
 
 import { useAuthStore } from "@/lib/store/authStore";
+import { useOfflineStore } from "@/lib/store/offlineStore";
+import {
+  enqueueSyncRequest,
+  watchSyncComplete,
+  SYNC_TAGS,
+  type SyncCompleteMessage,
+} from "@/lib/offline/syncQueue";
 
 const EVENT_TYPES = [
   { value: "payment.completed", label: "payment.completed" },
@@ -89,9 +96,11 @@ interface DeliveryLogEntry {
   timestamp: Date;
   eventType: string;
   targetUrl: string;
-  status: "success" | "failed";
+  status: "success" | "failed" | "pending";
   statusCode: number;
   resultType?: string;
+  /** Queue id when the attempt was background-synced while offline. */
+  syncId?: string;
 }
 
 async function computeHmacSignature(secret: string, payloadStr: string): Promise<string> {
@@ -190,10 +199,11 @@ export function WebhookTester({
     const bodyString = JSON.stringify(payload);
     const timestamp = Math.floor(Date.now() / 1000).toString();
     const eventId = (payload as { id?: string })?.id || `evt_${Date.now()}`;
+    // Computed before the try so the offline catch can replay the exact
+    // signed request via background sync. Never throws (falls back to "").
+    const signature = await computeHmacSignature(webhookSecret, bodyString);
 
     try {
-      const signature = await computeHmacSignature(webhookSecret, bodyString);
-
       const res = await fetch(endpointUrl, {
         method: "POST",
         headers: {
@@ -254,6 +264,42 @@ export function WebhookTester({
         notify.error(`Webhook endpoint returned status ${responseStatusCode}`);
       }
     } catch (err: unknown) {
+      const { isOnline, isApiReachable } = useOfflineStore.getState();
+      if (!isOnline || !isApiReachable) {
+        // Offline / API unreachable: queue the test for background sync so it
+        // is sent automatically when connectivity returns.
+        const headers: Array<[string, string]> = [
+          ["Content-Type", "application/json"],
+          ["X-BettaPay-Signature", signature],
+          ["X-BettaPay-Timestamp", timestamp],
+          ["X-BettaPay-Event-Id", eventId],
+        ];
+        try {
+          const syncId = await enqueueSyncRequest({
+            tag: SYNC_TAGS.webhookTest,
+            url: endpointUrl,
+            method: "POST",
+            headers,
+            body: bodyString,
+          });
+          setDeliveryLog((prev) => [
+            {
+              id: `del_${Date.now()}`,
+              timestamp: new Date(),
+              eventType: selectedEvent,
+              targetUrl: endpointUrl,
+              status: "pending",
+              statusCode: 0,
+              syncId,
+            },
+            ...prev,
+          ]);
+          notify.info("Webhook test queued — it will be sent automatically when you're back online.");
+          return;
+        } catch {
+          // Fall through to the generic network error below.
+        }
+      }
       const errorMsg = err instanceof Error ? err.message : "Failed to deliver webhook";
       setResponse({
         status: 0,
@@ -280,6 +326,32 @@ export function WebhookTester({
       setIsSending(false);
     }
   }, [endpointUrl, webhookSecret, selectedEvent, notify]);
+
+  // When a background-synced test is replayed, flip its pending log entry to
+  // delivered/failed so the delivery history reflects the actual outcome.
+  useEffect(() => {
+    return watchSyncComplete((message: SyncCompleteMessage) => {
+      if (message.tag !== SYNC_TAGS.webhookTest) return;
+      setDeliveryLog((prev) =>
+        prev.map((entry) =>
+          entry.syncId === message.id
+            ? {
+                ...entry,
+                status: message.ok ? "success" : "failed",
+                statusCode: message.ok ? 200 : 0,
+                resultType: message.ok ? "background sync" : "sync failed",
+                syncId: undefined,
+              }
+            : entry,
+        ),
+      );
+      if (message.ok) {
+        notify.success("Queued webhook test delivered (background sync)");
+      } else {
+        notify.error("Queued webhook test could not be delivered (background sync)");
+      }
+    });
+  }, [notify]);
 
   const handleCopyPayload = useCallback(() => {
     navigator.clipboard.writeText(JSON.stringify(SAMPLE_PAYLOADS[selectedEvent], null, 2));
@@ -490,12 +562,18 @@ export function WebhookTester({
                     </TableCell>
                     <TableCell className="font-medium">{entry.eventType}</TableCell>
                     <TableCell>
-                      <Badge
-                        variant={entry.status === "success" ? "outline" : "destructive"}
-                        className={entry.status === "success" ? "text-success border-success/30" : undefined}
-                      >
-                        {entry.status === "success" ? "Delivered" : "Failed"}
-                      </Badge>
+                      {entry.status === "pending" ? (
+                        <Badge variant="outline" className="text-warning border-warning/40">
+                          Queued (offline)
+                        </Badge>
+                      ) : (
+                        <Badge
+                          variant={entry.status === "success" ? "outline" : "destructive"}
+                          className={entry.status === "success" ? "text-success border-success/30" : undefined}
+                        >
+                          {entry.status === "success" ? "Delivered" : "Failed"}
+                        </Badge>
+                      )}
                     </TableCell>
                     <TableCell className="font-mono text-xs">
                       {entry.statusCode} {entry.resultType && `(${entry.resultType})`}

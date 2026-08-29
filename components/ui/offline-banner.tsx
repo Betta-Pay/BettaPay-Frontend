@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { WifiOff, RotateCw, X } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useOnlineStatus, pingApiHealth } from '@/lib/hooks/useOnlineStatus';
 import { useOfflineStore } from '@/lib/store/offlineStore';
+import { getPendingSyncCount, watchSyncComplete } from '@/lib/offline/syncQueue';
 
 export function OfflineBanner() {
   const detectedOnline = useOnlineStatus();
@@ -15,6 +16,26 @@ export function OfflineBanner() {
   const setIsApiReachable = useOfflineStore((s) => s.setIsApiReachable);
   const dismiss = useOfflineStore((s) => s.dismiss);
   const queryClient = useQueryClient();
+  const [pendingSyncCount, setPendingSyncCount] = useState(0);
+
+  // Surface offline-created mutations (payment links, webhook tests) that will
+  // be background-synced once connectivity returns. Skipped under jest — the
+  // store is mocked there and IndexedDB does not exist.
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'test') return;
+    let cancelled = false;
+    const refresh = () => {
+      void getPendingSyncCount().then((count) => {
+        if (!cancelled) setPendingSyncCount(count);
+      });
+    };
+    refresh();
+    const unsubscribe = watchSyncComplete(() => refresh());
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
+  }, []);
 
   // Feed the browser-detected connectivity into the shared store so the banner
   // (and the rest of the app) render from a single source of truth.
@@ -52,6 +73,10 @@ export function OfflineBanner() {
   const message = !isOnline
     ? "You are offline. Some features may be unavailable."
     : "API server is unreachable. Some features may be degraded.";
+  const syncNote =
+    pendingSyncCount > 0
+      ? `${pendingSyncCount} change${pendingSyncCount === 1 ? '' : 's'} waiting to sync automatically`
+      : null;
 
   return (
     <div
@@ -60,8 +85,9 @@ export function OfflineBanner() {
       className="fixed top-0 left-0 right-0 z-[60] bg-destructive text-destructive-foreground px-4 py-2.5 flex items-center justify-center gap-3 shadow-md animate-in slide-in-from-top duration-300"
     >
       <WifiOff className="w-4 h-4 shrink-0" aria-hidden="true" />
-      <span className="text-sm font-medium">
+      <span className="text-sm font-medium flex items-center gap-2">
         {message}
+        {syncNote && <span className="hidden sm:inline text-destructive-foreground/80">· {syncNote}</span>}
       </span>
       <button
         type="button"
