@@ -57,6 +57,7 @@ export function PaymentLinkPerformance() {
               action={{
                 label: "Create Payment Link",
                 onClick: () => {
+                  window.location.href = "/payments";
                   if (typeof window !== 'undefined') {
                     window.location.href = "/payments";
                   }

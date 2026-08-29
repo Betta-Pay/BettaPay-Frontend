@@ -23,6 +23,7 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui';
 import { trimInput } from '@/lib/utils/sanitize';
 import { useNotify } from '@/lib/hooks/useNotify';
+import { API_URL } from '@/lib/config';
 import { usePayments, type ApiPayment } from '@/lib/api/hooks';
 import { apiClient } from '@/lib/api/axios';
 import Link from 'next/link';
@@ -37,7 +38,7 @@ interface PaymentLinkCardProps {
 }
 
 const PaymentLinkCard = memo(function PaymentLinkCard({ link, onEdit, onDelete, onShowQr }: PaymentLinkCardProps) {
-  const baseUrl = process.env.NEXT_PUBLIC_API_URL ?? '';
+  const baseUrl = API_URL;
   const fullUrl = `${baseUrl}/pay/${link.id}`;
 
   return (
@@ -662,7 +663,7 @@ export default function PaymentsPage() {
           onOpenChange={(open) => {
             if (!open) setSelectedQrLink(null);
           }}
-          value={`${process.env.NEXT_PUBLIC_API_URL ?? ''}/pay/${selectedQrLink.id}`}
+          value={`${API_URL}/pay/${selectedQrLink.id}`}
           title={selectedQrLink.source ?? 'Payment Link'}
           amountUsdc={selectedQrLink.amountUsdc}
         />

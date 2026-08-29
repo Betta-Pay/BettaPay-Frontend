@@ -5,6 +5,8 @@ import { useQuery } from '@tanstack/react-query';
 import axios from 'axios';
 import { useTheme } from 'next-themes';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend } from 'recharts';
+import { ChartFrame } from '@/components/charts/ChartFrame';
+import { ErrorDisplay } from '@/components/shared';
 import { Skeleton } from '@/components/ui';
 import { formatNumber } from '@/lib/utils/format';
 
@@ -18,7 +20,7 @@ export default function PlatformVolumeChart({ height = 300 }: { height?: number 
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === 'dark';
 
-  const { data, isLoading, isError } = useQuery<ChartDataItem[]>({
+  const { data, isLoading, isError, refetch } = useQuery<ChartDataItem[]>({
     queryKey: ['platform-volume'],
     queryFn: async () => {
       const response = await axios.get<ChartDataItem[]>('/api/platform-volume');
@@ -26,20 +28,32 @@ export default function PlatformVolumeChart({ height = 300 }: { height?: number 
     },
   });
 
-  if (isLoading) {
-    return <Skeleton className="h-[300px] w-full rounded-xl" />;
+  if (isError) {
+    return (
+      <div
+        className="w-full flex items-center justify-center"
+        style={{ height, minHeight: height }}
+        role="alert"
+      >
+        <ErrorDisplay
+          message="Failed to load platform volume data."
+          onRetry={() => { void refetch(); }}
+        />
+      </div>
+    );
   }
 
-  if (isError || !data) {
-    return <p className="text-destructive font-medium p-4 text-center">Failed to load platform volume data.</p>;
-  }
+  const series = data ?? [];
+  const isEmpty = !isLoading && series.length === 0;
 
   return (
-    <div
-      role="region"
-      aria-label="Platform volume and fees chart"
-      className="w-full relative"
-      style={{ height }}
+    <ChartFrame
+      ariaLabel="Platform volume and fees chart"
+      height={height}
+      isLoading={isLoading}
+      isEmpty={isEmpty}
+      emptyTitle="No platform volume yet"
+      emptyDescription="Volume and fee totals will appear here once settlements are processed."
     >
       <table className="sr-only" aria-label="Platform volume and fees data table">
         <caption>Platform volume and fee breakdown</caption>
@@ -51,7 +65,7 @@ export default function PlatformVolumeChart({ height = 300 }: { height?: number 
           </tr>
         </thead>
         <tbody>
-          {data.map((row, index) => (
+          {series.map((row, index) => (
             <tr key={index}>
               <td>{row.name}</td>
               <td>${formatNumber(row.volume, undefined, { maximumFractionDigits: 0 })}</td>
@@ -61,8 +75,8 @@ export default function PlatformVolumeChart({ height = 300 }: { height?: number 
         </tbody>
       </table>
 
-      <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={data} accessibilityLayer>
+      <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
+        <BarChart data={series} accessibilityLayer>
           <XAxis
             dataKey="name"
             stroke="var(--muted-foreground)"
@@ -109,7 +123,6 @@ export default function PlatformVolumeChart({ height = 300 }: { height?: number 
           />
         </BarChart>
       </ResponsiveContainer>
-    </div>
+    </ChartFrame>
   );
 }
-

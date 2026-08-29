@@ -1,4 +1,3 @@
-import { getComponents, getIncidents } from '@/lib/status/data';
 import {
   UNKNOWN_TIME_LABEL,
   formatAbsoluteTime,
@@ -103,54 +102,17 @@ describe('stableNow', () => {
   });
 });
 
-describe('status data timestamps', () => {
+describe('relative-time labels advance rather than freeze', () => {
   const now = Date.parse('2026-08-25T12:00:00.000Z');
 
-  it('derives every incident timestamp from the supplied clock', () => {
-    const incidents = getIncidents(now);
+  // The regression this guards: status timestamps used to be fixed strings, so
+  // "50 minutes ago" stayed "50 minutes ago" forever. They are now real ISO
+  // timestamps (from the live health probe) rendered against a ticking clock.
+  it('keeps a fixed timestamp counting up as the clock moves', () => {
+    const probedAt = new Date(now - 50 * MINUTE).toISOString();
 
-    for (const incident of incidents) {
-      expect(Date.parse(incident.createdAt)).not.toBeNaN();
-      expect(Date.parse(incident.createdAt)).toBeLessThanOrEqual(now);
-
-      for (const update of incident.updates) {
-        expect(Date.parse(update.timestamp)).not.toBeNaN();
-        expect(Date.parse(update.timestamp)).toBeLessThanOrEqual(now);
-      }
-    }
-  });
-
-  it('moves every timestamp forward when the clock does', () => {
-    const before = getIncidents(now);
-    const after = getIncidents(now + HOUR);
-
-    for (let i = 0; i < before.length; i += 1) {
-      expect(Date.parse(after[i].createdAt) - Date.parse(before[i].createdAt)).toBe(HOUR);
-    }
-  });
-
-  it('keeps relative labels advancing rather than frozen', () => {
-    const [open] = getIncidents(now);
-    const latest = open.updates[open.updates.length - 1].timestamp;
-
-    expect(formatRelativeTime(latest, now)).toBe('50 minutes ago');
-    expect(formatRelativeTime(latest, now + 10 * MINUTE)).toBe('1 hour ago');
-  });
-
-  it('sets resolvedAt only on incidents that have a resolving update', () => {
-    for (const incident of getIncidents(now)) {
-      const resolving = incident.updates.find((u) => u.status === 'resolved');
-      expect(incident.resolvedAt).toBe(resolving ? resolving.timestamp : null);
-    }
-  });
-
-  it('derives component lastIncident timestamps too', () => {
-    const components = getComponents(now);
-    const withIncident = components.filter((c) => c.lastIncident !== null);
-
-    expect(withIncident.length).toBeGreaterThan(0);
-    for (const component of withIncident) {
-      expect(Date.parse(component.lastIncident as string)).toBeLessThanOrEqual(now);
-    }
+    expect(formatRelativeTime(probedAt, now)).toBe('50 minutes ago');
+    expect(formatRelativeTime(probedAt, now + 10 * MINUTE)).toBe('1 hour ago');
+    expect(formatRelativeTime(probedAt, now + 24 * HOUR)).toBe('1 day ago');
   });
 });

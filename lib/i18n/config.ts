@@ -59,6 +59,16 @@ i18n
     // rendered as a blank string; the dev coverage panel surfaces these.
     parseMissingKeyHandler: (key: string) => key,
 
+    // Log missing keys in development so locale drift is visible during work,
+    // not just in the CI parity check (issue #493). `npm run i18n:check`
+    // remains the hard gate.
+    saveMissing: process.env.NODE_ENV === "development",
+    missingKeyHandler: (lngs: readonly string[], _ns: string, key: string) => {
+      if (process.env.NODE_ENV === "development") {
+        console.warn(`[i18n] missing key "${key}" for locale(s) ${lngs.join(", ")}`);
+      }
+    },
+
     // React-specific: skip suspending on initial load
     react: {
       useSuspense: false,

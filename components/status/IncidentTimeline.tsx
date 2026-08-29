@@ -7,6 +7,7 @@ import {
   Search,
   Activity,
   Clock,
+  type LucideIcon,
 } from "lucide-react";
 import type { Incident } from "@/lib/status/data";
 import { getComponentName } from "@/lib/status/data";
@@ -21,7 +22,7 @@ interface IncidentTimelineProps {
 
 const statusBadge: Record<
   Incident["status"],
-  { icon: React.ElementType; tone: StatusTone; label: string }
+  { icon: LucideIcon; tone: StatusTone; label: string }
 > = {
   investigating: { icon: Search, tone: "warn", label: "Investigating" },
   identified: { icon: AlertTriangle, tone: "info", label: "Identified" },
