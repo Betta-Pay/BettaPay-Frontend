@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
-import { Menu, LogOut, Settings, KeyRound, Moon, Sun, Monitor, Repeat, Search } from "lucide-react";
+import { useState, useCallback } from "react";
+import { Menu, LogOut, Settings, KeyRound, Repeat, Search } from "lucide-react";
 import { openCommandPalette } from "@/lib/command/open";
-import { useTheme } from "next-themes";
 import { Button } from "@/components/ui";
+import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui";
 import {
   DropdownMenu,
@@ -32,26 +32,12 @@ export const Topbar = ({ onMenuClick, isMenuOpen, title, unreadNotificationCount
   const { user, logout } = useAuthStore();
   const notify = useNotify();
   const router = useRouter();
-  const { theme, setTheme, resolvedTheme } = useTheme();
-  const [isMounted, setIsMounted] = useState(false);
 
   const handleLogout = useCallback(() => {
     logout();
     notify.success("Logged out successfully");
     router.push("/auth/login");
   }, [logout, notify, router]);
-
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
-
-  const isDark = isMounted && resolvedTheme === "dark";
-
-  const themeIcon = !isMounted ? null : theme === "system"
-    ? <Monitor className="h-4.5 w-4.5" />
-    : isDark
-      ? <Sun className="h-4.5 w-4.5" />
-      : <Moon className="h-4.5 w-4.5" />;
 
   const initials = user?.name
     ? user.name
@@ -142,31 +128,7 @@ export const Topbar = ({ onMenuClick, isMenuOpen, title, unreadNotificationCount
         {/* Notifications */}
         <NotificationCenter unreadNotificationCount={unreadNotificationCount} />
 
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={
-              <Button
-                variant="ghost"
-                size="icon"
-                aria-label="Select theme"
-                className="text-muted-foreground hover:text-foreground hover:bg-muted rounded-xl min-h-[44px] min-w-[44px]"
-              >
-                {themeIcon}
-              </Button>
-            }
-          />
-          <DropdownMenuContent align="end" className="rounded-xl border-border">
-            <DropdownMenuItem onClick={() => setTheme("light")} className="cursor-pointer rounded-lg">
-              <Sun className="mr-2 h-4 w-4" /> Light
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setTheme("dark")} className="cursor-pointer rounded-lg">
-              <Moon className="mr-2 h-4 w-4" /> Dark
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setTheme("system")} className="cursor-pointer rounded-lg">
-              <Monitor className="mr-2 h-4 w-4" /> System
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <ThemeToggle />
 
         {/* User menu */}
         <DropdownMenu open={isDropdownOpen} onOpenChange={setIsDropdownOpen}>
