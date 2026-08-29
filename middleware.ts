@@ -94,7 +94,10 @@ export const config = {
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
+     * - sw.js / manifest.webmanifest / icons / logo.png (PWA static assets —
+     *   must never be redirected so the service worker can install and the
+     *   install prompt can resolve its manifest)
      */
-    '/((?!api|_next/static|_next/image|favicon.ico).*)',
+    '/((?!api|_next/static|_next/image|favicon.ico|sw.js|manifest.webmanifest|icons|logo.png).*)',
   ],
 };

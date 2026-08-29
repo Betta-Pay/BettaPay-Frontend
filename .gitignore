@@ -22,6 +22,9 @@ fix.md
 # production
 /build
 
+# generated service worker (rebuilt by `npm run build` with the current env)
+/public/sw.js
+
 # misc
 .DS_Store
 *.pem

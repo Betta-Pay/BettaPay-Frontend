@@ -1,4 +1,5 @@
 export * from './offline-banner';
+export * from './service-worker-registration';
 export * from './card';
 export * from './popover';
 export * from './network-tooltip';

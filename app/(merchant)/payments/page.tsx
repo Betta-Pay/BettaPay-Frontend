@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, memo, useMemo, useEffect } from 'react';
+import { useState, memo, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useForm, type Resolver } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { editPaymentLinkSchema, type EditPaymentLinkFormValues } from '@/lib/utils/validation';
@@ -10,7 +10,7 @@ import { PageHeader } from '@/components/shared/PageHeader';
 import { QRCodeModal } from '@/components/payments/QRCode';
 import { CurrencySelector } from '@/components/payments/CurrencySelector';
 import { CardGridSkeleton } from '@/components/skeletons/CardGridSkeleton';
-import { Plus, QrCode, Link2, Search, Edit3, Trash2 } from 'lucide-react';
+import { Plus, QrCode, Link2, Search, Edit3, Trash2, CloudOff } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -24,7 +24,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { trimInput } from '@/lib/utils/sanitize';
 import { useNotify } from '@/lib/hooks/useNotify';
 import { usePayments, type ApiPayment } from '@/lib/api/hooks';
-import { apiClient } from '@/lib/api/axios';
+import { apiClient, getApiBaseUrl } from '@/lib/api/axios';
+import { getCsrfTokenFromCookie, CSRF_HEADER_NAME } from '@/lib/utils/csrf';
+import { useOfflineStore } from '@/lib/store/offlineStore';
+import { enqueueSyncRequest, getPendingSyncCount, watchSyncComplete, SYNC_TAGS } from '@/lib/offline/syncQueue';
 import Link from 'next/link';
 
 type PaymentLink = ApiPayment;
@@ -119,6 +122,8 @@ export default function PaymentsPage() {
   const [selectedQrLink, setSelectedQrLink] = useState<PaymentLink | null>(null);
   const [linksError, setLinksError] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+  // Links created while offline and waiting for background sync to replay.
+  const [pendingOfflineCount, setPendingOfflineCount] = useState(0);
 
   // Form states
   const [labelValue, setLabelValue] = useState('');
@@ -211,6 +216,31 @@ export default function PaymentsPage() {
       resetForm();
       refetch();
     } catch (err: unknown) {
+      const { isOnline, isApiReachable } = useOfflineStore.getState();
+      if (!isOnline || !isApiReachable) {
+        // Offline / API unreachable: queue the creation for background sync
+        // instead of failing. The service worker replays it when connectivity
+        // returns and we refetch on SYNC_COMPLETE.
+        const csrf = getCsrfTokenFromCookie();
+        const headers: Array<[string, string]> = [['Content-Type', 'application/json']];
+        if (csrf) headers.push([CSRF_HEADER_NAME, csrf]);
+        try {
+          await enqueueSyncRequest({
+            tag: SYNC_TAGS.paymentLink,
+            url: `${getApiBaseUrl()}/api/payment-links`,
+            method: 'POST',
+            headers,
+            body: JSON.stringify(payload),
+          });
+          await refreshPendingCount();
+          notifySuccess("Payment link saved offline — it will sync automatically when you're back online.");
+          setIsCreateOpen(false);
+          resetForm();
+          return;
+        } catch {
+          // Fall through to the generic error below if queueing itself fails.
+        }
+      }
       const message =
         (err as { response?: { data?: { error?: string } } })?.response?.data?.error ??
         'Failed to create payment link';
@@ -219,6 +249,26 @@ export default function PaymentsPage() {
       setIsCreating(false);
     }
   };
+
+  // Track how many offline-created links are waiting to sync, and refetch the
+  // list whenever the service worker reports one has been replayed.
+  const refreshPendingCount = useCallback(async () => {
+    const count = await getPendingSyncCount(SYNC_TAGS.paymentLink);
+    setPendingOfflineCount(count);
+  }, []);
+
+  const refetchRef = useRef(refetch);
+  refetchRef.current = refetch;
+
+  useEffect(() => {
+    void refreshPendingCount();
+    return watchSyncComplete((message) => {
+      if (message.tag === SYNC_TAGS.paymentLink) {
+        void refreshPendingCount();
+        refetchRef.current();
+      }
+    });
+  }, [refreshPendingCount]);
 
   const { register: registerEdit, handleSubmit: handleEditSubmitForm, reset: resetEditForm, formState: { errors: editErrors } } = useForm<EditPaymentLinkFormValues>({
     // The schema marks `currency` with a default, so its input type makes it
@@ -270,6 +320,12 @@ export default function PaymentsPage() {
         description="Create and manage links to accept crypto payments."
         actions={
           <>
+          {pendingOfflineCount > 0 && (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-warning/40 bg-warning/10 px-3 py-1.5 text-xs font-medium text-warning" role="status">
+              <CloudOff className="w-3.5 h-3.5" aria-hidden="true" />
+              {pendingOfflineCount} offline link{pendingOfflineCount === 1 ? '' : 's'} waiting to sync
+            </span>
+          )}
           <ExportMenu
             filename="payment-links"
             headers={['Title', 'Reference', 'URL', 'AmountUSDC', 'Status', 'CreatedAt']}
