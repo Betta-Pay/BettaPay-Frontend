@@ -14,6 +14,7 @@ import { StepBusinessInfo } from "@/components/onboarding/StepBusinessInfo";
 import { StepCurrency } from "@/components/onboarding/StepCurrency";
 import { StepSettlement } from "@/components/onboarding/StepSettlement";
 import { StepWebhook } from "@/components/onboarding/StepWebhook";
+import { StepKyc } from "@/components/onboarding/StepKyc";
 import { StepReview } from "@/components/onboarding/StepReview";
 import { accountNumberSchema, bankCodeSchema } from "@/lib/utils/onboardingSchemas";
 import { setOnboardingCompleted } from "@/lib/auth/session";
@@ -55,7 +56,10 @@ type SavedProgress = {
   savedAt: number;
 };
 
-const steps = ["Business info", "Currency", "Settlement", "Webhook", "Review"];
+const steps = ["Business info", "Currency", "Settlement", "Webhook", "Verification", "Review"];
+
+/** Index of the review step — the revalidation gate keys off this. */
+const REVIEW_STEP = steps.length - 1;
 
 /**
  * Safely read persisted onboarding progress from localStorage.
@@ -218,7 +222,7 @@ export default function OnboardingPage() {
   }, [data.settlementCurrency, data.preferredAnchor]);
 
   useEffect(() => {
-    if (step === 4) {
+    if (step === REVIEW_STEP) {
       void revalidateData();
     } else {
       setRevalidated(false);
@@ -343,7 +347,8 @@ export default function OnboardingPage() {
           {step === 1 && <StepCurrency data={data} errors={errors} onChange={updateData} />}
           {step === 2 && <StepSettlement data={data} errors={errors} onChange={updateData} />}
           {step === 3 && <StepWebhook data={data} errors={errors} onChange={updateData} />}
-          {step === 4 && (
+          {step === 4 && <StepKyc merchantId={user?.id} />}
+          {step === REVIEW_STEP && (
             <StepReview
               data={data}
               onEdit={advanceStep}
