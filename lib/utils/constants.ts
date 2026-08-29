@@ -88,8 +88,12 @@ export const MULTI_CURRENCY_ASSETS: Record<string, CurrencyConfig> = {
   },
 };
 
-export const MOCK_RATES: Record<string, number> = {
-  USDC: 1.0,
-  XLM: 0.12,
-  USDT: 0.999,
-};
+export const USE_MOCK_RATE_DATA = process.env.NEXT_PUBLIC_USE_MOCK === '1';
+
+export const MOCK_RATES: Record<string, number> = USE_MOCK_RATE_DATA
+  ? {
+      USDC: 1.0,
+      XLM: 0.12,
+      USDT: 0.999,
+    }
+  : {};

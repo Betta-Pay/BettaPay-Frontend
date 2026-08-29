@@ -315,6 +315,7 @@ export function useRates(): UseRatesResult {
   return {
     data: rates,
     isLoading: query.isLoading,
+    isFetching: query.isFetching && !query.isLoading,
     error: query.isError ? getErrorMessage(query.error) : null,
     refetch: () => {
       void query.refetch();
@@ -348,6 +349,7 @@ export function useMerchantBankAccount(
   return {
     data: query.data ?? null,
     isLoading,
+    isFetching: query.isFetching && !query.isLoading,
     error: query.isError ? getErrorMessage(query.error) : null,
     refetch: () => {
       void query.refetch();
@@ -382,6 +384,7 @@ export function useMerchantProfile(
   return {
     data: query.data ?? null,
     isLoading,
+    isFetching: query.isFetching && !query.isLoading,
     error: query.isError ? getErrorMessage(query.error) : null,
     refetch: () => {
       void query.refetch();
