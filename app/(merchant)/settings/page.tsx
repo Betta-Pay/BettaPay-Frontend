@@ -6,8 +6,11 @@ import { Button } from '@/components/ui';
 import { Input } from '@/components/ui';
 import { Label } from '@/components/ui';
 import { Toggle } from '@/components/ui';
-import { Settings, User, Bell, Shield, LogOut, Key, Globe, Percent, Plus, Trash2, RefreshCcw, Eye, EyeOff } from 'lucide-react';
+import { Settings, User, Bell, Shield, LogOut, Key, Globe, Percent, Plus, Trash2, RefreshCcw, Eye, EyeOff, ShieldCheck, Lock } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui';
 import { useAuthStore } from '@/lib/store/authStore';
+import { KybDocumentsPanel } from '@/components/kyc/KybDocumentsPanel';
+import { isSettlementConfigUnlocked } from '@/lib/kyc/status';
 import { useRouter } from 'next/navigation';
 import { useNotify } from '@/lib/hooks/useNotify';
 import { cn } from '@/lib/utils';
@@ -20,6 +23,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 
 const tabs = [
   { id: 'profile', label: 'Profile', icon: User },
+  { id: 'kyb', label: 'Verification', icon: ShieldCheck },
   { id: 'fees', label: 'Fee Rules', icon: Percent },
   { id: 'webhooks', label: 'Webhooks', icon: Globe },
   { id: 'api-keys', label: 'API Keys', icon: Key },
@@ -39,6 +43,10 @@ export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState('profile');
   const { user, logout } = useAuthStore();
   const notify = useNotify();
+
+  // Settlement rule configuration (the fee-rules editor) is gated until the
+  // merchant's KYB verification has at least been submitted (issue #458).
+  const settlementConfigUnlocked = isSettlementConfigUnlocked(user?.kybStatus);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const {
@@ -326,7 +334,41 @@ export default function SettingsPage() {
             />
           )}
 
-          {activeTab === 'fees' && (
+          {activeTab === 'kyb' && (
+            <KybDocumentsPanel
+              merchantId={user?.id ?? ''}
+              variant="settings"
+              allowSimulatedReview
+            />
+          )}
+
+          {activeTab === 'fees' && !settlementConfigUnlocked && (
+            <Card className="border border-border bg-card shadow-sm">
+              <CardHeader>
+                <CardTitle className="text-base font-semibold text-foreground">Fee Rules Editor</CardTitle>
+                <CardDescription>Configure auto-deducted processing fee rules and settlement thresholds</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Alert variant="warning">
+                  <Lock aria-hidden="true" />
+                  <AlertTitle>Verify your business to configure settlement rules</AlertTitle>
+                  <AlertDescription>
+                    Settlement rule configuration unlocks once your KYB verification
+                    has been submitted for review.{' '}
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('kyb')}
+                      className="font-semibold underline underline-offset-2"
+                    >
+                      Go to Verification
+                    </button>
+                  </AlertDescription>
+                </Alert>
+              </CardContent>
+            </Card>
+          )}
+
+          {activeTab === 'fees' && settlementConfigUnlocked && (
             <Card className="border border-border bg-card shadow-sm">
               <CardHeader>
                 <CardTitle className="text-base font-semibold text-foreground">Fee Rules Editor</CardTitle>

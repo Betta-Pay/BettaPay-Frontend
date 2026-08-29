@@ -94,7 +94,10 @@ export function useUploadKybDocument(merchantId: string | undefined) {
         `/api/merchants/${merchantId}/kyb/documents`,
         form,
         {
-          headers: { 'Content-Type': 'multipart/form-data' },
+          // Let the browser set `multipart/form-data` with its boundary — the
+          // shared client defaults to `application/json`, which would break the
+          // multipart parse if it stuck.
+          headers: { 'Content-Type': undefined },
           onUploadProgress: (event: AxiosProgressEvent) => {
             if (!event.total) return;
             setProgress(Math.min(100, Math.round((event.loaded / event.total) * 100)));

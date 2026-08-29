@@ -6,7 +6,7 @@
  * shows the reviewer's reason and a re-upload control. (Issue #458.)
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import Image from 'next/image';
 import { Button } from '@/components/ui';
 import { Progress } from '@/components/ui';
@@ -47,13 +47,6 @@ export function KybDocumentRow({
 
   const { upload, isUploading, progress, error } = useUploadKybDocument(merchantId);
 
-  // Revoke the object URL when the preview changes or the row unmounts.
-  useEffect(() => {
-    return () => {
-      if (previewUrl) URL.revokeObjectURL(previewUrl);
-    };
-  }, [previewUrl]);
-
   function pick() {
     setRejection(null);
     inputRef.current?.click();
@@ -72,9 +65,15 @@ export function KybDocumentRow({
     }
     setRejection(null);
 
-    if (previewUrl) URL.revokeObjectURL(previewUrl);
-    setPreviewUrl(isImageMime(file.type) ? URL.createObjectURL(file) : null);
+    // Render a thumbnail as a data URL — the production CSP allows `img-src
+    // data:` but not `blob:`, so `URL.createObjectURL` previews would break.
+    setPreviewUrl(null);
     setPreviewName(file.name);
+    if (isImageMime(file.type)) {
+      const reader = new FileReader();
+      reader.onload = () => setPreviewUrl(typeof reader.result === 'string' ? reader.result : null);
+      reader.readAsDataURL(file);
+    }
 
     try {
       await upload({ type: meta.type, file, simulateReject });
