@@ -1,51 +1,46 @@
 /**
  * Landing page feature definitions.
  *
- * Marketing team members can add, remove, or reorder features here
- * without touching React code. Each entry maps to an i18n key under
- * `landing.features.<key>` for the title and description.
+ * Each entry maps to an i18n key under `landing.features.<key>` for the title
+ * and description, and carries the Lucide icon component to render.
  *
- * Supported icon names correspond to exports from the `lucide-react`
- * package. See https://lucide.dev/icons for the full catalogue.
+ * To add a feature: add a named import from `lucide-react` below and a new
+ * entry to `landingFeatures`. Importing the icon by name (rather than looking
+ * it up from the whole `lucide-react` namespace at runtime) keeps the public
+ * landing bundle from shipping the entire icon set.
  */
 
+import type { LucideIcon } from 'lucide-react';
+import { Zap, Globe, Coins } from 'lucide-react';
+
 export type LandingFeature = {
-  /** Lucide icon name (must match a named export from `lucide-react`). */
-  iconName: string;
+  /** Lucide icon component rendered in the feature card. */
+  icon: LucideIcon;
   /** i18n key suffix used under `landing.features.<key>.title` / `.description`. */
   titleKey: string;
   /** i18n key suffix used under `landing.features.<key>.description`. */
   descriptionKey: string;
-  /** Optional link target (e.g. "/docs/settlement"). */
+  /** Optional link target (e.g. "/docs"). */
   link?: string;
 };
 
-/**
- * Ordered list of features shown in the landing page features section.
- *
- * To add a new feature:
- * 1. Add a new entry to this array with a unique `titleKey`.
- * 2. Add the corresponding `landing.features.<titleKey>.title` and
- *    `landing.features.<titleKey>.description` entries to each
- *    locale file under `lib/i18n/`.
- * 3. The landing page will pick it up automatically.
- */
+/** Ordered list of features shown in the landing page features section. */
 export const landingFeatures: LandingFeature[] = [
   {
-    iconName: "Zap",
-    titleKey: "settlement",
-    descriptionKey: "settlement",
-    link: "/docs",
+    icon: Zap,
+    titleKey: 'settlement',
+    descriptionKey: 'settlement',
+    link: '/docs',
   },
   {
-    iconName: "Globe",
-    titleKey: "offRamps",
-    descriptionKey: "offRamps",
-    link: "/fiat-settlements",
+    icon: Globe,
+    titleKey: 'offRamps',
+    descriptionKey: 'offRamps',
+    link: '/fiat-settlements',
   },
   {
-    iconName: "Coins",
-    titleKey: "fees",
-    descriptionKey: "fees",
+    icon: Coins,
+    titleKey: 'fees',
+    descriptionKey: 'fees',
   },
 ];
