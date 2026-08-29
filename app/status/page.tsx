@@ -3,8 +3,9 @@
 import { useMemo } from "react";
 import { RefreshCw, AlertTriangle } from "lucide-react";
 
-import { Header, Footer } from "@/components/layout";
-import { Skeleton } from "@/components/ui";
+import Header from "@/components/layout/Header";
+import Footer from "@/components/layout/Footer";
+import { Skeleton } from "@/components/ui/skeleton";
 import { OverallBanner } from "@/components/status/OverallBanner";
 import { ComponentStatusGrid } from "@/components/status/ComponentStatus";
 import { IncidentTimeline } from "@/components/status/IncidentTimeline";
