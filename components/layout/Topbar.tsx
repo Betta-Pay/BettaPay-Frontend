@@ -55,12 +55,15 @@ export const Topbar = ({ onMenuClick, isMenuOpen, title, unreadNotificationCount
 
   const initials = user?.name
     ? user.name
-        .split(" ")
+        .split(/\s+/)
+        .filter(Boolean)
         .map((n) => n[0])
         .join("")
         .toUpperCase()
         .slice(0, 2)
-    : "MC";
+    : "U";
+
+  const avatarSrc = user?.avatarUrl?.trim() || undefined;
 
   const walletNetwork = useWalletStore((s) => s.network);
   const isConnected = useWalletStore((s) => s.isConnected);
@@ -179,10 +182,9 @@ export const Topbar = ({ onMenuClick, isMenuOpen, title, unreadNotificationCount
                 aria-label="User menu"
               >
                 <Avatar className="h-8 w-8 border border-border">
-                  <AvatarImage
-                    src="/avatars/01.png"
-                    alt={user?.name ?? "User"}
-                  />
+                  {avatarSrc ? (
+                    <AvatarImage src={avatarSrc} alt={user?.name ?? "User"} />
+                  ) : null}
                   <AvatarFallback className="bg-primary text-primary-foreground text-xs font-bold">
                     {initials}
                   </AvatarFallback>

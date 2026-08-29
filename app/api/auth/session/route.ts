@@ -187,6 +187,7 @@ export async function GET(req: NextRequest) {
       email: role === 'admin' ? 'admin@bettapay.com' : 'merchant@bettapay.com',
       name: role === 'admin' ? 'System Admin' : 'Merchant User',
       role: role || 'merchant',
+      avatarUrl: null,
     },
     token,
     expiresAt: Date.now() + 1800 * 1000,

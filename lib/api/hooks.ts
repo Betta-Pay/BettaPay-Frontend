@@ -377,6 +377,7 @@ export function useMerchantBankAccount(
   return {
     data: query.data ?? null,
     isLoading,
+    isFetching: query.isFetching && !query.isLoading,
     isFetching: query.isFetching,
     isFetching: query.isFetching && !isLoading,
     error: query.isError ? getErrorMessage(query.error) : null,
@@ -413,6 +414,7 @@ export function useMerchantProfile(
   return {
     data: query.data ?? null,
     isLoading,
+    isFetching: query.isFetching && !query.isLoading,
     isFetching: query.isFetching,
     isFetching: query.isFetching && !isLoading,
     error: query.isError ? getErrorMessage(query.error) : null,
