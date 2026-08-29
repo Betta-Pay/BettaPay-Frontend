@@ -1,8 +1,9 @@
 "use client";
 
+import { CheckCircle2, AlertTriangle, XCircle, HelpCircle } from "lucide-react";
 import { CheckCircle2, AlertTriangle, XCircle, type LucideIcon } from "lucide-react";
 import type { ComponentStatusLevel, StatusComponent } from "@/lib/status/data";
-import { formatLastIncident } from "@/lib/status/time";
+import { formatRelativeTime } from "@/lib/status/time";
 import { STATUS_TONE_BADGE, STATUS_TONE_DOT, type StatusTone } from "@/lib/status/palette";
 import { useNow } from "@/lib/hooks/useNow";
 import { cn } from "@/lib/utils";
@@ -18,16 +19,23 @@ const levelConfig: Record<
   operational: { icon: CheckCircle2, tone: "ok", label: "Operational" },
   degraded: { icon: AlertTriangle, tone: "warn", label: "Degraded" },
   down: { icon: XCircle, tone: "down", label: "Down" },
+  unknown: { icon: HelpCircle, tone: "neutral", label: "Unknown" },
 };
 
+function formatLatency(ms: number | null): string {
+  if (ms == null) return "—";
+  if (ms < 1000) return `${ms}ms`;
+  return `${(ms / 1000).toFixed(1)}s`;
+}
+
 export function ComponentStatusGrid({ components }: ComponentStatusProps) {
-  // Drives the "last incident" labels so they age with the page.
+  // Drives the "last checked" labels so they age with the page.
   const now = useNow();
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
       {components.map((component) => {
-        const config = levelConfig[component.status];
+        const config = levelConfig[component.status] ?? levelConfig.unknown;
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const Icon = config.icon as any;
 
@@ -51,15 +59,24 @@ export function ComponentStatusGrid({ components }: ComponentStatusProps) {
               </span>
             </div>
 
+            {component.status !== "operational" && component.errorMessage && (
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                {component.errorMessage}
+              </p>
+            )}
+
             <div className="flex items-center justify-between text-xs text-muted-foreground">
               <span>
-                Uptime:{" "}
+                Latency:{" "}
                 <span className="font-semibold text-foreground">
-                  {component.uptimePercent}%
+                  {formatLatency(component.latencyMs)}
                 </span>
               </span>
               <span>
-                Last incident: {formatLastIncident(component.lastIncident, now)}
+                Checked:{" "}
+                {component.checkedAt
+                  ? formatRelativeTime(component.checkedAt, now)
+                  : "never"}
               </span>
             </div>
           </div>
@@ -71,4 +88,4 @@ export function ComponentStatusGrid({ components }: ComponentStatusProps) {
 
 /** Exported for reuse by any surface that needs the same dot colour. */
 export const statusDotClass = (level: ComponentStatusLevel): string =>
-  STATUS_TONE_DOT[levelConfig[level].tone];
+  STATUS_TONE_DOT[(levelConfig[level] ?? levelConfig.unknown).tone];

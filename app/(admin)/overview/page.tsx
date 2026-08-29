@@ -43,7 +43,7 @@ function StatCardSkeleton() {
 }
 
 export default function AdminOverviewPage() {
-  const { data: stats, isLoading, error, refetch } = useAdminStats();
+  const { data: stats, isLoading, error, refetch, isSampleData } = useAdminStats();
 
   return (
     <div className="space-y-6">
@@ -54,57 +54,73 @@ export default function AdminOverviewPage() {
         </p>
       </div>
 
-      {error && (
+      {isSampleData && (
+        <div
+          role="status"
+          className="flex items-start gap-2 rounded-lg border border-warning/40 bg-warning/10 px-4 py-3 text-sm text-warning"
+        >
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+          <span>
+            <span className="font-semibold">Sample data.</span> The admin
+            analytics service is unavailable, so the figures below are
+            illustrative placeholders — not real platform metrics.
+          </span>
+        </div>
+      )}
+
+      {error && !isSampleData && (
         <ErrorDisplay
-          message={`${error} Showing the last known figures.`}
+          message={`${error} Platform metrics are unavailable.`}
           onRetry={refetch}
         />
       )}
 
-      <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
-        {isLoading ? (
-          Array.from({ length: 4 }, (_, i) => <StatCardSkeleton key={i} />)
-        ) : (
-          <>
-            <StatCard
-              title="Total Processed (30d)"
-              icon={Activity}
-              color="primary"
-              value={<CurrencyDisplay amount={stats.totalProcessed} />}
-              trend={{
-                icon: ArrowUpRight,
-                label: `+${stats.totalProcessedChangePct}% from last month`,
-                color: 'text-success',
-              }}
-            />
-            <StatCard
-              title="Platform Fees Generated"
-              icon={DollarSign}
-              color="emerald"
-              value={<CurrencyDisplay amount={stats.platformFees} />}
-              trend={{ label: `${stats.feeRatePct.toFixed(1)}% flat fee across volume` }}
-            />
-            <StatCard
-              title="Active Merchants"
-              icon={Users}
-              color="blue"
-              value={stats.activeMerchants.toLocaleString()}
-              trend={{
-                icon: ArrowUpRight,
-                label: `+${stats.newMerchantsThisWeek} new this week`,
-                color: 'text-success',
-              }}
-            />
-            <StatCard
-              title="Pending KYB Reviews"
-              icon={AlertTriangle}
-              value={stats.pendingKyb.toLocaleString()}
-              variant="destructive"
-              trend={{ label: 'Requires immediate action' }}
-            />
-          </>
-        )}
-      </div>
+      {isLoading ? (
+        <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
+          {Array.from({ length: 4 }, (_, i) => (
+            <StatCardSkeleton key={i} />
+          ))}
+        </div>
+      ) : stats ? (
+        <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
+          <StatCard
+            title="Total Processed (30d)"
+            icon={Activity}
+            color="primary"
+            value={<CurrencyDisplay amount={stats.totalProcessed} />}
+            trend={{
+              icon: ArrowUpRight,
+              label: `+${stats.totalProcessedChangePct}% from last month`,
+              color: 'text-success',
+            }}
+          />
+          <StatCard
+            title="Platform Fees Generated"
+            icon={DollarSign}
+            color="emerald"
+            value={<CurrencyDisplay amount={stats.platformFees} />}
+            trend={{ label: `${stats.feeRatePct.toFixed(1)}% flat fee across volume` }}
+          />
+          <StatCard
+            title="Active Merchants"
+            icon={Users}
+            color="blue"
+            value={stats.activeMerchants.toLocaleString()}
+            trend={{
+              icon: ArrowUpRight,
+              label: `+${stats.newMerchantsThisWeek} new this week`,
+              color: 'text-success',
+            }}
+          />
+          <StatCard
+            title="Pending KYB Reviews"
+            icon={AlertTriangle}
+            value={stats.pendingKyb.toLocaleString()}
+            variant="destructive"
+            trend={{ label: 'Requires immediate action' }}
+          />
+        </div>
+      ) : null}
 
       <div className="grid gap-4 md:grid-cols-7">
         <AdminChartSection />

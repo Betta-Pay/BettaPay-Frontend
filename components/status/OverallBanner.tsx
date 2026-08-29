@@ -1,5 +1,6 @@
 "use client";
 
+import { CheckCircle2, AlertTriangle, XCircle, HelpCircle } from "lucide-react";
 import { CheckCircle2, AlertTriangle, XCircle, type LucideIcon } from "lucide-react";
 import type { ComponentStatusLevel } from "@/lib/status/data";
 import { STATUS_TONE_BADGE, STATUS_TONE_DOT, STATUS_TONE_TEXT, type StatusTone } from "@/lib/status/palette";
@@ -18,11 +19,13 @@ const statusConfig: Record<
   operational: { icon: CheckCircle2, tone: "ok" },
   degraded: { icon: AlertTriangle, tone: "warn" },
   down: { icon: XCircle, tone: "down" },
+  unknown: { icon: HelpCircle, tone: "neutral" },
 };
 
 export function OverallBanner({ status, label }: OverallBannerProps) {
   const now = useNow();
-  const config = statusConfig[status];
+  const config = statusConfig[status] ?? statusConfig.unknown;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const Icon = config.icon as any;
 
   return (
