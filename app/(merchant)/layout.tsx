@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState, useEffect } from "react";
+import { useCallback, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { AlertTriangle } from "lucide-react";
 import { MerchantSidebar, MobileNavDrawer, Topbar, MobileBottomNav } from "@/components/layout";
@@ -49,17 +49,22 @@ export default function MerchantLayout({
     }
   }, [logout, router, extendSession]);
 
-  // Prefetch only the two most likely next destinations on mount.
-  // All other routes are prefetched lazily on hover/focus via Next.js Link
-  // components, so no eager bundle downloads on initial load.
-  useEffect(() => {
-    try {
-      router.prefetch("/dashboard");
-      router.prefetch("/payments");
-    } catch {
-      // Prefetch may throw during SSR or in edge environments
-    }
-  }, [router]);
+  const userFooterNode = useMemo(() => (
+    <div className="flex items-center gap-3 px-2 py-2">
+      <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-xs font-bold text-primary-foreground flex-shrink-0">
+        MC
+      </div>
+      <div className="flex flex-col min-w-0">
+        <span className="text-sm font-semibold text-foreground truncate">
+          Merchant Corp
+        </span>
+        <span className="text-xs text-success flex items-center gap-1 font-medium">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block text-emerald-500" />
+          Verified
+        </span>
+      </div>
+    </div>
+  ), []);
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
@@ -69,22 +74,7 @@ export default function MerchantLayout({
         isOpen={mobileMenuOpen}
         onClose={closeMobileMenu}
         navItems={merchantNavItems}
-        userFooter={
-          <div className="flex items-center gap-3 px-2 py-2">
-            <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-xs font-bold text-primary-foreground flex-shrink-0">
-              MC
-            </div>
-            <div className="flex flex-col min-w-0">
-              <span className="text-sm font-semibold text-foreground truncate">
-                Merchant Corp
-              </span>
-              <span className="text-xs text-success flex items-center gap-1 font-medium">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block text-emerald-500"></span>
-                Verified
-              </span>
-            </div>
-          </div>
-        }
+        userFooter={userFooterNode}
       />
 
       <MobileBottomNav onMoreClick={() => setMobileMenuOpen(true)} />
@@ -126,3 +116,4 @@ export default function MerchantLayout({
     </div>
   );
 }
+

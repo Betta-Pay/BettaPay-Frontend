@@ -40,7 +40,7 @@ type Period = typeof PERIOD_OPTIONS[number];
 export default function DashboardPage() {
   const { user } = useAuthStore();
   const notify = useNotify();
-  const { data: payments } = usePayments();
+  const { data: payments, isLoading: paymentsLoading } = usePayments();
 
 
   const [activePeriod, setActivePeriod] = useState<Period>('7D');
@@ -223,7 +223,7 @@ export default function DashboardPage() {
                 />
               </div>
             ) : (
-              <RevenueChart height={260} data={chartData} />
+              <RevenueChart height={260} data={chartData} isLoading={paymentsLoading} />
             )}
             {/* Summary row - all values derived from chartData (peak, avg) */}
             <div className="flex items-center gap-6 pt-4 border-t border-border mt-2">

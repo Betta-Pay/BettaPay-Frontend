@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui";
 import { useWalletStore } from "@/lib/store/walletStore";
+import { useOnboardingStatus } from "@/lib/hooks/useOnboardingStatus";
 import {
   Wallet,
   Link2,
@@ -14,12 +15,13 @@ import {
   ArrowRight,
   X,
   ChevronRight,
+  type LucideIcon,
 } from "lucide-react";
 
 interface Step {
   title: string;
   description: string;
-  icon: React.ElementType;
+  icon: LucideIcon;
   cta: {
     label: string;
     href?: string;
@@ -70,22 +72,45 @@ const STEPS: Step[] = [
   },
 ];
 
+import { isOnboardingCompleted, setOnboardingCompleted } from "@/lib/auth/session";
+
 export const OnboardingWizard = () => {
   const [currentStep, setCurrentStep] = useState(0);
-  const [visible, setVisible] = useState(false);
   const { isConnected } = useWalletStore();
+  // Issue #495: gate on the shared onboarding flag (merchant_onboarded
+  // cookie + mirror) — the same one the /onboarding page and the middleware
+  // use — so finishing either surface hides this wizard on every page.
+  const { isOnboarded, hydrated, markComplete } = useOnboardingStatus();
+
+  const dismiss = useCallback(() => {
+    markComplete();
+  }, [markComplete]);
+
+  const visible = hydrated && !isOnboarded;
 
   useEffect(() => {
-    const completed = localStorage.getItem("onboardingCompleted");
-    if (completed === "true") {
-      setVisible(false);
-    } else {
-      setVisible(true);
-    }
+    const checkStatus = () => {
+      if (isOnboardingCompleted()) {
+        setVisible(false);
+      } else {
+        setVisible(true);
+      }
+    };
+
+    checkStatus();
+
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === "bp_onboarded" || e.key === "onboardingCompleted") {
+        checkStatus();
+      }
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
   }, []);
 
   const dismiss = useCallback(() => {
-    localStorage.setItem("onboardingCompleted", "true");
+    setOnboardingCompleted(true);
     setVisible(false);
   }, []);
 

@@ -15,6 +15,8 @@ import { StepCurrency } from "@/components/onboarding/StepCurrency";
 import { StepSettlement } from "@/components/onboarding/StepSettlement";
 import { StepWebhook } from "@/components/onboarding/StepWebhook";
 import { StepReview } from "@/components/onboarding/StepReview";
+import { accountNumberSchema, bankCodeSchema } from "@/lib/utils/onboardingSchemas";
+import { setOnboardingCompleted } from "@/lib/auth/session";
 
 export type OnboardingData = {
   businessName: string;
@@ -25,6 +27,9 @@ export type OnboardingData = {
   preferredAnchor: string;
   autoSettle: boolean;
   webhookUrl: string;
+  accountNumber?: string;
+  bankCode?: string;
+  bankName?: string;
 };
 
 const initialData: OnboardingData = {
@@ -36,7 +41,11 @@ const initialData: OnboardingData = {
   preferredAnchor: "Cowry",
   autoSettle: true,
   webhookUrl: "",
+  accountNumber: "",
+  bankCode: "",
+  bankName: "",
 };
+
 
 const STORAGE_KEY = "bettapay_onboarding_progress";
 
@@ -225,7 +234,21 @@ export default function OnboardingPage() {
       if (!data.country) nextErrors.country = "Select your country.";
     }
     if (targetStep === 1 && !data.settlementCurrency) nextErrors.settlementCurrency = "Choose a settlement currency.";
-    if (targetStep === 2 && !data.preferredAnchor) nextErrors.preferredAnchor = "Choose a preferred anchor.";
+    if (targetStep === 2) {
+      if (!data.preferredAnchor) nextErrors.preferredAnchor = "Choose a preferred anchor.";
+      if (data.accountNumber && data.accountNumber.trim()) {
+        const res = accountNumberSchema.safeParse(data.accountNumber);
+        if (!res.success) {
+          nextErrors.accountNumber = res.error.issues[0]?.message || "Invalid account number or IBAN format.";
+        }
+      }
+      if (data.bankCode && data.bankCode.trim()) {
+        const res = bankCodeSchema.safeParse(data.bankCode);
+        if (!res.success) {
+          nextErrors.bankCode = res.error.issues[0]?.message || "Invalid bank code.";
+        }
+      }
+    }
     // webhookUrl is optional — skip URL validation entirely when it is
     // empty so a blank input never triggers a runtime exception from new URL().
     if (targetStep === 3 && data.webhookUrl.trim()) {
@@ -243,8 +266,11 @@ export default function OnboardingPage() {
   };
 
   const skip = () => {
+    // Skipping is not "not onboarded" — it just defers the flow. Don't touch
+    // the shared completion flag (issue #495): writing it here is what made
+    // the dismissible wizard reappear after the 5-step page had been done.
     clearSavedProgress();
-    localStorage.setItem("onboardingCompleted", "false");
+    setOnboardingCompleted(false);
     localStorage.removeItem("onboardingDraft");
     notify.success("Onboarding saved for later. You can finish it from Settings.");
     router.push(getDefaultRoute(user?.role));
@@ -261,11 +287,12 @@ export default function OnboardingPage() {
         defaultSettlementCurrency: data.settlementCurrency, autoConvert: data.autoConvert,
         preferredAnchor: data.preferredAnchor, autoSettle: data.autoSettle,
         webhookUrl: data.webhookUrl || null,
+        bankName: data.bankName || null,
+        bankCode: data.bankCode || null,
+        accountNumber: data.accountNumber || null,
       });
       clearSavedProgress();
-      localStorage.setItem("onboardingCompleted", "true");
-      const secureFlag = process.env.NODE_ENV === 'production' ? '; Secure' : '';
-      document.cookie = `merchant_onboarded=true; Path=/; SameSite=Lax; Max-Age=86400${secureFlag}`;
+      setOnboardingCompleted(true);
       notify.success("Your merchant profile is ready!");
       router.push(getDefaultRoute(user?.role));
     } catch (error) {

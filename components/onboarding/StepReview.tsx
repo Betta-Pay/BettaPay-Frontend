@@ -12,6 +12,8 @@ type Props = {
   onRetry: () => void;
 };
 
+import { accountNumberSchema } from "@/lib/utils/onboardingSchemas";
+
 const rows = (data: OnboardingData) => [
   {
     key: "business",
@@ -28,8 +30,9 @@ const rows = (data: OnboardingData) => [
   {
     key: "settlement",
     label: "Settlement",
-    value: `${data.preferredAnchor} · Auto-settle ${data.autoSettle ? "on" : "off"}`,
+    value: `${data.preferredAnchor}${data.accountNumber ? ` · ${data.bankName ? `${data.bankName}: ` : ''}${data.accountNumber}` : ''} · Auto-settle ${data.autoSettle ? "on" : "off"}`,
     step: 2,
+    invalid: Boolean(data.accountNumber && !accountNumberSchema.safeParse(data.accountNumber).success),
   },
   {
     key: "webhook",
@@ -38,6 +41,7 @@ const rows = (data: OnboardingData) => [
     step: 3,
   },
 ] as const;
+
 
 export function StepReview({
   data,
@@ -95,7 +99,9 @@ export function StepReview({
       )}
 
       <dl className="divide-y rounded-xl border overflow-hidden">
-        {rows(data).map(({ key, label, value, step }) => {
+        {rows(data).map((row) => {
+          const { key, label, value, step } = row;
+          const isInvalid = 'invalid' in row && Boolean(row.invalid);
           const isDrifted = driftedFields.includes(
             key === "currency" ? "currency" : key === "settlement" ? "anchor" : ""
           );
@@ -105,7 +111,7 @@ export function StepReview({
               key={label}
               className={cn(
                 "flex items-center gap-3 p-4 transition-all duration-200",
-                isDrifted
+                (isDrifted || isInvalid)
                   ? "bg-amber-500/5 dark:bg-amber-500/10 border-amber-500/30"
                   : "hover:bg-muted/30"
               )}
@@ -118,6 +124,11 @@ export function StepReview({
                       Outdated / Drifted
                     </span>
                   )}
+                  {isInvalid && (
+                    <span className="inline-flex items-center rounded-full bg-destructive/10 px-2 py-0.5 text-[10px] font-semibold text-destructive animate-pulse">
+                      Invalid Format
+                    </span>
+                  )}
                 </div>
                 <dd className="truncate text-sm text-muted-foreground mt-0.5">
                   {value}
@@ -128,18 +139,24 @@ export function StepReview({
                     This preference is no longer supported by the current backend config.
                   </p>
                 )}
+                {isInvalid && (
+                  <p className="text-xs text-destructive mt-1.5 flex items-center gap-1 font-medium">
+                    <AlertTriangle className="h-3.5 w-3.5 inline" />
+                    Invalid bank account format. Enter a 10-digit account number or valid IBAN.
+                  </p>
+                )}
               </div>
               <Button
                 type="button"
-                variant={isDrifted ? "secondary" : "ghost"}
+                variant={(isDrifted || isInvalid) ? "secondary" : "ghost"}
                 size="sm"
                 onClick={() => onEdit(step)}
                 className={cn(
-                  isDrifted &&
+                  (isDrifted || isInvalid) &&
                     "border-amber-500/30 text-amber-700 hover:bg-amber-500/20 dark:text-amber-300"
                 )}
               >
-                {isDrifted ? "Fix Selection" : "Edit"}
+                {(isDrifted || isInvalid) ? "Fix Selection" : "Edit"}
               </Button>
             </div>
           );

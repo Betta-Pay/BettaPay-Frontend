@@ -33,6 +33,7 @@ function useCopyUri(uri: string) {
 const STATUS_LABEL: Record<WalletConnectStatus, string> = {
   idle: '',
   connecting: 'Waiting for wallet to scan…',
+  reconnecting: 'Reconnecting to the relay…',
   approving: 'Approving session…',
   connected: 'Wallet connected',
   signing: 'Waiting for signature in wallet…',
@@ -59,6 +60,7 @@ export function WalletConnectModal({
   const [uri, setUri] = useState<string>('');
   const [status, setStatus] = useState<WalletConnectStatus>('idle');
   const [errorMsg, setErrorMsg] = useState<string>('');
+  const [statusDetail, setStatusDetail] = useState<string>('');
   const { copied, copy } = useCopyUri(uri);
 
   // Track whether this modal instance started the connection so we don't
@@ -72,6 +74,7 @@ export function WalletConnectModal({
     closedRef.current = false;
     setUri('');
     setErrorMsg('');
+    setStatusDetail('');
     setStatus('idle');
 
     // Always get a fresh client so keys/topics are rotated
@@ -81,6 +84,7 @@ export function WalletConnectModal({
     client.onStatus((s, detail) => {
       if (closedRef.current) return;
       setStatus(s);
+      setStatusDetail(detail ?? '');
       if (s === 'error') setErrorMsg(detail ?? 'Unknown error');
     });
 
@@ -124,6 +128,7 @@ export function WalletConnectModal({
         setUri('');
         setStatus('idle');
         setErrorMsg('');
+        setStatusDetail('');
         startedRef.current = false;
       }
       onOpenChange(v);
@@ -133,9 +138,16 @@ export function WalletConnectModal({
 
   // ── Render ──────────────────────────────────────────────────────────────────
 
-  const showQr = uri && status !== 'connected' && status !== 'error';
+  const showQr =
+    uri &&
+    status !== 'connected' &&
+    status !== 'error' &&
+    status !== 'reconnecting';
   const showSpinner =
-    status === 'approving' || status === 'signing' || (status === 'connecting' && !uri);
+    status === 'approving' ||
+    status === 'signing' ||
+    status === 'reconnecting' ||
+    (status === 'connecting' && !uri);
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -197,7 +209,9 @@ export function WalletConnectModal({
             <div className="flex flex-col items-center gap-3 py-6">
               <Loader2 className="w-10 h-10 text-primary animate-spin" />
               <p className="text-sm text-muted-foreground text-center">
-                {STATUS_LABEL[status]}
+                {status === 'reconnecting' && statusDetail
+                  ? statusDetail
+                  : STATUS_LABEL[status]}
               </p>
             </div>
           )}
