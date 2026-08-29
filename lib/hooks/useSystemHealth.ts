@@ -3,7 +3,9 @@
 /**
  * useSystemHealth
  *
- * Polls /api/admin/health on a configurable interval.
+ * Polls a health endpoint on a configurable interval. Defaults to the
+ * admin-only /api/admin/health; the public status page passes the
+ * unauthenticated /api/status/health instead.
  * Implements the Page Visibility API to pause polling when the tab is
  * hidden, preserves the last known successful payload across errors, and
  * cleans up all timers on unmount.
@@ -13,6 +15,11 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import type { HealthResponse } from "@/lib/types/health";
 
 export const POLL_INTERVAL_MS = 20_000; // 20 s — matches requirement range
+
+/** Admin-guarded aggregated health endpoint. */
+export const ADMIN_HEALTH_ENDPOINT = "/api/admin/health";
+/** Public, unauthenticated health endpoint used by the status page. */
+export const PUBLIC_HEALTH_ENDPOINT = "/api/status/health";
 
 export type UseSystemHealthReturn = {
   /** Most recent health payload (may be stale if a refetch failed). */
@@ -27,7 +34,9 @@ export type UseSystemHealthReturn = {
   refresh: () => void;
 };
 
-export function useSystemHealth(): UseSystemHealthReturn {
+export function useSystemHealth(
+  endpoint: string = ADMIN_HEALTH_ENDPOINT,
+): UseSystemHealthReturn {
   const [data, setData] = useState<HealthResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -43,7 +52,7 @@ export function useSystemHealth(): UseSystemHealthReturn {
     abortRef.current = new AbortController();
 
     try {
-      const res = await fetch("/api/admin/health", {
+      const res = await fetch(endpoint, {
         signal: abortRef.current.signal,
         cache: "no-store",
       });
@@ -73,7 +82,7 @@ export function useSystemHealth(): UseSystemHealthReturn {
         setLoading(false);
       }
     }
-  }, []);
+  }, [endpoint]);
 
   const startPolling = useCallback(() => {
     if (intervalRef.current) return; // already running

@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { API_URL } from '@/lib/config';
 
 export const dynamic = 'force-dynamic';
 
 function getApiUrl(): string {
-  return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+  return API_URL || 'http://localhost:3001';
 }
 
 function upstreamHeaders(request: NextRequest): HeadersInit {

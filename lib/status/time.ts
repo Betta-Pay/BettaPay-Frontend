@@ -1,9 +1,9 @@
 // Relative-time helpers for the public status page.
 //
-// Incident and component timestamps are stored as real ISO 8601 strings
-// derived from offsets (see `lib/status/data.ts`), so "resolved 2 minutes ago"
-// keeps counting instead of freezing at whatever the file was authored with.
-// Everything here is pure so it can be unit tested without a DOM.
+// Incident and component timestamps are real ISO 8601 strings taken straight
+// from the live health probe (`checkedAt`, see `lib/status/data.ts`), so
+// "checked 2 minutes ago" keeps counting instead of freezing. Everything here
+// is pure so it can be unit tested without a DOM.
 
 /** Shown when a timestamp is missing or unparseable. */
 export const UNKNOWN_TIME_LABEL = "time unknown";
