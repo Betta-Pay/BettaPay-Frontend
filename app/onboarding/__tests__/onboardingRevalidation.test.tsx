@@ -34,11 +34,11 @@ describe("Onboarding Page - Review Step Re-validation and Drift Detection", () =
   });
 
   const seedProgressAndRender = async () => {
-    // Seed localStorage with progress pointing to step 4 (Review step)
+    // Seed localStorage with progress pointing to the Review step (last step).
     localStorage.setItem(
       "bettapay_onboarding_progress",
       JSON.stringify({
-        step: 4,
+        step: 5,
         data: {
           businessName: "Acme Corp",
           businessType: "business",

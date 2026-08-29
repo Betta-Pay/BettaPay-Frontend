@@ -5,9 +5,9 @@ import { useWalletStore } from "@/lib/store/walletStore";
 import { WalletModalErrorBoundary } from "./WalletModalErrorBoundary";
 import { X } from "lucide-react";
 
-interface WalletModalProps {
-  isOpen: boolean;
-  onClose: () => void;
+export interface WalletModalProps {
+  isOpen?: boolean;
+  onClose?: () => void;
   onConnectWallet?: () => void;
   onConnected?: (address: string) => void | Promise<void>;
 }
@@ -155,13 +155,14 @@ function WalletConnectOptions() {
   );
 }
 
+export function WalletModal({ isOpen = true, onClose, onConnectWallet }: WalletModalProps) {
 export function WalletModal({ isOpen, onClose, onConnected }: WalletModalProps) {
   const walletModalOpen = useWalletStore((s) => s.walletModalOpen);
   const setWalletModalOpen = useWalletStore((s) => s.setWalletModalOpen);
   const address = useWalletStore((s) => s.address);
 
   useEffect(() => {
-    if (isOpen !== walletModalOpen) {
+    if (isOpen !== undefined && isOpen !== walletModalOpen) {
       setWalletModalOpen(isOpen);
     }
   }, [isOpen, walletModalOpen, setWalletModalOpen]);
@@ -174,7 +175,7 @@ export function WalletModal({ isOpen, onClose, onConnected }: WalletModalProps) 
 
   const handleClose = () => {
     setWalletModalOpen(false);
-    onClose();
+    if (onClose) onClose();
   };
 
   if (!isOpen) return null;

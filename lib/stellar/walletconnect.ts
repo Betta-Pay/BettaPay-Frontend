@@ -21,15 +21,17 @@
  */
 
 import { extractValidStellarAddresses } from './utils';
+import {
+  WALLETCONNECT_RELAY_URL,
+  WALLETCONNECT_PROJECT_ID,
+  SITE_URL,
+} from '@/lib/config';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const RELAY_URL =
-  process.env.NEXT_PUBLIC_WALLETCONNECT_RELAY_URL ||
-  'wss://relay.walletconnect.com';
+const RELAY_URL = WALLETCONNECT_RELAY_URL;
 
-const PROJECT_ID =
-  process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || '';
+const PROJECT_ID = WALLETCONNECT_PROJECT_ID;
 
 /** CAIP-2 chain identifier for Stellar */
 const STELLAR_CHAIN = 'stellar:testnet';
@@ -45,6 +47,30 @@ const METHOD_SESSION_SETTLE = 'wc_sessionSettle';
 const METHOD_SESSION_REQUEST = 'wc_sessionRequest';
 const METHOD_STELLAR_SIGN_TX = 'stellar_signTransaction';
 const METHOD_STELLAR_SIGN_MSG = 'stellar_signMessage';
+
+// ─── Resilience tuning ───────────────────────────────────────────────────────
+//
+// The relay link is a raw browser WebSocket with no protocol-level keepalive we
+// can observe, so a dropped connection can otherwise sit undetected for minutes
+// (until the OS TCP timeout) while the UI spins forever. These bounds make a
+// transient blip self-heal and guarantee every phase eventually terminates.
+
+/** Reconnect attempts before we give up and surface a typed error. */
+const RECONNECT_MAX_ATTEMPTS = 5;
+/** First backoff delay; doubles each attempt. */
+const RECONNECT_BASE_DELAY_MS = 1_000;
+/** Backoff ceiling. */
+const RECONNECT_MAX_DELAY_MS = 30_000;
+/** How often to poke the relay to prove the socket is still alive. */
+const HEARTBEAT_INTERVAL_MS = 30_000;
+/** Grace period for the relay to answer a heartbeat before we treat it dead. */
+const HEARTBEAT_TIMEOUT_MS = 10_000;
+/** Max time to wait for a wallet to scan the QR and propose a session. */
+const PAIRING_TIMEOUT_MS = 180_000;
+/** Max time between receiving a proposal and the wallet settling the session. */
+const APPROVE_TIMEOUT_MS = 30_000;
+/** Max time to wait for a signature before auto-aborting the request. */
+const SIGN_TIMEOUT_MS = 60_000;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -88,6 +114,7 @@ interface WCEncryptedEnvelope {
 export type WalletConnectStatus =
   | 'idle'
   | 'connecting'        // WebSocket open, waiting for wallet to scan
+  | 'reconnecting'      // relay socket dropped, backing off and retrying
   | 'approving'         // session_proposal received, sending settle
   | 'connected'         // session active
   | 'signing'           // waiting for sign response
@@ -95,6 +122,41 @@ export type WalletConnectStatus =
   | 'error';
 
 export type StatusListener = (status: WalletConnectStatus, detail?: string) => void;
+
+// ─── Typed errors ────────────────────────────────────────────────────────────
+
+/** Which phase of the WalletConnect flow an error occurred in. */
+export type WalletConnectErrorPhase =
+  | 'pairing'
+  | 'approving'
+  | 'signing'
+  | 'relay';
+
+/** Base class for every error this module surfaces to callers / the UI. */
+export class WalletConnectError extends Error {
+  readonly phase: WalletConnectErrorPhase;
+  constructor(message: string, phase: WalletConnectErrorPhase) {
+    super(message);
+    this.name = 'WalletConnectError';
+    this.phase = phase;
+  }
+}
+
+/** A phase exceeded its time budget and was auto-aborted. */
+export class WalletConnectTimeoutError extends WalletConnectError {
+  constructor(phase: WalletConnectErrorPhase, message: string) {
+    super(message, phase);
+    this.name = 'WalletConnectTimeoutError';
+  }
+}
+
+/** The relay socket could not be (re)established within the reconnect budget. */
+export class WalletConnectConnectionError extends WalletConnectError {
+  constructor(message: string) {
+    super(message, 'relay');
+    this.name = 'WalletConnectConnectionError';
+  }
+}
 
 // ─── Crypto helpers ───────────────────────────────────────────────────────────
 
@@ -178,6 +240,32 @@ export class WalletConnectClient {
   private statusListener: StatusListener | null = null;
   private sessionListener: ((session: WalletConnectSession) => void) | null = null;
 
+  // ── Resilience state ───────────────────────────────────────────────────────
+  /** Last URL used to open the relay socket, replayed on reconnect. */
+  private wsUrl = '';
+  /** True once we (not the relay) decided to tear the socket down — suppresses reconnect. */
+  private intentionalClose = false;
+  /** Consecutive failed reconnects; reset to 0 on a clean open. */
+  private reconnectAttempts = 0;
+  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+  private heartbeatTimeoutTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Deadline timer for the current phase (pairing / approving / signing). */
+  private phaseTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Status to restore once a reconnect succeeds. */
+  private statusBeforeReconnect: WalletConnectStatus | null = null;
+  /** Last status handed to the listener — the source of truth for restore/guard logic. */
+  private currentStatus: WalletConnectStatus = 'idle';
+
+  /**
+   * @param wsFactory Socket constructor, injectable for tests. Defaults to the
+   *   platform `WebSocket`.
+   */
+  constructor(
+    private readonly wsFactory: (url: string) => WebSocket = (url) =>
+      new WebSocket(url),
+  ) {}
+
   // ── Public API ──────────────────────────────────────────────────────────────
 
   onStatus(cb: StatusListener) {
@@ -213,15 +301,15 @@ export class WalletConnectClient {
 
     void relayParam; // kept for reference; encoded into QR URI above
 
-    // Open relay WebSocket
-    const wsUrl = `${RELAY_URL}?projectId=${PROJECT_ID}&ua=BettaPay%2F1.0`;
-    this.ws = new WebSocket(wsUrl);
-    this.ws.onopen = () => this.onWsOpen();
-    this.ws.onmessage = (ev) => void this.onWsMessage(ev.data as string);
-    this.ws.onerror = () => this.emit('error', 'Relay connection failed');
-    this.ws.onclose = () => {
-      if (this.sessionTopic === '') this.emit('disconnected');
-    };
+    // Open relay WebSocket. From here on, an unexpected close triggers the
+    // reconnect path rather than a permanent wedge.
+    this.intentionalClose = false;
+    this.reconnectAttempts = 0;
+    this.wsUrl = `${RELAY_URL}?projectId=${PROJECT_ID}&ua=BettaPay%2F1.0`;
+    this.openSocket();
+
+    // The wallet has a bounded window to scan the QR and propose a session.
+    this.setPhaseTimeout('pairing', PAIRING_TIMEOUT_MS);
 
     return uri;
   }
@@ -253,12 +341,255 @@ export class WalletConnectClient {
 
   // ── WebSocket lifecycle ─────────────────────────────────────────────────────
 
+  /** (Re)open the relay socket against the last known URL and wire handlers. */
+  private openSocket() {
+    this.clearReconnectTimer();
+    const ws = this.wsFactory(this.wsUrl);
+    this.ws = ws;
+    ws.onopen = () => this.onWsOpen();
+    ws.onmessage = (ev) => void this.onWsMessage(ev.data as string);
+    ws.onerror = () => this.onWsError();
+    ws.onclose = () => this.onWsClose();
+  }
+
   private onWsOpen() {
-    // Subscribe to the pairing topic so we receive session proposals
-    this.relayRpc(RELAY_SUBSCRIBE, { topic: this.pairingTopic });
+    const reconnected = this.statusBeforeReconnect !== null;
+    this.reconnectAttempts = 0;
+
+    // Re-establish every subscription we depend on. Re-subscribing an already
+    // known topic is idempotent on the relay.
+    if (this.pairingTopic) {
+      this.relayRpc(RELAY_SUBSCRIBE, { topic: this.pairingTopic });
+    }
+    if (this.sessionTopic) {
+      this.relayRpc(RELAY_SUBSCRIBE, { topic: this.sessionTopic });
+    }
+
+    this.startHeartbeat();
+
+    if (reconnected) {
+      const restore = this.statusBeforeReconnect ?? 'connecting';
+      this.statusBeforeReconnect = null;
+      console.info('[WalletConnect] relay reconnected, resuming as', restore);
+      this.emit(restore);
+    }
+  }
+
+  private onWsError() {
+    // Browsers fire `error` then `close`; let the close handler drive recovery.
+    console.warn('[WalletConnect] relay socket error');
+  }
+
+  private onWsClose() {
+    this.stopHeartbeat();
+    if (this.intentionalClose) return;
+    console.warn('[WalletConnect] relay socket closed unexpectedly');
+    this.scheduleReconnect();
+  }
+
+  // ── Reconnection ───────────────────────────────────────────────────────────
+
+  private scheduleReconnect() {
+    if (this.reconnectTimer || this.intentionalClose) return;
+    if (
+      this.currentStatus === 'idle' ||
+      this.currentStatus === 'disconnected' ||
+      this.currentStatus === 'error'
+    ) {
+      return;
+    }
+
+    if (this.reconnectAttempts >= RECONNECT_MAX_ATTEMPTS) {
+      console.error(
+        `[WalletConnect] relay reconnect budget exhausted after ${this.reconnectAttempts} attempts`,
+      );
+      this.failWith(
+        new WalletConnectConnectionError(
+          'Lost the connection to the WalletConnect relay and could not reconnect. Please try again.',
+        ),
+      );
+      return;
+    }
+
+    const attempt = this.reconnectAttempts + 1;
+    const backoff = Math.min(
+      RECONNECT_BASE_DELAY_MS * 2 ** (attempt - 1),
+      RECONNECT_MAX_DELAY_MS,
+    );
+    // Jitter avoids a thundering herd of clients all retrying on the same tick.
+    const delay = backoff + Math.floor(Math.random() * 250);
+
+    if (this.statusBeforeReconnect === null) {
+      this.statusBeforeReconnect =
+        this.currentStatus === 'reconnecting' ? 'connecting' : this.currentStatus;
+    }
+
+    console.warn(
+      `[WalletConnect] reconnecting to relay in ${delay}ms (attempt ${attempt}/${RECONNECT_MAX_ATTEMPTS})`,
+    );
+    this.emit(
+      'reconnecting',
+      `Reconnecting to the relay (attempt ${attempt} of ${RECONNECT_MAX_ATTEMPTS})…`,
+    );
+
+    this.reconnectTimer = setTimeout(() => {
+      this.reconnectTimer = null;
+      this.reconnectAttempts = attempt;
+      console.info(
+        `[WalletConnect] reconnect attempt ${attempt}/${RECONNECT_MAX_ATTEMPTS}`,
+      );
+      this.openSocket();
+    }, delay);
+  }
+
+  private clearReconnectTimer() {
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+  }
+
+  // ── Heartbeat ──────────────────────────────────────────────────────────────
+
+  private startHeartbeat() {
+    this.stopHeartbeat();
+    this.heartbeatTimer = setInterval(
+      () => this.sendHeartbeat(),
+      HEARTBEAT_INTERVAL_MS,
+    );
+  }
+
+  private sendHeartbeat() {
+    const topic = this.sessionTopic || this.pairingTopic;
+    if (!this.ws || this.ws.readyState !== 1 /* OPEN */ || !topic) return;
+
+    // A re-subscribe doubles as a ping: the relay always answers with a result,
+    // and re-subscribing a live topic is a no-op.
+    try {
+      this.ws.send(
+        JSON.stringify({
+          id: this.nextId(),
+          jsonrpc: '2.0',
+          method: RELAY_SUBSCRIBE,
+          params: { topic },
+        }),
+      );
+    } catch {
+      this.handleDeadSocket();
+      return;
+    }
+
+    if (this.heartbeatTimeoutTimer) clearTimeout(this.heartbeatTimeoutTimer);
+    this.heartbeatTimeoutTimer = setTimeout(() => {
+      console.warn('[WalletConnect] relay heartbeat timed out — forcing reconnect');
+      this.handleDeadSocket();
+    }, HEARTBEAT_TIMEOUT_MS);
+  }
+
+  private stopHeartbeat() {
+    if (this.heartbeatTimer) {
+      clearInterval(this.heartbeatTimer);
+      this.heartbeatTimer = null;
+    }
+    if (this.heartbeatTimeoutTimer) {
+      clearTimeout(this.heartbeatTimeoutTimer);
+      this.heartbeatTimeoutTimer = null;
+    }
+  }
+
+  /** Any inbound frame is proof the link is alive — clears the pong deadline. */
+  private noteRelayActivity() {
+    if (this.heartbeatTimeoutTimer) {
+      clearTimeout(this.heartbeatTimeoutTimer);
+      this.heartbeatTimeoutTimer = null;
+    }
+  }
+
+  private handleDeadSocket() {
+    this.stopHeartbeat();
+    if (this.intentionalClose) return;
+    try {
+      this.ws?.close();
+    } catch {
+      /* already closing */
+    }
+    // A manually-closed broken socket does not always fire `onclose`, so drive
+    // the reconnect directly too (scheduleReconnect is idempotent).
+    this.scheduleReconnect();
+  }
+
+  // ── Phase timeouts ─────────────────────────────────────────────────────────
+
+  private setPhaseTimeout(phase: WalletConnectErrorPhase, ms: number) {
+    this.clearPhaseTimeout();
+    this.phaseTimer = setTimeout(() => this.onPhaseTimeout(phase), ms);
+  }
+
+  private clearPhaseTimeout() {
+    if (this.phaseTimer) {
+      clearTimeout(this.phaseTimer);
+      this.phaseTimer = null;
+    }
+  }
+
+  private onPhaseTimeout(phase: WalletConnectErrorPhase) {
+    const messages: Record<WalletConnectErrorPhase, string> = {
+      pairing:
+        'No wallet connected in time. Generate a fresh QR code and try again.',
+      approving:
+        'The wallet did not finish approving the session. Please try again.',
+      signing:
+        'The signature request timed out. Nothing was signed — you can retry.',
+      relay: 'The WalletConnect relay stopped responding.',
+    };
+    console.warn(`[WalletConnect] ${phase} phase timed out after its budget`);
+    this.failWith(new WalletConnectTimeoutError(phase, messages[phase]));
+  }
+
+  /**
+   * Abort the session with a typed error: reject every in-flight request,
+   * stop all timers, close the socket, and surface `error` to the UI.
+   */
+  private failWith(err: WalletConnectError) {
+    // Set the terminal status first so pending-request wrappers do not bounce
+    // the UI back to `connected` on their way out.
+    this.currentStatus = 'error';
+    for (const [id, pending] of this.pendingRequests) {
+      pending.reject(err);
+      this.pendingRequests.delete(id);
+    }
+    this.intentionalClose = true;
+    this.stopAllTimers();
+    this.closeSocket();
+    this.emit('error', err.message);
+  }
+
+  private stopAllTimers() {
+    this.clearReconnectTimer();
+    this.stopHeartbeat();
+    this.clearPhaseTimeout();
+  }
+
+  private closeSocket() {
+    if (!this.ws) return;
+    this.ws.onopen = null;
+    this.ws.onmessage = null;
+    this.ws.onerror = null;
+    this.ws.onclose = null;
+    if (this.ws.readyState === 0 /* CONNECTING */ || this.ws.readyState === 1 /* OPEN */) {
+      try {
+        this.ws.close();
+      } catch {
+        /* noop */
+      }
+    }
+    this.ws = null;
   }
 
   private async onWsMessage(raw: string) {
+    // Proof of life — the relay answered something, so it is not dead.
+    this.noteRelayActivity();
+
     let msg: WCRelayMessage;
     try {
       msg = JSON.parse(raw) as WCRelayMessage;
@@ -369,6 +700,8 @@ export class WalletConnectClient {
     msg: WCRelayMessage,
   ) {
     this.emit('approving');
+    // The wallet now has a bounded window to settle the session.
+    this.setPhaseTimeout('approving', APPROVE_TIMEOUT_MS);
 
     const proposal = msg.params as {
       id: number;
@@ -403,7 +736,7 @@ export class WalletConnectClient {
           metadata: {
             name: 'BettaPay',
             description: 'Non-custodial merchant payments',
-            url: process.env.NEXT_PUBLIC_SITE_URL || 'https://betta.pay',
+            url: SITE_URL,
             icons: [],
           },
         },
@@ -456,6 +789,9 @@ export class WalletConnectClient {
       controller: { metadata: WCPeerMetadata };
     };
 
+    // The session is settling — the approve budget no longer applies.
+    this.clearPhaseTimeout();
+
     const stellarNS = settle?.namespaces?.stellar;
     const rawAccounts: string[] = stellarNS?.accounts ?? [];
 
@@ -463,7 +799,12 @@ export class WalletConnectClient {
     const stellarAccounts = extractValidStellarAddresses(rawAccounts);
 
     if (stellarAccounts.length === 0) {
-      this.emit('error', 'No Stellar accounts found in WalletConnect session');
+      this.failWith(
+        new WalletConnectError(
+          'No Stellar accounts found in the WalletConnect session.',
+          'approving',
+        ),
+      );
       return;
     }
 
@@ -490,9 +831,15 @@ export class WalletConnectClient {
     params: Record<string, unknown>,
   ): Promise<T> {
     if (!this.sessionKey || !this.sessionTopic) {
-      throw new Error('No active WalletConnect session');
+      throw new WalletConnectError(
+        'No active WalletConnect session.',
+        'signing',
+      );
     }
     this.emit('signing');
+    // Auto-abort if the wallet never answers. `failWith` rejects the pending
+    // promise below with a typed WalletConnectTimeoutError.
+    this.setPhaseTimeout('signing', SIGN_TIMEOUT_MS);
 
     const id = this.nextId();
     const payload = {
@@ -506,15 +853,18 @@ export class WalletConnectClient {
     };
 
     return new Promise<T>((resolve, reject) => {
+      const finish = (fn: () => void) => {
+        this.clearPhaseTimeout();
+        this.pendingRequests.delete(id);
+        // Only step back to `connected` if we are still mid-signing; a failure
+        // path has already moved us to `error`.
+        if (this.currentStatus === 'signing') this.emit('connected');
+        fn();
+      };
+
       this.pendingRequests.set(id, {
-        resolve: (v) => {
-          this.emit('connected');
-          resolve(v as T);
-        },
-        reject: (e) => {
-          this.emit('connected');
-          reject(e);
-        },
+        resolve: (v) => finish(() => resolve(v as T)),
+        reject: (e) => finish(() => reject(e)),
       });
 
       this.publishEncrypted(
@@ -522,7 +872,10 @@ export class WalletConnectClient {
         this.sessionKey!,
         this.sessionKeyVersion,
         JSON.stringify(payload),
-      ).catch(reject);
+      ).catch((e) => {
+        const pending = this.pendingRequests.get(id);
+        pending?.reject(e instanceof Error ? e : new Error(String(e)));
+      });
     });
   }
 
@@ -571,6 +924,7 @@ export class WalletConnectClient {
   }
 
   private emit(status: WalletConnectStatus, detail?: string) {
+    this.currentStatus = status;
     this.statusListener?.(status, detail);
   }
 
@@ -579,28 +933,30 @@ export class WalletConnectClient {
   }
 
   private cleanup() {
-    if (this.ws) {
-      this.ws.onopen = null;
-      this.ws.onmessage = null;
-      this.ws.onerror = null;
-      this.ws.onclose = null;
-      if (
-        this.ws.readyState === WebSocket.OPEN ||
-        this.ws.readyState === WebSocket.CONNECTING
-      ) {
-        this.ws.close();
-      }
-      this.ws = null;
+    // Mark the teardown as ours so `onclose` does not kick off a reconnect.
+    this.intentionalClose = true;
+    this.stopAllTimers();
+    this.closeSocket();
+
+    // Reject anything still in flight so callers are never left hanging.
+    for (const [id, pending] of this.pendingRequests) {
+      pending.reject(
+        new WalletConnectError('WalletConnect session was closed.', 'relay'),
+      );
+      this.pendingRequests.delete(id);
     }
+
     this.pairingTopic = '';
     this.pairingKey = null;
     this.pairingKeyVersion = 0;
     this.sessionTopic = '';
     this.sessionKey = null;
     this.sessionKeyVersion = 0;
-    this.pendingRequests.clear();
     this.usedIvs.clear();
     this.rpcId = 1;
+    this.reconnectAttempts = 0;
+    this.statusBeforeReconnect = null;
+    this.wsUrl = '';
   }
 }
 

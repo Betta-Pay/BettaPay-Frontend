@@ -3,6 +3,7 @@ import { Toggle } from "@/components/ui";
 import type { OnboardingData } from "@/app/onboarding/page";
 import { useRates } from "@/lib/api/hooks";
 import { cn } from "@/lib/utils";
+import { SUPPORTED_SETTLEMENT_CURRENCIES } from "@/lib/utils/constants";
 
 type Props = {
   data: OnboardingData;
@@ -10,7 +11,6 @@ type Props = {
   onChange: (data: Partial<OnboardingData>) => void;
 };
 
-const currencies = ["NGN", "USD", "USDC", "GHS", "KES", "ZAR"];
 
 export function StepCurrency({ data, errors, onChange }: Props) {
   const { data: rates, isLoading: ratesLoading, primaryRate } = useRates();
@@ -41,7 +41,7 @@ export function StepCurrency({ data, errors, onChange }: Props) {
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        {currencies.map((currency) => {
+        {SUPPORTED_SETTLEMENT_CURRENCIES.map((currency) => {
           const rateText = getRateText(currency);
 
           return (

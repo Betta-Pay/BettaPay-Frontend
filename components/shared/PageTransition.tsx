@@ -1,3 +1,7 @@
+import React from 'react';
+
+interface PageTransitionProps {
+  children: any;
 "use client";
 
 import React, { useEffect, useRef } from 'react';
@@ -10,6 +14,7 @@ interface PageTransitionProps {
 // Global dictionary cache to store viewport depths across client-side navigation
 const scrollCoordinateCache: Record<string, number> = {};
 
+export function PageTransition({ children, routingKey = "" }: PageTransitionProps) {
 export function PageTransition({ children, routingKey = '' }: PageTransitionProps) {
   const containerRef = React.useRef(null);
 

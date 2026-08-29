@@ -1,7 +1,16 @@
-export const SUPPORTED_CURRENCIES = ['USDC', 'XLM', 'USDT'] as const;
+import { STELLAR_NETWORK, HORIZON_URL, USDT_CONTRACT_ID } from '@/lib/config';
+
+export { STELLAR_NETWORK, HORIZON_URL };
+
+export const SUPPORTED_SETTLEMENT_CURRENCIES = ['NGN', 'USD', 'USDC', 'GHS', 'KES', 'ZAR'] as const;
+export type SettlementCurrency = typeof SUPPORTED_SETTLEMENT_CURRENCIES[number];
+
+export const ONBOARDING_COMPLETED_KEY = 'bp_onboarded' as const;
+
 
 export const STELLAR_NETWORK = process.env.NEXT_PUBLIC_STELLAR_NETWORK || 'testnet';
 export const HORIZON_URL = process.env.NEXT_PUBLIC_STELLAR_HORIZON_URL || 'https://horizon-testnet.stellar.org';
+export const SUPPORTED_CURRENCIES = ['USDC', 'XLM', 'USDT'] as const;
 
 /**
  * Canonical payment status vocabulary.
@@ -84,7 +93,7 @@ export const MULTI_CURRENCY_ASSETS: Record<string, CurrencyConfig> = {
     icon: '₮',
     decimals: 7,
     stroopMultiplier: 10_000_000,
-    contractAddress: process.env.NEXT_PUBLIC_USDT_CONTRACT_ID,
+    contractAddress: USDT_CONTRACT_ID,
   },
 };
 
