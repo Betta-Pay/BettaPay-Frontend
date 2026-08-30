@@ -1,6 +1,6 @@
 "use client";
 
-import { RefreshCw, CheckCircle2, AlertTriangle, XCircle } from "lucide-react";
+import { RefreshCw, CheckCircle2, AlertTriangle, XCircle, type LucideIcon } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -23,7 +23,7 @@ import {
 const STATUS_CONFIG: Record<
   ServiceStatus,
   {
-    icon: React.ElementType;
+    icon: LucideIcon;
     label: string;
     tone: StatusTone;
   }

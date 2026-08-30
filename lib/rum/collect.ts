@@ -12,6 +12,7 @@
 
 import type { RumEvent, NavigationType } from './types';
 import { normalizeRoute } from './normalize';
+import { BUILD_ID } from '@/lib/config';
 
 interface CollectorOptions {
   clientId: string;
@@ -33,10 +34,7 @@ function now(): number {
 }
 
 function appVersion(): string | undefined {
-  if (typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_BUILD_ID) {
-    return process.env.NEXT_PUBLIC_BUILD_ID;
-  }
-  return undefined;
+  return BUILD_ID;
 }
 
 /**

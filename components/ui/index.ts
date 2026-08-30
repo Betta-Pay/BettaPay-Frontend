@@ -16,3 +16,5 @@ export * from './dropdown-menu';
 export * from './select';
 export * from './input';
 export * from './skeleton';
+export * from './progress';
+export * from './alert';

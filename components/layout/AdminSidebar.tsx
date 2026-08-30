@@ -15,6 +15,7 @@ import {
   ShieldCheck,
   ChevronLeft,
   ChevronRight,
+  type LucideIcon,
 } from "lucide-react";
 
 // ---------------------------------------------------------------------------
@@ -24,7 +25,7 @@ import {
 interface NavItem {
   href: string;
   label: string;
-  icon: React.ElementType;
+  icon: LucideIcon;
 }
 
 const navItems: NavItem[] = [

@@ -8,6 +8,7 @@ import {
   useSettlements,
   useRates,
   useMerchantProfile,
+  useAdminStats,
   queryKeys,
 } from '@/lib/api/hooks';
 import { apiClient } from '@/lib/api/axios';
@@ -155,6 +156,40 @@ describe('useMerchantProfile', () => {
     await waitFor(() => expect(result.current.isLoading).toBe(false));
     expect(result.current.data).toEqual(profile);
     expect(mockedGet).toHaveBeenCalledWith('/api/merchants/m_1');
+  });
+});
+
+describe('useAdminStats', () => {
+  const stats = {
+    totalProcessed: 500,
+    totalProcessedChangePct: 3,
+    platformFees: 5,
+    feeRatePct: 1,
+    activeMerchants: 10,
+    newMerchantsThisWeek: 1,
+    pendingKyb: 2,
+  };
+
+  it('returns real figures from the API and flags them as non-sample', async () => {
+    mockedGet.mockResolvedValue({ data: { data: stats } });
+
+    const { result } = renderHook(() => useAdminStats(), { wrapper: makeWrapper() });
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    expect(result.current.data).toEqual(stats);
+    expect(result.current.isSampleData).toBe(false);
+    expect(result.current.error).toBeNull();
+    expect(mockedGet).toHaveBeenCalledWith('/api/admin/stats');
+  });
+
+  it('exposes null data and an error (never fabricated figures) when the endpoint fails', async () => {
+    mockedGet.mockRejectedValue(new Error('endpoint down'));
+
+    const { result } = renderHook(() => useAdminStats(), { wrapper: makeWrapper() });
+    await waitFor(() => expect(result.current.error).toBe('endpoint down'));
+
+    expect(result.current.data).toBeNull();
+    expect(result.current.isSampleData).toBe(false);
   });
 });
 

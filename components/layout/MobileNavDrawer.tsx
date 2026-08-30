@@ -199,18 +199,20 @@ function UserProfileFooter({ onClose }: UserProfileFooterProps) {
 
   const initials = user?.name
     ? user.name
-        .split(' ')
+        .split(/\s+/)
+        .filter(Boolean)
         .map((n) => n[0])
         .join('')
         .toUpperCase()
         .slice(0, 2)
     : 'U';
+  const avatarSrc = user?.avatarUrl?.trim() || undefined;
 
   return (
     <div className="border-t border-sidebar-border px-4 py-4 space-y-3">
       <div className="flex items-center gap-3">
         <Avatar className="h-10 w-10 border border-sidebar-border">
-          <AvatarImage src="/avatars/01.png" alt={user?.name ?? 'User'} />
+          {avatarSrc ? <AvatarImage src={avatarSrc} alt={user?.name ?? 'User'} /> : null}
           <AvatarFallback className="bg-primary text-primary-foreground text-xs font-bold">
             {initials}
           </AvatarFallback>

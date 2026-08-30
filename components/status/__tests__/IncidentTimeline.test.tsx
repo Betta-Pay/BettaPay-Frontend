@@ -1,15 +1,25 @@
 import { act, render, screen } from '@testing-library/react';
 
-import { getIncidents } from '@/lib/status/data';
+import { deriveIncidents, type StatusComponent } from '@/lib/status/data';
 import { IncidentTimeline } from '../IncidentTimeline';
 
 /**
  * The regression this guards: incident times used to be fixed strings, so an
  * incident labelled "2 minutes ago" was still labelled that months later. The
- * label must now be derived from a real timestamp and advance on its own.
+ * timeline is now derived from the live health snapshot and every timestamp is
+ * a real ISO string that advances on its own.
  */
 
 const NOW = Date.parse('2026-08-25T12:00:00.000Z');
+
+const degradedComponent = (checkedAt: string): StatusComponent => ({
+  id: 'sep24',
+  name: 'SEP-24 Anchor',
+  status: 'degraded',
+  latencyMs: 4200,
+  checkedAt,
+  errorMessage: 'Anchor is responding slowly.',
+});
 
 beforeEach(() => {
   jest.useFakeTimers();
@@ -23,13 +33,12 @@ afterEach(() => {
 
 describe('IncidentTimeline relative times', () => {
   it('advances the relative label as time passes', () => {
-    render(<IncidentTimeline incidents={getIncidents(NOW)} />);
+    const probedAt = new Date(NOW - 50 * 60_000).toISOString();
+    render(<IncidentTimeline incidents={deriveIncidents([degradedComponent(probedAt)])} />);
 
-    // The open incident's latest update is 50 minutes old at render time.
     expect(screen.getAllByText('50 minutes ago').length).toBeGreaterThan(0);
 
     // Ten minutes later, without a reload, the same timestamp reads differently.
-    // advanceTimersByTime moves the fake clock as well as the timers.
     act(() => {
       jest.advanceTimersByTime(10 * 60_000);
     });
@@ -39,7 +48,8 @@ describe('IncidentTimeline relative times', () => {
   });
 
   it('ticks within a single minute boundary', () => {
-    render(<IncidentTimeline incidents={getIncidents(NOW)} />);
+    const probedAt = new Date(NOW - 50 * 60_000).toISOString();
+    render(<IncidentTimeline incidents={deriveIncidents([degradedComponent(probedAt)])} />);
     expect(screen.getAllByText('50 minutes ago').length).toBeGreaterThan(0);
 
     act(() => {
@@ -50,7 +60,8 @@ describe('IncidentTimeline relative times', () => {
   });
 
   it('renders a machine-readable timestamp alongside the label', () => {
-    const incidents = getIncidents(NOW);
+    const probedAt = new Date(NOW - 50 * 60_000).toISOString();
+    const incidents = deriveIncidents([degradedComponent(probedAt)]);
     render(<IncidentTimeline incidents={incidents} />);
 
     const stamp = incidents[0].updates[0].timestamp;
@@ -58,10 +69,16 @@ describe('IncidentTimeline relative times', () => {
     expect(times.length).toBeGreaterThan(0);
   });
 
+  it('renders the "No Incidents" state when every service is healthy', () => {
+    render(<IncidentTimeline incidents={[]} />);
+    expect(screen.getByText('No Incidents')).toBeInTheDocument();
+  });
+
   it('says "time unknown" rather than inventing a time', () => {
-    const [incident] = getIncidents(NOW);
+    const [incident] = deriveIncidents([degradedComponent(NOW.toString())]);
     const broken = {
       ...incident,
+      createdAt: '',
       resolvedAt: null,
       updates: [{ ...incident.updates[0], timestamp: '' }],
     };

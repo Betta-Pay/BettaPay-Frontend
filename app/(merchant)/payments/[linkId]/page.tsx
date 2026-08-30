@@ -57,6 +57,7 @@ import { formatDate, formatCurrency } from "@/lib/utils/format";
 import { useNotify } from "@/lib/hooks/useNotify";
 import Link from "next/link";
 import { subDays, format } from "date-fns";
+import { API_URL } from "@/lib/config";
 
 const ClicksChart = dynamic(
   () => import("@/components/charts/ClicksChart"),
@@ -103,7 +104,7 @@ const mockLinkDetails: Record<string, PaymentLinkDetail> = {
   link_01: {
     id: "link_01",
     label: "Consulting Retainer Q3",
-    url: `${process.env.NEXT_PUBLIC_API_URL ?? 'https://betta.pay'}/pay/link_01`,
+    url: `${API_URL || 'https://betta.pay'}/pay/link_01`,
     type: "open",
     amount: null,
     currency: "USDC",
@@ -116,7 +117,7 @@ const mockLinkDetails: Record<string, PaymentLinkDetail> = {
   link_02: {
     id: "link_02",
     label: "E-commerce Checkout",
-    url: `${process.env.NEXT_PUBLIC_API_URL ?? 'https://betta.pay'}/pay/link_02`,
+    url: `${API_URL || 'https://betta.pay'}/pay/link_02`,
     type: "fixed",
     amount: 45.5,
     currency: "USDC",
@@ -129,7 +130,7 @@ const mockLinkDetails: Record<string, PaymentLinkDetail> = {
   link_03: {
     id: "link_03",
     label: "Donation Campaign",
-    url: `${process.env.NEXT_PUBLIC_API_URL ?? 'https://betta.pay'}/pay/link_03`,
+    url: `${API_URL || 'https://betta.pay'}/pay/link_03`,
     type: "open",
     amount: null,
     currency: "USDC",
@@ -235,7 +236,7 @@ export default function PaymentLinkDetailPage() {
   const baseDetails = useMemo<PaymentLinkDetail>(() => mockLinkDetails[linkId] ?? {
     id: linkId,
     label: `Payment Link (${linkId})`,
-    url: `${process.env.NEXT_PUBLIC_API_URL ?? 'https://betta.pay'}/pay/${linkId}`,
+    url: `${API_URL || 'https://betta.pay'}/pay/${linkId}`,
     type: "fixed",
     amount: 100.0,
     currency: "USDC",

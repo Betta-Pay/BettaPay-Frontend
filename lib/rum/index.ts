@@ -20,6 +20,7 @@ import { startCollectors } from './collect';
 import { enqueue, initSender, destroySender } from './send';
 import { normalizeRoute } from './normalize';
 import type { RumEvent, RumMetricName, NavigationType } from './types';
+import { BUILD_ID } from '@/lib/config';
 
 /** Default sample rate: 10% of sessions. */
 const DEFAULT_SAMPLE_RATE = 0.1;
@@ -121,9 +122,7 @@ export function recordRumEvent(
     timestamp: typeof performance !== 'undefined' && performance.timeOrigin
       ? performance.timeOrigin + performance.now()
       : Date.now(),
-    appVersion: typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_BUILD_ID
-      ? process.env.NEXT_PUBLIC_BUILD_ID
-      : undefined,
+    appVersion: BUILD_ID,
   };
   enqueue(event);
 }

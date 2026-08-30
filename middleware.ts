@@ -1,9 +1,15 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { ensureCsrfCookieInMiddleware } from '@/lib/utils/csrf';
+import { isAdminRoute as isAdminPath, isMerchantRoute as isMerchantPath } from '@/lib/auth/routeAccess';
 
 export function middleware(request: NextRequest) {
   const token = request.cookies.get('auth_token')?.value;
+  // NOTE (issue #492): `user_role` is a *hint* used only for redirect UX. It
+  // is set HttpOnly by the auth routes but the middleware still treats it as
+  // untrusted — the real gate is `requireRole()` in each admin route handler
+  // / server component. A forged `user_role=admin` gets redirected here but
+  // is rejected the moment it hits a privileged handler.
   const role = request.cookies.get('user_role')?.value;
 
   // Helper to seed CSRF cookie on every response (allowed in middleware via NextResponse)
@@ -27,13 +33,7 @@ export function middleware(request: NextRequest) {
                        request.nextUrl.pathname.startsWith('/guides') ||
                        request.nextUrl.pathname.startsWith('/sdks') ||
                        request.nextUrl.pathname.startsWith('/status');
-  const isAdminRoute = request.nextUrl.pathname.startsWith('/admin') ||
-                       request.nextUrl.pathname === '/overview' ||
-                       request.nextUrl.pathname === '/merchants' ||
-                       request.nextUrl.pathname.startsWith('/merchants/kyb') ||
-                       request.nextUrl.pathname === '/anchors' ||
-                       request.nextUrl.pathname === '/fx-management' ||
-                       request.nextUrl.pathname === '/compliance';
+  const isAdminRoute = isAdminPath(request.nextUrl.pathname);
 
   // Allow public access to landing page and payment links
   if (isPublicPage) {
@@ -69,15 +69,7 @@ export function middleware(request: NextRequest) {
   }
 
   // Protect merchant routes from admins
-  const isMerchantRoute = request.nextUrl.pathname === '/onboarding' ||
-                          request.nextUrl.pathname === '/dashboard' ||
-                          request.nextUrl.pathname.startsWith('/payments') ||
-                          request.nextUrl.pathname === '/transactions' ||
-                          request.nextUrl.pathname.startsWith('/settlement') ||
-                          request.nextUrl.pathname === '/wallet' ||
-                          request.nextUrl.pathname === '/fx' ||
-                          request.nextUrl.pathname === '/developers' ||
-                          request.nextUrl.pathname === '/settings';
+  const isMerchantRoute = isMerchantPath(request.nextUrl.pathname);
 
   if (isMerchantRoute && role === 'admin') {
     return withCsrf(NextResponse.redirect(new URL('/overview', request.url)));

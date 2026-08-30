@@ -11,6 +11,9 @@ import type {
 } from '../types';
 import { getErrorMessage } from '../utils/apiError';
 import { normalizePaymentStatus } from '../utils/constants';
+// Referenced only behind the `NODE_ENV !== 'production'` guard in
+// `useAdminStats`, so this import is tree-shaken out of production builds.
+import { MOCK_ADMIN_STATS } from './fixtures/adminStats';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -200,20 +203,31 @@ export function useAuthSessions(): {
 
 // ─── useAdminStats ────────────────────────────────────────────────────────────
 
-// The admin analytics endpoint is not deployed in every environment, so these
-// figures double as the fallback rendered alongside the error banner — the
-// overview page stays readable instead of collapsing into an empty shell.
-export const MOCK_ADMIN_STATS: AdminStats = {
-  totalProcessed: 1452310.89,
-  totalProcessedChangePct: 12.5,
-  platformFees: 14523.1,
-  feeRatePct: 1.0,
-  activeMerchants: 142,
-  newMerchantsThisWeek: 12,
-  pendingKyb: 8,
-};
+// Dev-only, opt-in sample data. `/api/admin/stats` is not deployed in every
+// local environment, so `NEXT_PUBLIC_ADMIN_STATS_SAMPLE_FALLBACK=true` lets a
+// developer keep the overview readable while the service is missing. The
+// `NODE_ENV !== 'production'` half of this guard is statically false in a
+// production build, so the `MOCK_ADMIN_STATS` import below is dead-code
+// eliminated and tree-shaken out of the production bundle.
+const ADMIN_STATS_SAMPLE_FALLBACK =
+  process.env.NODE_ENV !== 'production' &&
+  process.env.NEXT_PUBLIC_ADMIN_STATS_SAMPLE_FALLBACK === 'true';
 
-export function useAdminStats(): HookShape<AdminStats> {
+export interface AdminStatsHook {
+  /** Real figures from the API, or `null` when they cannot be loaded. */
+  data: AdminStats | null;
+  isLoading: boolean;
+  error: string | null;
+  refetch: () => void;
+  /**
+   * `true` when `data` holds illustrative sample figures rather than real
+   * platform metrics. Consumers MUST surface a visible indicator when set.
+   * Always `false` in production builds.
+   */
+  isSampleData: boolean;
+}
+
+export function useAdminStats(): AdminStatsHook {
   const query = useQuery<AdminStats, Error>({
     queryKey: queryKeys.adminStats,
     queryFn: async () => {
@@ -229,7 +243,19 @@ export function useAdminStats(): HookShape<AdminStats> {
       return unwrapped;
     },
   });
-  return mapQuery(query, MOCK_ADMIN_STATS);
+
+  const isSampleData =
+    ADMIN_STATS_SAMPLE_FALLBACK && query.isError && query.data === undefined;
+
+  return {
+    data: isSampleData ? MOCK_ADMIN_STATS : (query.data ?? null),
+    isLoading: query.isLoading,
+    error: query.isError ? getErrorMessage(query.error) : null,
+    refetch: () => {
+      void query.refetch();
+    },
+    isSampleData,
+  };
 }
 
 // ─── usePayments ──────────────────────────────────────────────────────────────
