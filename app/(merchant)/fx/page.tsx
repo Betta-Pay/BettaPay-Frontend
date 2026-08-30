@@ -16,6 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useRates } from '@/lib/api/hooks';
+import { USE_MOCK_RATE_DATA } from '@/lib/utils/constants';
 import { useRateAlertStore } from '@/lib/store/rateAlertStore';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui';
 
@@ -33,7 +34,8 @@ export default function FxRatesPage() {
   const notify = useNotify();
   const { alerts, addAlert, toggleAlert, deleteAlert, markAlertTriggered } = useRateAlertStore();
 
-  const currentRate = primaryRate ?? 1550;
+  const currentRate = typeof primaryRate === 'number' && Number.isFinite(primaryRate) ? primaryRate : null;
+  const isRatesUnavailable = !ratesLoading && !ratesError && !currentRate && !USE_MOCK_RATE_DATA;
 
   // Check rate alerts when rates update
   useEffect(() => {
@@ -70,7 +72,7 @@ export default function FxRatesPage() {
   const feePercent = 0.5;
   const feeUsdc = rawInput * (feePercent / 100);
   const netUsdc = Math.max(0, rawInput - feeUsdc);
-  const estimatedOutputNgn = netUsdc * currentRate;
+  const estimatedOutputNgn = currentRate ? netUsdc * currentRate : 0;
 
   const handleExecuteConversion = () => {
     if (rawInput <= 0) {
@@ -107,6 +109,12 @@ export default function FxRatesPage() {
           <p className="text-xs font-semibold tracking-widest text-primary uppercase mb-1">Market Data</p>
           <h1 className="text-3xl font-bold text-foreground">FX & Conversions</h1>
           <p className="text-muted-foreground text-sm mt-1">Live exchange rates and real-time conversion engine.</p>
+          {USE_MOCK_RATE_DATA && (!primaryRate || !!ratesError) && (
+            <div className="mt-3 inline-flex items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5 text-xs font-medium text-amber-700 dark:text-amber-300">
+              <span className="inline-block h-2 w-2 rounded-full bg-amber-500" />
+              Using sample rates
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" onClick={refetch} className="border-border rounded-xl h-10 px-4 text-sm font-semibold text-muted-foreground">
@@ -140,21 +148,30 @@ export default function FxRatesPage() {
               <CardContent className="p-6 relative space-y-6">
                 <div>
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Primary Rate · USDC/NGN</p>
-                  <p className="text-3xl sm:text-5xl font-bold text-foreground">
-                    {ratesLoading ? <span className="animate-pulse">Loading...</span> : primaryRate ? `₦${primaryRate.toLocaleString()}` : `₦${currentRate.toLocaleString()}`}
-                  </p>
-                  <p className="text-muted-foreground text-sm mt-1">Updated {lastRefresh}</p>
+                  {ratesLoading ? (
+                    <p className="text-3xl sm:text-5xl font-bold text-foreground animate-pulse">Loading...</p>
+                  ) : currentRate ? (
+                    <p className="text-3xl sm:text-5xl font-bold text-foreground">₦{currentRate.toLocaleString()}</p>
+                  ) : (
+                    <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-left">
+                      <p className="text-lg font-semibold text-destructive">Rates unavailable</p>
+                      <p className="text-sm text-muted-foreground mt-1">Refresh to retry the live FX feed.</p>
+                    </div>
+                  )}
+                  {!ratesLoading && currentRate && <p className="text-muted-foreground text-sm mt-1">Updated {lastRefresh}</p>}
                 </div>
-                <div className="flex flex-wrap items-center gap-3 pt-4 border-t border-border/60">
-                  <div className="flex items-center gap-2 bg-success/10 border border-success/30 px-4 py-2 rounded-xl">
-                    <TrendingUp className="w-4 h-4 text-success" />
-                    <span className="text-success font-bold text-sm">+1.6% today</span>
+                {currentRate && (
+                  <div className="flex flex-wrap items-center gap-3 pt-4 border-t border-border/60">
+                    <div className="flex items-center gap-2 bg-success/10 border border-success/30 px-4 py-2 rounded-xl">
+                      <TrendingUp className="w-4 h-4 text-success" />
+                      <span className="text-success font-bold text-sm">+1.6% today</span>
+                    </div>
+                    <div className="bg-muted px-4 py-2 rounded-xl">
+                      <p className="text-xs text-muted-foreground">24h Range</p>
+                      <p className="text-sm font-bold text-foreground">₦1,510 – ₦1,565</p>
+                    </div>
                   </div>
-                  <div className="bg-muted px-4 py-2 rounded-xl">
-                    <p className="text-xs text-muted-foreground">24h Range</p>
-                    <p className="text-sm font-bold text-foreground">₦1,510 – ₦1,565</p>
-                  </div>
-                </div>
+                )}
               </CardContent>
             </Card>
 
@@ -188,25 +205,31 @@ export default function FxRatesPage() {
                   </div>
                 </div>
 
-                <div className="p-3 rounded-xl bg-muted/40 border border-border/60 space-y-1.5 text-xs">
-                  <div className="flex justify-between text-muted-foreground">
-                    <span>Spot Exchange Rate</span>
-                    <span className="font-semibold text-foreground">₦{currentRate.toLocaleString()} / USDC</span>
+                {currentRate ? (
+                  <div className="p-3 rounded-xl bg-muted/40 border border-border/60 space-y-1.5 text-xs">
+                    <div className="flex justify-between text-muted-foreground">
+                      <span>Spot Exchange Rate</span>
+                      <span className="font-semibold text-foreground">₦{currentRate.toLocaleString()} / USDC</span>
+                    </div>
+                    <div className="flex justify-between text-muted-foreground">
+                      <span>Platform Fee ({feePercent}%)</span>
+                      <span className="font-semibold text-foreground">${feeUsdc.toFixed(2)} USDC</span>
+                    </div>
+                    <div className="flex justify-between font-bold text-foreground pt-1.5 border-t border-border/60">
+                      <span>Estimated Receive</span>
+                      <span className="text-primary text-sm">₦{estimatedOutputNgn.toLocaleString()} NGN</span>
+                    </div>
                   </div>
-                  <div className="flex justify-between text-muted-foreground">
-                    <span>Platform Fee ({feePercent}%)</span>
-                    <span className="font-semibold text-foreground">${feeUsdc.toFixed(2)} USDC</span>
+                ) : (
+                  <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+                    Live FX data is unavailable. Refresh or retry once the endpoint responds.
                   </div>
-                  <div className="flex justify-between font-bold text-foreground pt-1.5 border-t border-border/60">
-                    <span>Estimated Receive</span>
-                    <span className="text-primary text-sm">₦{estimatedOutputNgn.toLocaleString()} NGN</span>
-                  </div>
-                </div>
+                )}
 
                 <Button
                   onClick={handleExecuteConversion}
-                  disabled={isExecuting}
-                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-xl h-10"
+                  disabled={isExecuting || !currentRate}
+                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-xl h-10 disabled:opacity-60"
                 >
                   {isExecuting ? 'Executing Conversion...' : 'Execute Conversion'}
                   <ArrowRight className="w-4 h-4 ml-2" />

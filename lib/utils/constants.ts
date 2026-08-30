@@ -7,9 +7,6 @@ export type SettlementCurrency = typeof SUPPORTED_SETTLEMENT_CURRENCIES[number];
 
 export const ONBOARDING_COMPLETED_KEY = 'bp_onboarded' as const;
 
-
-export const STELLAR_NETWORK = process.env.NEXT_PUBLIC_STELLAR_NETWORK || 'testnet';
-export const HORIZON_URL = process.env.NEXT_PUBLIC_STELLAR_HORIZON_URL || 'https://horizon-testnet.stellar.org';
 export const SUPPORTED_CURRENCIES = ['USDC', 'XLM', 'USDT'] as const;
 
 /**
@@ -97,8 +94,12 @@ export const MULTI_CURRENCY_ASSETS: Record<string, CurrencyConfig> = {
   },
 };
 
-export const MOCK_RATES: Record<string, number> = {
-  USDC: 1.0,
-  XLM: 0.12,
-  USDT: 0.999,
-};
+export const USE_MOCK_RATE_DATA = process.env.NEXT_PUBLIC_USE_MOCK === '1';
+
+export const MOCK_RATES: Record<string, number> = USE_MOCK_RATE_DATA
+  ? {
+      USDC: 1.0,
+      XLM: 0.12,
+      USDT: 0.999,
+    }
+  : {};

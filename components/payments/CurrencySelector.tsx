@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, memo } from "react";
 import { cn } from "@/lib/utils";
 import { Check, TrendingUp, TrendingDown, Loader2 } from "lucide-react";
-import { MULTI_CURRENCY_ASSETS, MOCK_RATES } from "@/lib/utils/constants";
+import { MULTI_CURRENCY_ASSETS, MOCK_RATES, USE_MOCK_RATE_DATA } from "@/lib/utils/constants";
 
 export interface CurrencySelectorProps {
   selectedCurrencies: string[];
@@ -102,6 +102,14 @@ export function CurrencySelector({
 
   const fetchRates = useCallback(async () => {
     setRatesLoading(true);
+
+    if (!USE_MOCK_RATE_DATA) {
+      setRates({});
+      setTrends({});
+      setRatesLoading(false);
+      return;
+    }
+
     try {
       // Simulate real-time rate fetching
       await new Promise((resolve) => setTimeout(resolve, 500));
@@ -116,7 +124,7 @@ export function CurrencySelector({
       setRates(fetchedRates);
       setTrends(fetchedTrends);
     } catch {
-      // Use fallback mock rates
+      // Use fallback mock rates only when explicitly enabled.
       setRates({ ...MOCK_RATES });
     } finally {
       setRatesLoading(false);
@@ -161,6 +169,13 @@ export function CurrencySelector({
           />
         ))}
       </div>
+
+      {USE_MOCK_RATE_DATA && (
+        <div className="flex items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5 text-xs font-medium text-amber-700 dark:text-amber-300">
+          <span className="inline-block h-2 w-2 rounded-full bg-amber-500" />
+          Using sample rates
+        </div>
+      )}
 
       {mode === "multi" && selectedCurrencies.length > 0 && (
         <div className="flex items-center gap-1.5 flex-wrap">

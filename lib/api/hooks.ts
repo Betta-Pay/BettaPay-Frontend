@@ -341,8 +341,6 @@ export function useRates(): UseRatesResult {
   return {
     data: rates,
     isLoading: query.isLoading,
-    isFetching: query.isFetching,
-    // Mirror `mapQuery`: "fetching" means a background refetch, not the first load.
     isFetching: query.isFetching && !query.isLoading,
     error: query.isError ? getErrorMessage(query.error) : null,
     refetch: () => {
@@ -378,8 +376,6 @@ export function useMerchantBankAccount(
     data: query.data ?? null,
     isLoading,
     isFetching: query.isFetching && !query.isLoading,
-    isFetching: query.isFetching,
-    isFetching: query.isFetching && !isLoading,
     error: query.isError ? getErrorMessage(query.error) : null,
     refetch: () => {
       void query.refetch();
@@ -415,8 +411,6 @@ export function useMerchantProfile(
     data: query.data ?? null,
     isLoading,
     isFetching: query.isFetching && !query.isLoading,
-    isFetching: query.isFetching,
-    isFetching: query.isFetching && !isLoading,
     error: query.isError ? getErrorMessage(query.error) : null,
     refetch: () => {
       void query.refetch();
