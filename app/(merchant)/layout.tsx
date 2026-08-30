@@ -4,6 +4,7 @@ import { useCallback, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { AlertTriangle } from "lucide-react";
 import { MerchantSidebar, MobileNavDrawer, Topbar, MobileBottomNav } from "@/components/layout";
+import { ThemePreferenceSync } from "@/components/layout/ThemePreferenceSync";
 import { merchantNavItems } from "@/lib/navigation/merchantNav";
 import { PageTransition, ErrorBoundary } from "@/components/shared";
 import { OnboardingWizard } from "@/components/onboarding/OnboardingWizard";
@@ -68,6 +69,7 @@ export default function MerchantLayout({
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
+      <ThemePreferenceSync />
       <MerchantSidebar />
 
       <MobileNavDrawer
