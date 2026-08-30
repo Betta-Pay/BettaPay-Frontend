@@ -27,6 +27,12 @@ import {
 import { signWithFreighter } from "@/lib/stellar/freighter";
 import { apiClient } from "@/lib/api/axios";
 import { MULTI_CURRENCY_ASSETS, MOCK_RATES } from "@/lib/utils/constants";
+import {
+  SOROBAN_RPC_URL,
+  SETTLEMENT_CONTRACT_ID,
+  MERCHANT_ADDRESS,
+  STELLAR_NETWORK_PASSPHRASE,
+} from "@/lib/config";
 import { WalletModalFallback } from "@/components/wallet/WalletModalFallback";
 import { WalletModalErrorBoundary } from "@/components/wallet/WalletModalErrorBoundary";
 import { QRCodeModal } from "@/components/payments/QRCode";
@@ -112,18 +118,16 @@ export default function PaymentLinkPage() {
         .join("");
 
       // 2. Build Soroban Transaction
-      const rpcUrl = process.env.NEXT_PUBLIC_SOROBAN_RPC_URL;
+      const rpcUrl = SOROBAN_RPC_URL;
       if (!rpcUrl) throw new Error('NEXT_PUBLIC_SOROBAN_RPC_URL is not set');
       const server = new rpc.Server(rpcUrl);
       const account = await server.getAccount(payerAddress);
 
-      const contractId =
-        process.env.NEXT_PUBLIC_SETTLEMENT_CONTRACT_ID ||
-        "CBGBGKJSUY7XYB6HWW4CVAU6MW2KD25FSF45E5KCP53TKUK374MBZNFB";
-      // Merchant address: read from env var so it can be set per-environment.
+      const contractId = SETTLEMENT_CONTRACT_ID;
+      // Merchant address: read from config so it can be set per-environment.
       // In production this should be derived from the payment link data fetched
       // via the linkId param rather than a global env var.
-      const merchantAddress = process.env.NEXT_PUBLIC_MERCHANT_ADDRESS;
+      const merchantAddress = MERCHANT_ADDRESS;
       if (!merchantAddress) {
         throw new Error('NEXT_PUBLIC_MERCHANT_ADDRESS is not set');
       }
@@ -132,7 +136,7 @@ export default function PaymentLinkPage() {
       const assetConfig = MULTI_CURRENCY_ASSETS[activeCurrency] ?? MULTI_CURRENCY_ASSETS.USDC;
       const stroopAmount = BigInt(Math.floor(Number(amount) * assetConfig.stroopMultiplier));
 
-      const networkPassphrase = process.env.NEXT_PUBLIC_STELLAR_NETWORK_PASSPHRASE;
+      const networkPassphrase = STELLAR_NETWORK_PASSPHRASE;
       if (!networkPassphrase) throw new Error('NEXT_PUBLIC_STELLAR_NETWORK_PASSPHRASE is not set');
 
       const tx = new TransactionBuilder(account, {

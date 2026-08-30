@@ -66,7 +66,7 @@ export const RevenueChartSection = memo(function RevenueChartSection({
   data: dataOverride,
 }: RevenueChartSectionProps) {
   const [activePeriod, setActivePeriod] = useState<Period>('7D');
-  const { data: paymentsData } = usePayments();
+  const { data: paymentsData, isLoading: paymentsLoading } = usePayments();
   const payments: RevenuePayment[] = dataOverride ?? (paymentsData as RevenuePayment[]) ?? [];
 
   const handlePeriodChange = useCallback((p: Period) => {
@@ -82,7 +82,7 @@ export const RevenueChartSection = memo(function RevenueChartSection({
     const filtered = filterPaymentsByPeriod(payments, activePeriod);
     // If filter yields nothing (e.g., period has no data), aggregate will be empty -> fallback to mock for preview
     const aggregated = aggregatePaymentsByDay(filtered);
-    // Keep fallback consistent with RevenueChart's internal fallback behaviour
+    // Keep fallback consistent with RevenueChart's undefined-data preview behaviour
     return aggregated.length > 0 ? aggregated : mockChartData;
   }, [payments, activePeriod]);
 
@@ -146,7 +146,7 @@ export const RevenueChartSection = memo(function RevenueChartSection({
           </div>
         ) : (
         <ErrorBoundary>
-          <RevenueChart height={260} data={chartData} />
+          <RevenueChart height={260} data={chartData} isLoading={dataOverride ? false : paymentsLoading} />
         </ErrorBoundary>
         )}
         {/* Summary row — all values derived from chartData */}

@@ -10,7 +10,31 @@
 export const supportedLocales = ["en", "fr", "pt", "sw"] as const;
 export type Locale = (typeof supportedLocales)[number];
 
-export const defaultLocale: Locale = "en";
+/** Hard fallback used when nothing else resolves. */
+export const FALLBACK_LOCALE: Locale = "en";
+
+/**
+ * Default app locale (issue #494). Optionally overridden by
+ * `NEXT_PUBLIC_DEFAULT_LOCALE` (must be one of {@link supportedLocales});
+ * an unset or invalid value falls back to `en` with a dev warning, so the
+ * `LanguageSelector` and SSR always have a sane default and never no-op.
+ * Documented in `.env.example` and the README.
+ */
+function resolveDefaultLocale(): Locale {
+  const configured = process.env.NEXT_PUBLIC_DEFAULT_LOCALE;
+  if (configured && supportedLocales.includes(configured as Locale)) {
+    return configured as Locale;
+  }
+  if (configured && process.env.NODE_ENV === "development") {
+    console.warn(
+      `[i18n] NEXT_PUBLIC_DEFAULT_LOCALE="${configured}" is not a supported ` +
+        `locale (${supportedLocales.join(", ")}); using "${FALLBACK_LOCALE}".`,
+    );
+  }
+  return FALLBACK_LOCALE;
+}
+
+export const defaultLocale: Locale = resolveDefaultLocale();
 
 /** localStorage key used to persist the user's chosen language. */
 export const localeStorageKey = "bettapay-language";

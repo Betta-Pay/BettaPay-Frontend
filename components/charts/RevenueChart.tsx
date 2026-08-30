@@ -13,6 +13,7 @@ import {
   Legend,
   CartesianGrid,
 } from "recharts";
+import { ChartFrame } from "@/components/charts/ChartFrame";
 import { formatNumber } from "@/lib/utils/format";
 
 /** Minimal shape this chart needs from a payment — matches `ApiPayment`. */
@@ -125,10 +126,13 @@ const ChartTooltip = ({ active, payload, label }: ChartTooltipProps) => {
 interface RevenueChartProps {
   height?: number;
   /**
-   * Payments from `usePayments`, or pre-aggregated chart points. Falls back to
-   * mock data when omitted or empty, so the chart still previews.
+   * Payments from `usePayments`, or pre-aggregated chart points.
+   * Pass `mockChartData` explicitly when a preview series is desired.
+   * An empty array renders the empty state (no silent mock fallback).
    */
   data?: RevenuePayment[] | RevenueChartPoint[];
+  /** When true, render a skeleton instead of axes/empty state. */
+  isLoading?: boolean;
 }
 
 const isAggregated = (
@@ -136,7 +140,11 @@ const isAggregated = (
 ): data is RevenueChartPoint[] =>
   data.length > 0 && (data[0] as RevenueChartPoint).name !== undefined;
 
-export default function RevenueChart({ height = 260, data }: RevenueChartProps) {
+export default function RevenueChart({
+  height = 260,
+  data,
+  isLoading = false,
+}: RevenueChartProps) {
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === 'dark';
   const [isMobile, setIsMobile] = useState(false);
@@ -150,19 +158,25 @@ export default function RevenueChart({ height = 260, data }: RevenueChartProps) 
   }, []);
 
   const chartData = useMemo(() => {
-    if (!data || data.length === 0) return mockChartData;
+    // Undefined data keeps the historical preview series for callers that omit
+    // `data` entirely. Explicit `[]` is treated as empty (no silent mock swap).
+    if (data === undefined) return mockChartData;
+    if (data.length === 0) return [];
     if (isAggregated(data)) return data;
 
-    const aggregated = aggregatePaymentsByDay(data as RevenuePayment[]);
-    return aggregated.length > 0 ? aggregated : mockChartData;
+    return aggregatePaymentsByDay(data as RevenuePayment[]);
   }, [data]);
 
+  const isEmpty = !isLoading && chartData.length === 0;
+
   return (
-    <div
-      role="region"
-      aria-label="Revenue and volume chart"
-      className="w-full relative"
-      style={{ height }}
+    <ChartFrame
+      ariaLabel="Revenue and volume chart"
+      height={height}
+      isLoading={isLoading}
+      isEmpty={isEmpty}
+      emptyTitle="No revenue yet"
+      emptyDescription="Revenue will appear here once you receive completed payments."
     >
       <table className="sr-only" aria-label="Revenue and volume data table">
         <caption>Daily revenue and cumulative volume</caption>
@@ -184,7 +198,7 @@ export default function RevenueChart({ height = 260, data }: RevenueChartProps) 
         </tbody>
       </table>
 
-      <ResponsiveContainer width="100%" height="100%">
+      <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
         <ComposedChart
           data={chartData}
           margin={{ top: 4, right: 4, bottom: 0, left: isMobile ? 0 : -16 }}
@@ -248,7 +262,6 @@ export default function RevenueChart({ height = 260, data }: RevenueChartProps) 
           />
         </ComposedChart>
       </ResponsiveContainer>
-    </div>
+    </ChartFrame>
   );
 }
-

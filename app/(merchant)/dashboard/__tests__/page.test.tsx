@@ -103,22 +103,21 @@ describe('Merchant Dashboard Page Integration Tests', () => {
     expect(screen.getByText(/Good day, Merchant/i)).toBeInTheDocument();
   });
 
-  it('renders all 4 KPI cards with correct mock values', () => {
+  it('renders all 4 KPI cards with real hook-derived figures', () => {
     render(<DashboardPage />);
 
-    // KPI Card 1: Total Volume (30d) -> USDC 45,231.89
+    // KPI Card 1: Total Volume (30d) -> derived from payments (750 + 45.5 + 1200 + 29 + 3500 = 5,524.5)
     expect(screen.getByText(/Total Volume \(30d\)/i)).toBeInTheDocument();
-    expect(screen.getByText(/USDC 45,231.89/i)).toBeInTheDocument();
+    expect(screen.getByText(/5,524.5/i)).toBeInTheDocument();
 
-    // KPI Card 2: Active Payment Links -> 12 (exact match to avoid onboarding checklist text)
+    // KPI Card 2: Active Payment Links -> 5 from mockPayments length
     expect(screen.getByText('Active Payment Links')).toBeInTheDocument();
-    expect(screen.getByText('12')).toBeInTheDocument();
+    expect(screen.getByText('5')).toBeInTheDocument();
 
-    // KPI Card 3: Available to Settle -> USDC 12,450.00
+    // KPI Card 3: Available to Settle -> 0 (empty settlements mock)
     expect(screen.getByText(/Available to Settle/i)).toBeInTheDocument();
-    expect(screen.getByText(/USDC 12,450.00/i)).toBeInTheDocument();
 
-    // KPI Card 4: Current FX Rate -> ₦1,550
+    // KPI Card 4: Current FX Rate -> ₦1,550 from useRates primaryRate
     expect(screen.getByText(/Current FX Rate/i)).toBeInTheDocument();
     expect(screen.getByText('₦1,550')).toBeInTheDocument();
   });

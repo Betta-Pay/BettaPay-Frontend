@@ -77,3 +77,47 @@ export function isAuthRoute(pathname: string): boolean {
 export interface PersistedAuthState {
   isLoggedIn: boolean;
 }
+
+/**
+ * Single source of truth for checking onboarding completion status across client surfaces.
+ * Reads consolidated key `bp_onboarded` from localStorage or `merchant_onboarded` cookie.
+ */
+export function isOnboardingCompleted(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    const lsVal = localStorage.getItem('bp_onboarded');
+    const legacyVal = localStorage.getItem('onboardingCompleted');
+    if (lsVal === 'true' || legacyVal === 'true') return true;
+
+    if (document.cookie.includes(`${MERCHANT_ONBOARDED_COOKIE}=true`)) {
+      return true;
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Single source of truth for persisting onboarding completion status.
+ * Writes `bp_onboarded` to localStorage, removes redundant legacy keys, and sets the cookie.
+ */
+export function setOnboardingCompleted(completed: boolean): void {
+  if (typeof window === 'undefined') return;
+  try {
+    if (completed) {
+      localStorage.setItem('bp_onboarded', 'true');
+      localStorage.removeItem('onboardingCompleted');
+      const secureFlag = process.env.NODE_ENV === 'production' ? '; Secure' : '';
+      document.cookie = `${MERCHANT_ONBOARDED_COOKIE}=true; Path=/; SameSite=Lax; Max-Age=86400${secureFlag}`;
+    } else {
+      localStorage.setItem('bp_onboarded', 'false');
+      localStorage.removeItem('onboardingCompleted');
+      const secureFlag = process.env.NODE_ENV === 'production' ? '; Secure' : '';
+      document.cookie = `${MERCHANT_ONBOARDED_COOKIE}=false; Path=/; SameSite=Lax; Max-Age=86400${secureFlag}`;
+    }
+  } catch {
+    // localStorage / cookie access error fallback
+  }
+}
+

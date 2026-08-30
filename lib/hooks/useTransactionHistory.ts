@@ -55,7 +55,7 @@ interface HorizonPaymentsPage {
 }
 
 function getNetwork(): 'testnet' | 'public' {
-  const val = (process.env.NEXT_PUBLIC_STELLAR_NETWORK || 'testnet').toLowerCase();
+  const val = STELLAR_NETWORK.toLowerCase();
   if (val === 'mainnet' || val === 'public') return 'public';
   return 'testnet';
 }

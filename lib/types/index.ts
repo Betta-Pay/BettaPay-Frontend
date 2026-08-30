@@ -7,6 +7,7 @@ export interface User {
   email: string;
   name: string;
   role: Role;
+  avatarUrl?: string | null;
   businessName?: string;
   kybStatus?: 'pending' | 'approved' | 'rejected' | 'none';
   address?: string;

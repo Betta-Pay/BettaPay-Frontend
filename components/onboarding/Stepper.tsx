@@ -5,7 +5,11 @@ type Props = { steps: string[]; currentStep: number; onStepClick: (step: number)
 
 export function Stepper({ steps, currentStep, onStepClick }: Props) {
   return (
-    <ol className="grid grid-cols-5 gap-1" aria-label="Onboarding progress">
+    <ol
+      className="grid gap-1"
+      style={{ gridTemplateColumns: `repeat(${steps.length}, minmax(0, 1fr))` }}
+      aria-label="Onboarding progress"
+    >
       {steps.map((label, index) => {
         const complete = index < currentStep;
         const active = index === currentStep;

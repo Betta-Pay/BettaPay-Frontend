@@ -1,13 +1,13 @@
 "use client";
 
 import { useState, useCallback, useMemo } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui';
+import { Card, CardContent, CardHeader, CardTitle, Skeleton } from '@/components/ui';
 import { Button } from '@/components/ui';
-import { CurrencyDisplay, StatCard, ErrorDisplay } from '@/components/shared';
+import { CurrencyDisplay, StatCard, ErrorDisplay, EmptyState } from '@/components/shared';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { OnboardingChecklist } from '@/components/dashboard/OnboardingChecklist';
 import { ActivityFeed } from '@/components/dashboard/ActivityFeed';
-import { usePayments } from '@/lib/api/hooks';
+import { usePayments, useSettlements, useRates } from '@/lib/api/hooks';
 import { useAuthStore } from '@/lib/store/authStore';
 import Link from 'next/link';
 import { useNotify } from '@/lib/hooks/useNotify';
@@ -40,7 +40,7 @@ type Period = typeof PERIOD_OPTIONS[number];
 export default function DashboardPage() {
   const { user } = useAuthStore();
   const notify = useNotify();
-  const { data: payments } = usePayments();
+  const { data: payments, isLoading: paymentsLoading } = usePayments();
 
 
   const [activePeriod, setActivePeriod] = useState<Period>('7D');
@@ -73,10 +73,35 @@ export default function DashboardPage() {
     setLinksError(nextState);
   };
 
+  // --- Real API-derived calculations for 30d volume, available settlement & links ---
+  const totalVolume30d = useMemo(() => {
+    if (!payments || payments.length === 0) return 0;
+    const now = new Date();
+    const cutoff = new Date(now);
+    cutoff.setDate(now.getDate() - 30);
+    return payments
+      .filter((p) => {
+        const d = new Date(p.createdAt);
+        return !Number.isNaN(d.getTime()) && d >= cutoff && p.status?.toLowerCase() !== 'failed';
+      })
+      .reduce((sum, p) => sum + (p.amountUsdc || 0), 0);
+  }, [payments]);
+
+  const availableToSettle = useMemo(() => {
+    if (!settlements || settlements.length === 0) return 0;
+    return settlements
+      .filter((s) => s.status?.toLowerCase() === 'pending' || s.status?.toLowerCase() === 'completed')
+      .reduce((sum, s) => sum + (s.amountUsdc || 0), 0);
+  }, [settlements]);
+
+  const activeLinksCount = useMemo(() => {
+    return payments ? payments.length : 0;
+  }, [payments]);
+
   // --- Derived chart data: single source of truth for both header total and bars ---
   const chartData = useMemo(() => {
     if (!payments || payments.length === 0) {
-      return mockChartData;
+      return process.env.NEXT_PUBLIC_ENABLE_MOCKS === 'true' ? mockChartData : [];
     }
     // Filter by activePeriod window
     const now = new Date();
@@ -87,10 +112,9 @@ export default function DashboardPage() {
       const d = new Date(p.createdAt);
       return !Number.isNaN(d.getTime()) && d >= cutoff;
     });
-    // If filter yields nothing, aggregate empty -> fallback to mock for preview (consistent with RevenueChart)
     const source = filtered.length > 0 ? filtered : payments;
     const aggregated = aggregatePaymentsByDay(source as unknown as { amountUsdc: number; createdAt: string; status?: string }[]);
-    return aggregated.length > 0 ? aggregated : mockChartData;
+    return aggregated;
   }, [payments, activePeriod]);
 
   const totalRevenue = useMemo(() => chartData.reduce((sum, p) => sum + p.total, 0), [chartData]);
@@ -138,7 +162,7 @@ export default function DashboardPage() {
       {/* ── Onboarding Checklist ── */}
       <OnboardingChecklist />
 
-      {/* ── KPI Stat Cards (memoised — not affected by period changes) ── */}
+      {/* ── KPI Stat Cards (dynamic API data with loading skeletons) ── */}
       <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
         {statsError ? (
           <div className="col-span-full">
@@ -153,29 +177,59 @@ export default function DashboardPage() {
               title="Total Volume (30d)"
               icon={Activity}
               color="amber"
-              value={<CurrencyDisplay amount={45231.89} />}
-              trend={{ icon: ArrowUpRight, label: "+20.1% from last month", color: "text-emerald-600" }}
+              value={
+                paymentsLoading ? (
+                  <Skeleton className="h-7 w-28" />
+                ) : (
+                  <CurrencyDisplay amount={totalVolume30d} />
+                )
+              }
+              trend={
+                payments && payments.length > 0
+                  ? { icon: ArrowUpRight, label: "Live API data", color: "text-emerald-600" }
+                  : { label: "No volume recorded" }
+              }
             />
             <StatCard
               title="Active Payment Links"
               icon={CreditCard}
               color="blue"
-              value="12"
-              trend={{ label: "+3 new links this week" }}
+              value={
+                paymentsLoading ? (
+                  <Skeleton className="h-7 w-16" />
+                ) : (
+                  activeLinksCount.toString()
+                )
+              }
+              trend={{ label: payments && payments.length > 0 ? `${activeLinksCount} active links` : "No active links" }}
             />
             <StatCard
               title="Available to Settle"
               icon={Wallet}
               color="emerald"
-              value={<CurrencyDisplay amount={12450.00} />}
+              value={
+                settlementsLoading ? (
+                  <Skeleton className="h-7 w-28" />
+                ) : (
+                  <CurrencyDisplay amount={availableToSettle} />
+                )
+              }
               trend={{ icon: ArrowDownRight, label: "Pending NGN conversion", color: "text-primary" }}
             />
             <StatCard
               title="Current FX Rate"
               icon={RefreshCcw}
               color="purple"
-              value="₦1,550"
-              trend={{ label: "per USDC · Updated 5m ago" }}
+              value={
+                ratesLoading ? (
+                  <Skeleton className="h-7 w-24" />
+                ) : primaryRate ? (
+                  `₦${primaryRate.toLocaleString()}`
+                ) : (
+                  "₦1,550"
+                )
+              }
+              trend={{ label: "per USDC · Live API rate" }}
             />
           </>
         )}
@@ -223,7 +277,7 @@ export default function DashboardPage() {
                 />
               </div>
             ) : (
-              <RevenueChart height={260} data={chartData} />
+              <RevenueChart height={260} data={chartData} isLoading={paymentsLoading} />
             )}
             {/* Summary row - all values derived from chartData (peak, avg) */}
             <div className="flex items-center gap-6 pt-4 border-t border-border mt-2">
@@ -303,6 +357,32 @@ export default function DashboardPage() {
                 <ErrorDisplay
                   message="Failed to load payment links"
                   onRetry={() => setLinksError(false)}
+                />
+              </div>
+            ) : paymentsLoading ? (
+              <div className="space-y-3">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i} className="flex items-center gap-4 p-3 rounded-xl border border-border">
+                    <Skeleton className="w-10 h-10 rounded-xl shrink-0" />
+                    <div className="flex-1 space-y-2">
+                      <Skeleton className="h-4 w-1/3" />
+                      <Skeleton className="h-3 w-1/2" />
+                    </div>
+                    <Skeleton className="h-4 w-16" />
+                  </div>
+                ))}
+              </div>
+            ) : !payments || payments.length === 0 ? (
+              <div className="py-4">
+                <EmptyState
+                  icon={CreditCard}
+                  title="No payment links yet"
+                  description="Create your first payment link to start receiving payments and tracking performance."
+                  compact
+                  action={{
+                    label: 'Create Payment Link',
+                    onClick: () => { window.location.href = '/payments'; },
+                  }}
                 />
               </div>
             ) : (

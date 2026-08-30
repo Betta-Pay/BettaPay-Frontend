@@ -25,7 +25,7 @@ const dmSans = DM_Sans({
 
 export const metadata: Metadata = {
   // Resolves relative canonical/openGraph URLs declared by individual pages.
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://betta.pay"),
+  metadataBase: new URL(SITE_URL),
   title: "BettaPay | Non-custodial Merchant Platform",
   description: "Accept USDC and stablecoins easily across Africa",
 };

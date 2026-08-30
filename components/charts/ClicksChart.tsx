@@ -11,6 +11,7 @@ import {
   Tooltip,
   CartesianGrid,
 } from "recharts";
+import { ChartFrame } from "@/components/charts/ChartFrame";
 
 interface ClicksChartTooltipProps {
   active?: boolean;
@@ -24,9 +25,9 @@ const ChartTooltip = ({ active, payload, label }: ClicksChartTooltipProps) => {
 
   if (active && payload && payload.length) {
     return (
-      <div 
+      <div
         className="border rounded-xl p-3 shadow-lg text-sm"
-        style={{ 
+        style={{
           backgroundColor: isDark ? "var(--card)" : "var(--card)",
           borderColor: isDark ? "var(--border)" : "var(--border)",
         }}
@@ -44,18 +45,27 @@ const ChartTooltip = ({ active, payload, label }: ClicksChartTooltipProps) => {
 interface ClicksChartProps {
   data: { date: string; clicks: number }[];
   height?: number;
+  isLoading?: boolean;
 }
 
-export default function ClicksChart({ data, height = 260 }: ClicksChartProps) {
+export default function ClicksChart({
+  data,
+  height = 260,
+  isLoading = false,
+}: ClicksChartProps) {
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
+  const isEmpty = !isLoading && data.length === 0;
 
   return (
-    <div
-      role="region"
-      aria-label="Payment link clicks chart"
-      className={cn("w-full relative")}
-      style={{ height }}
+    <ChartFrame
+      ariaLabel="Payment link clicks chart"
+      height={height}
+      isLoading={isLoading}
+      isEmpty={isEmpty}
+      emptyTitle="No clicks yet"
+      emptyDescription="Click activity will appear here once visitors open this payment link."
+      className={cn("w-full")}
     >
       <table className="sr-only" aria-label="Payment link clicks data table">
         <caption>Payment link clicks over time</caption>
@@ -75,7 +85,7 @@ export default function ClicksChart({ data, height = 260 }: ClicksChartProps) {
         </tbody>
       </table>
 
-      <ResponsiveContainer width="100%" height="100%">
+      <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
         <AreaChart
           data={data}
           margin={{ top: 4, right: 4, bottom: 0, left: -16 }}
@@ -130,6 +140,6 @@ export default function ClicksChart({ data, height = 260 }: ClicksChartProps) {
           />
         </AreaChart>
       </ResponsiveContainer>
-    </div>
+    </ChartFrame>
   );
 }
