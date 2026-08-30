@@ -58,25 +58,56 @@ export const QRCode = memo(function QRCode({
     );
   }
 
+  const notify = useNotify();
+  const [copied, setCopied] = useState(false);
+
+  const handleCopyLink = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(true);
+      notify.success("Payment link copied to clipboard");
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch {
+      notify.error("Failed to copy link");
+    }
+  }, [value, notify]);
+
   return (
-    <div
-      className={cn(
-        "inline-flex items-center justify-center p-3 bg-white border border-border rounded-xl shadow-sm overflow-hidden",
-        className
-      )}
-      role="img"
-      aria-label={title ? `QR code for ${title}` : `QR code for ${value}`}
-    >
-      <QRCodeCanvas
-        value={value}
-        size={size}
-        level={level}
-        includeMargin={includeMargin}
-        bgColor={bgColor}
-        fgColor={fgColor}
-        role="presentation"
-        aria-hidden="true"
-      />
+    <div className={cn("flex w-full max-w-[220px] flex-col items-center justify-center gap-2 text-center", className)}>
+      {title && <p className="text-sm font-semibold text-foreground">{title}</p>}
+      <div
+        className="inline-flex w-full items-center justify-center overflow-hidden rounded-xl border border-border bg-white p-3 shadow-sm"
+        role="img"
+        aria-label={title ? `QR code for ${title}` : `QR code for ${value}`}
+      >
+        <QRCodeCanvas
+          value={value}
+          size={size}
+          level={level}
+          includeMargin={includeMargin}
+          bgColor={bgColor}
+          fgColor={fgColor}
+          role="presentation"
+          aria-hidden="true"
+          className="h-auto w-full"
+          style={{ width: "100%", height: "auto", maxWidth: `${size}px` }}
+        />
+      </div>
+      <div className="flex w-full items-center justify-center gap-2">
+        <p className="text-xs text-muted-foreground">Scan to pay with crypto</p>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={handleCopyLink}
+          className="h-7 gap-1 px-2 text-[11px]"
+          aria-label="Copy payment link"
+          title="Copy payment link"
+        >
+          {copied ? <Check className="h-3.5 w-3.5 text-success" /> : <Copy className="h-3.5 w-3.5" />}
+          {copied ? "Copied" : "Copy"}
+        </Button>
+      </div>
     </div>
   );
 });
