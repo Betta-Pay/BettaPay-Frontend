@@ -25,9 +25,16 @@ import { generateCsrfToken, CSRF_COOKIE_NAME } from '@/lib/utils/csrf';
 export async function GET(req: NextRequest) {
   const isProduction = process.env.NODE_ENV === 'production';
 
-  // Re-use an existing valid token so we don't invalidate in-flight requests.
+  // `?rotate=1` forces a brand-new token even when a valid one exists — used
+  // by the client at identity-change moments (e.g. right after logout) so a
+  // token from the previous session cannot linger (issue #486).
+  const forceRotate = req.nextUrl.searchParams.get('rotate') === '1';
+
+  // Otherwise re-use an existing valid token so we don't invalidate in-flight
+  // requests.
   const existing = req.cookies.get(CSRF_COOKIE_NAME)?.value;
-  const token = existing && existing.length === 64 ? existing : generateCsrfToken();
+  const token =
+    !forceRotate && existing && existing.length === 64 ? existing : generateCsrfToken();
 
   const cookieParts = [
     `${CSRF_COOKIE_NAME}=${token}`,
