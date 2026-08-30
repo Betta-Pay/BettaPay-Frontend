@@ -62,7 +62,7 @@ export default async function RootLayout({
   );
 
   return (
-    <html lang="en" className={cn("font-sans antialiased", fraunces.variable, dmSans.variable)}>
+    <html lang="en" suppressHydrationWarning className={cn("font-sans antialiased", fraunces.variable, dmSans.variable)}>
       <body className="min-h-screen bg-background text-foreground">
         <a
           href="#main-content"

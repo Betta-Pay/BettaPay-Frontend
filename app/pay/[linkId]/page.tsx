@@ -26,13 +26,7 @@ import {
 } from "@stellar/stellar-sdk";
 import { signWithFreighter } from "@/lib/stellar/freighter";
 import { apiClient } from "@/lib/api/axios";
-import { MULTI_CURRENCY_ASSETS, MOCK_RATES } from "@/lib/utils/constants";
-import {
-  SOROBAN_RPC_URL,
-  SETTLEMENT_CONTRACT_ID,
-  MERCHANT_ADDRESS,
-  STELLAR_NETWORK_PASSPHRASE,
-} from "@/lib/config";
+import { MULTI_CURRENCY_ASSETS, MOCK_RATES, USE_MOCK_RATE_DATA } from "@/lib/utils/constants";
 import { WalletModalFallback } from "@/components/wallet/WalletModalFallback";
 import { WalletModalErrorBoundary } from "@/components/wallet/WalletModalErrorBoundary";
 import { QRCodeModal } from "@/components/payments/QRCode";
@@ -252,10 +246,11 @@ export default function PaymentLinkPage() {
                           currency={activeCurrency}
                         />
                       </div>
-                      <p className="text-sm text-muted-foreground mt-2">
-                        {(MOCK_RATES[activeCurrency] ?? 1) !== 1 &&
-                          `≈ $${(linkData.fixedAmount * (MOCK_RATES[activeCurrency] ?? 1)).toFixed(2)} USD`}
-                      </p>
+                      {USE_MOCK_RATE_DATA && (MOCK_RATES[activeCurrency] ?? 1) !== 1 && (
+                        <p className="text-sm text-muted-foreground mt-2">
+                          {`≈ $${(linkData.fixedAmount * (MOCK_RATES[activeCurrency] ?? 1)).toFixed(2)} USD`}
+                        </p>
+                      )}
                     </div>
                   ) : (
                     <div className="space-y-2">
@@ -274,7 +269,13 @@ export default function PaymentLinkPage() {
                           onChange={(e) => setAmount(e.target.value)}
                         />
                       </div>
-                      {amount && Number(amount) > 0 && (MOCK_RATES[activeCurrency] ?? 1) !== 1 && (
+                      {USE_MOCK_RATE_DATA && amount && Number(amount) > 0 && (MOCK_RATES[activeCurrency] ?? 1) !== 1 && (
+                        <div className="mt-2 flex items-center justify-end gap-2 text-[11px] font-medium text-amber-700 dark:text-amber-300">
+                          <span className="inline-block h-2 w-2 rounded-full bg-amber-500" />
+                          Using sample rates
+                        </div>
+                      )}
+                      {USE_MOCK_RATE_DATA && amount && Number(amount) > 0 && (MOCK_RATES[activeCurrency] ?? 1) !== 1 && (
                         <p className="text-xs text-muted-foreground text-right">
                           ≈ ${(Number(amount) * (MOCK_RATES[activeCurrency] ?? 1)).toFixed(2)} USD
                         </p>
