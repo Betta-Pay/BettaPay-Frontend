@@ -18,6 +18,7 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { RECAPTCHA_SITE_KEY } from "@/lib/config";
 
 declare global {
   interface Window {

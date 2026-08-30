@@ -35,11 +35,17 @@ jest.mock('next/link', () => {
   };
 });
 
-// Mock Header and Footer to isolate the page test
-jest.mock('@/components/layout', () => {
-  const MockLayout = () => <div data-testid="layout-component" />;
-  return { Header: MockLayout, Footer: MockLayout };
-});
+// Mock Header and Footer to isolate the page test. The landing page
+// deep-imports these (not the `@/components/layout` barrel) to keep the app
+// shell out of the public bundle — see docs/bundle-analysis.md.
+jest.mock('@/components/layout/Header', () => ({
+  __esModule: true,
+  default: () => <div data-testid="layout-component" />,
+}));
+jest.mock('@/components/layout/Footer', () => ({
+  __esModule: true,
+  default: () => <div data-testid="layout-component" />,
+}));
 
 describe('Landing Page Integration Tests', () => {
   beforeEach(() => {

@@ -2,21 +2,11 @@
 
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
-import * as LucideIcons from 'lucide-react';
-import { Button } from '@/components/ui';
-import { Header, Footer } from '@/components/layout';
+import { Button } from '@/components/ui/button';
+import Header from '@/components/layout/Header';
+import Footer from '@/components/layout/Footer';
 import { useAppTranslation } from '@/lib/i18n/useAppTranslation';
 import { landingFeatures } from '@/lib/landing';
-import type { LucideIcon } from 'lucide-react';
-
-/**
- * Resolve a Lucide icon component by its string name.
- * Falls back to a simple circle placeholder when the name is unrecognised.
- */
-function resolveIcon(name: string): LucideIcon {
-  const icons = LucideIcons as unknown as Record<string, LucideIcon>;
-  return icons[name] ?? LucideIcons.Circle;
-}
 
 export default function LandingPage() {
   const { t } = useAppTranslation();
@@ -79,7 +69,7 @@ export default function LandingPage() {
 
           <ul className="grid grid-cols-1 md:grid-cols-12 gap-6">
             {landingFeatures.map((feature, i) => {
-              const Icon = resolveIcon(feature.iconName);
+              const Icon = feature.icon;
               const cardContent = (
                 <div
                   className={`group relative overflow-hidden p-8 rounded-3xl bg-card border border-border hover:border-primary/40 hover:shadow-lg transition-all duration-300 ${

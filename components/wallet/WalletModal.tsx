@@ -155,7 +155,6 @@ function WalletConnectOptions() {
   );
 }
 
-export function WalletModal({ isOpen = true, onClose, onConnectWallet }: WalletModalProps) {
 export function WalletModal({ isOpen, onClose, onConnected }: WalletModalProps) {
   const walletModalOpen = useWalletStore((s) => s.walletModalOpen);
   const setWalletModalOpen = useWalletStore((s) => s.setWalletModalOpen);

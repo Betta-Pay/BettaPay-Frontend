@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import { Fraunces, DM_Sans } from "next/font/google";
+import { ThemeProvider } from "next-themes";
 import { Toaster } from "@/components/ui";
-import { Providers } from "@/components/providers";
+import { ConditionalAppProviders } from "@/components/providers/ConditionalAppProviders";
 import "./globals.css";
 import { cn } from "@/lib/utils";
+import { SITE_URL } from "@/lib/config";
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { I18nProvider } from '@/components/i18n/I18nProvider';
 import { TranslationCoveragePanel } from '@/components/i18n/TranslationCoveragePanel';
@@ -50,11 +52,11 @@ export default async function RootLayout({
 
   const inner = (
     <I18nProvider>
-      <Providers>
-        {children}
+      <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+        <ConditionalAppProviders>{children}</ConditionalAppProviders>
         <Toaster />
         <div id="announcer" aria-live="polite" aria-atomic="true" className="sr-only" />
-      </Providers>
+      </ThemeProvider>
       <TranslationCoveragePanel />
     </I18nProvider>
   );
