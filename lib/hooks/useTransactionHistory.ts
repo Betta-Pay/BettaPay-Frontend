@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useWalletStore } from '@/lib/store/walletStore';
 import { formatRelativeTime, formatDate } from '@/lib/utils/format';
+import { STELLAR_NETWORK } from '@/lib/config';
 
 const NETWORK_URLS: Record<string, string> = {
   testnet: 'https://horizon-testnet.stellar.org',

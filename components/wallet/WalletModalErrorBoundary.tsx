@@ -1,12 +1,3 @@
-import React from 'react';
-
-declare global {
-  namespace JSX {
-    interface IntrinsicElements {
-      [elemName: string]: any;
-    }
-  }
-}
 import React, { Component, ReactNode } from 'react';
 
 interface WalletModalErrorBoundaryProps {
