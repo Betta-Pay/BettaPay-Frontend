@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
@@ -17,6 +17,7 @@ import {
   ChevronRight,
   type LucideIcon,
 } from "lucide-react";
+import { setOnboardingCompleted } from "@/lib/auth/session";
 
 interface Step {
   title: string;
@@ -37,7 +38,6 @@ const STEPS: Step[] = [
     icon: Wallet,
     cta: {
       label: "Connect Wallet",
-      onClick: () => {},
     },
   },
   {
@@ -72,47 +72,22 @@ const STEPS: Step[] = [
   },
 ];
 
-import { isOnboardingCompleted, setOnboardingCompleted } from "@/lib/auth/session";
-
 export const OnboardingWizard = () => {
   const [currentStep, setCurrentStep] = useState(0);
-  const { isConnected } = useWalletStore();
-  // Issue #495: gate on the shared onboarding flag (merchant_onboarded
-  // cookie + mirror) — the same one the /onboarding page and the middleware
-  // use — so finishing either surface hides this wizard on every page.
+  const { isConnected, setWalletModalOpen } = useWalletStore((s) => ({
+    isConnected: s.isConnected,
+    setWalletModalOpen: s.setWalletModalOpen,
+  }));
   const { isOnboarded, hydrated, markComplete } = useOnboardingStatus();
 
-  const dismiss = useCallback(() => {
-    markComplete();
-  }, [markComplete]);
-
   const visible = hydrated && !isOnboarded;
-
-  useEffect(() => {
-    const checkStatus = () => {
-      if (isOnboardingCompleted()) {
-        setVisible(false);
-      } else {
-        setVisible(true);
-      }
-    };
-
-    checkStatus();
-
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === "bp_onboarded" || e.key === "onboardingCompleted") {
-        checkStatus();
-      }
-    };
-
-    window.addEventListener("storage", handleStorageChange);
-    return () => window.removeEventListener("storage", handleStorageChange);
-  }, []);
+  const isLastStep = currentStep === STEPS.length - 1;
+  const progressPercent = ((currentStep + 1) / STEPS.length) * 100;
 
   const dismiss = useCallback(() => {
     setOnboardingCompleted(true);
-    setVisible(false);
-  }, []);
+    markComplete();
+  }, [markComplete]);
 
   const handleNext = useCallback(() => {
     if (currentStep < STEPS.length - 1) {
@@ -124,74 +99,72 @@ export const OnboardingWizard = () => {
 
   const handleStepCta = useCallback(
     (step: Step) => {
-      if (step.cta.onClick) {
-        step.cta.onClick();
+      if (currentStep === 0) {
+        setWalletModalOpen(true);
       }
+      step.cta.onClick?.();
       if (currentStep < STEPS.length - 1) {
         setCurrentStep((s) => s + 1);
       } else {
         dismiss();
       }
     },
-    [currentStep, dismiss]
+    [currentStep, dismiss, setWalletModalOpen],
   );
+
+  useEffect(() => {
+    if (!visible) {
+      setCurrentStep(0);
+    }
+  }, [visible]);
 
   if (!visible) return null;
 
-  const isLastStep = currentStep === STEPS.length - 1;
-  const progressPercent = ((currentStep + 1) / STEPS.length) * 100;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const StepIcon = STEPS[currentStep].icon as any;
+  const StepIcon = STEPS[currentStep].icon;
 
   return (
-    <div className="relative overflow-hidden rounded-xl border border-primary/30 bg-gradient-to-br from-amber-50 to-white dark:from-amber-950/20 dark:to-card shadow-sm transition-all">
-      <div className="absolute inset-0 bg-grid-slate-100/50 dark:bg-grid-slate-900/10 [mask-image:radial-gradient(ellipse_at_top,black_20%,transparent_70%)] pointer-events-none" />
+    <div className="relative overflow-hidden rounded-xl border border-primary/30 bg-gradient-to-br from-amber-50 to-white shadow-sm transition-all dark:from-amber-950/20 dark:to-card">
+      <div className="pointer-events-none absolute inset-0 bg-grid-slate-100/50 [mask-image:radial-gradient(ellipse_at_top,black_20%,transparent_70%)] dark:bg-grid-slate-900/10" />
 
       <div className="relative p-4 sm:p-6">
-        <div className="flex items-start justify-between mb-4">
+        <div className="mb-4 flex items-start justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center p-1 shadow-sm">
-              <Image src="/logo.png" alt="BettaPay Logo" width={20} height={20} className="w-full h-full object-contain" />
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 p-1 shadow-sm">
+              <Image src="/logo.png" alt="BettaPay Logo" width={20} height={20} className="h-full w-full object-contain" />
             </div>
-            <span className="text-sm font-bold text-foreground">
-              Getting Started
-            </span>
+            <span className="text-sm font-bold text-foreground">Getting Started</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground font-medium">
+            <span className="text-xs font-medium text-muted-foreground">
               Step {currentStep + 1} of {STEPS.length}
             </span>
             <button
+              type="button"
               onClick={dismiss}
-              className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              className="rounded-lg p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
               aria-label="Dismiss onboarding"
             >
-              <X className="w-4 h-4" />
+              <X className="h-4 w-4" />
             </button>
           </div>
         </div>
 
-        <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden mb-5">
+        <div className="mb-5 h-1.5 w-full overflow-hidden rounded-full bg-muted">
           <div
-            className="h-full bg-primary rounded-full transition-all duration-500 ease-out"
-            style={{ width: `${progressPercent}%` }}
+            className="h-full rounded-full bg-primary transition-all duration-500 ease-out"
+            style={{ width: progressPercent + "%" }}
           />
         </div>
 
         <div className="flex items-start gap-4">
-          <div
-            className={cn(
-              "w-10 h-10 rounded-xl flex items-center justify-center shrink-0",
-              "bg-primary/20"
-            )}
-          >
-            <StepIcon className="w-5 h-5 text-primary" />
+          <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/20")}>
+            <StepIcon className="h-5 w-5 text-primary" />
           </div>
-          <div className="flex-1 min-w-0">
-            <h3 className="text-base font-bold text-foreground mb-1">
+          <div className="min-w-0 flex-1">
+            <h3 className="mb-1 text-base font-bold text-foreground">
               {STEPS[currentStep].title}
             </h3>
-            <p className="text-sm text-muted-foreground leading-relaxed mb-4">
+            <p className="mb-4 text-sm leading-relaxed text-muted-foreground">
               {STEPS[currentStep].description}
             </p>
             <div className="flex items-center gap-2">
@@ -199,7 +172,7 @@ export const OnboardingWizard = () => {
                 <Link href={STEPS[currentStep].cta.href} onClick={handleNext}>
                   <Button size="sm" className="shadow-button">
                     {STEPS[currentStep].cta.label}
-                    <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
+                    <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
                   </Button>
                 </Link>
               ) : (
@@ -209,44 +182,41 @@ export const OnboardingWizard = () => {
                   onClick={() => handleStepCta(STEPS[currentStep])}
                 >
                   {isConnected ? "Connected" : STEPS[currentStep].cta.label}
-                  {!isConnected && <ArrowRight className="w-3.5 h-3.5 ml-1.5" />}
+                  {!isConnected && <ArrowRight className="ml-1.5 h-3.5 w-3.5" />}
                 </Button>
               )}
               {!isLastStep && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleNext}
-                  className="text-muted-foreground"
-                >
+                <Button variant="ghost" size="sm" onClick={handleNext} className="text-muted-foreground">
                   Skip
-                  <ChevronRight className="w-3.5 h-3.5 ml-1" />
+                  <ChevronRight className="ml-1 h-3.5 w-3.5" />
                 </Button>
               )}
             </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5 mt-4 pt-3 border-t border-border/50">
+        <div className="mt-4 flex items-center gap-1.5 border-t border-border/50 pt-3">
           {STEPS.map((_, i) => (
             <button
               key={i}
+              type="button"
               onClick={() => setCurrentStep(i)}
               className={cn(
-                "w-2 h-2 rounded-full transition-all duration-300",
+                "h-2 rounded-full transition-all duration-300",
                 i === currentStep
-                  ? "bg-primary w-6"
+                  ? "w-6 bg-primary"
                   : i < currentStep
-                  ? "bg-primary/40"
-                  : "bg-muted-foreground/20 hover:bg-muted-foreground/40"
+                  ? "w-2 bg-primary/40"
+                  : "w-2 bg-muted-foreground/20 hover:bg-muted-foreground/40",
               )}
-              aria-label={`Go to step ${i + 1}`}
+              aria-label={"Go to step " + (i + 1)}
             />
           ))}
           <span className="ml-auto">
             <button
+              type="button"
               onClick={dismiss}
-              className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
+              className="text-xs text-muted-foreground underline underline-offset-2 transition-colors hover:text-foreground"
             >
               Skip all
             </button>

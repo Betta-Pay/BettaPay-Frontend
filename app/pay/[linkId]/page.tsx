@@ -27,6 +27,7 @@ import {
 import { signWithFreighter } from "@/lib/stellar/freighter";
 import { apiClient } from "@/lib/api/axios";
 import { MULTI_CURRENCY_ASSETS, MOCK_RATES, USE_MOCK_RATE_DATA } from "@/lib/utils/constants";
+import { SOROBAN_RPC_URL, SETTLEMENT_CONTRACT_ID, MERCHANT_ADDRESS, STELLAR_NETWORK_PASSPHRASE } from "@/lib/config";
 import { WalletModalFallback } from "@/components/wallet/WalletModalFallback";
 import { WalletModalErrorBoundary } from "@/components/wallet/WalletModalErrorBoundary";
 import { QRCodeModal } from "@/components/payments/QRCode";

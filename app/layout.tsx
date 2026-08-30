@@ -4,6 +4,7 @@ import { Toaster } from "@/components/ui";
 import { Providers } from "@/components/providers";
 import "./globals.css";
 import { cn } from "@/lib/utils";
+import { SITE_URL } from "@/lib/config";
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { I18nProvider } from '@/components/i18n/I18nProvider';
 import { TranslationCoveragePanel } from '@/components/i18n/TranslationCoveragePanel';

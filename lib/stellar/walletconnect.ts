@@ -33,8 +33,37 @@ const RELAY_URL = WALLETCONNECT_RELAY_URL;
 
 const PROJECT_ID = WALLETCONNECT_PROJECT_ID;
 
-/** CAIP-2 chain identifier for Stellar */
-const STELLAR_CHAIN = 'stellar:testnet';
+export type StellarWalletConnectNetwork = 'testnet' | 'public';
+export type StellarWalletConnectChainId =
+  typeof STELLAR_TESTNET_CHAIN | typeof STELLAR_PUBNET_CHAIN;
+
+/** CAIP-2 chain identifiers for Stellar. */
+export const STELLAR_TESTNET_CHAIN = 'stellar:testnet';
+export const STELLAR_PUBNET_CHAIN = 'stellar:pubnet';
+
+/** Maps the UI wallet network to the CAIP-2 Stellar chain used by WalletConnect. */
+export const STELLAR_WALLETCONNECT_CHAIN_BY_NETWORK: Record<
+  StellarWalletConnectNetwork,
+  StellarWalletConnectChainId
+> = {
+  testnet: STELLAR_TESTNET_CHAIN,
+  public: STELLAR_PUBNET_CHAIN,
+};
+
+export function normalizeWalletNetwork(
+  network: string = 'testnet',
+): StellarWalletConnectNetwork {
+  const normalized = network.toLowerCase().trim();
+  return normalized === 'public' || normalized === 'mainnet' || normalized === 'pubnet'
+    ? 'public'
+    : 'testnet';
+}
+
+export function getStellarWalletConnectChain(
+  network: string = 'testnet',
+): StellarWalletConnectChainId {
+  return STELLAR_WALLETCONNECT_CHAIN_BY_NETWORK[normalizeWalletNetwork(network)];
+}
 
 /** WalletConnect relay JSON-RPC method */
 const RELAY_PUBLISH = 'irn_publish';
@@ -158,6 +187,23 @@ export class WalletConnectConnectionError extends WalletConnectError {
   }
 }
 
+export class WalletConnectNetworkMismatchError extends WalletConnectError {
+  readonly expectedChainId: StellarWalletConnectChainId;
+  readonly reportedChainIds: StellarWalletConnectChainId[];
+
+  constructor(expectedChainId: StellarWalletConnectChainId, reportedChainIds: StellarWalletConnectChainId[]) {
+    const reportedLabel =
+      reportedChainIds.length > 0 ? reportedChainIds.join(', ') : 'no Stellar network';
+    super(
+      `WalletConnect session reported ${reportedLabel}, but the UI is set to ${expectedChainId}.`,
+      'approving',
+    );
+    this.name = 'WalletConnectNetworkMismatchError';
+    this.expectedChainId = expectedChainId;
+    this.reportedChainIds = reportedChainIds;
+  }
+}
+
 // ─── Crypto helpers ───────────────────────────────────────────────────────────
 
 async function generateSymKey(): Promise<CryptoKey> {
@@ -199,6 +245,17 @@ async function decrypt(envelope: WCEncryptedEnvelope, key: CryptoKey): Promise<s
     ciphertext as unknown as BufferSource,
   );
   return new TextDecoder().decode(plainBuf);
+}
+
+function getStellarChainFromAccount(accountId: string): StellarWalletConnectChainId | null {
+  const match = accountId.match(/^stellar:([a-z]+):/i);
+  if (!match) return null;
+  const normalized = match[1].toLowerCase();
+  if (normalized === 'testnet') return STELLAR_TESTNET_CHAIN;
+  if (normalized === 'public' || normalized === 'mainnet' || normalized === 'pubnet') {
+    return STELLAR_PUBNET_CHAIN;
+  }
+  return null;
 }
 
 // ─── Base64url helpers ────────────────────────────────────────────────────────
@@ -264,6 +321,8 @@ export class WalletConnectClient {
   constructor(
     private readonly wsFactory: (url: string) => WebSocket = (url) =>
       new WebSocket(url),
+    public readonly chainId: StellarWalletConnectChainId =
+      getStellarWalletConnectChain(),
   ) {}
 
   // ── Public API ──────────────────────────────────────────────────────────────
@@ -745,7 +804,7 @@ export class WalletConnectClient {
             accounts: [],
             methods: [METHOD_STELLAR_SIGN_TX, METHOD_STELLAR_SIGN_MSG],
             events: [],
-            chains: [STELLAR_CHAIN],
+            chains: [this.chainId],
           },
         },
         expiry: Math.floor(Date.now() / 1000) + 7 * 24 * 3600,
@@ -784,6 +843,7 @@ export class WalletConnectClient {
       namespaces: {
         stellar?: {
           accounts: string[]; // "stellar:testnet:G..."
+          chains?: string[];
         };
       };
       controller: { metadata: WCPeerMetadata };
@@ -794,20 +854,42 @@ export class WalletConnectClient {
 
     const stellarNS = settle?.namespaces?.stellar;
     const rawAccounts: string[] = stellarNS?.accounts ?? [];
+    const reportedChains = Array.from(
+      new Set(
+        [
+          ...(stellarNS?.chains ?? []).map((chain) => getStellarWalletConnectChain(chain)),
+          ...rawAccounts
+            .map((account) => getStellarChainFromAccount(account))
+            .filter((chain): chain is StellarWalletConnectChainId => Boolean(chain)),
+        ],
+      ),
+    );
 
-    // Extract and validate Stellar addresses from CAIP-2 format
-    const stellarAccounts = extractValidStellarAddresses(rawAccounts);
+    if (reportedChains.length === 0 || !reportedChains.includes(this.chainId)) {
+      this.failWith(
+        new WalletConnectNetworkMismatchError(this.chainId, reportedChains),
+      );
+      return;
+    }
+
+    const matchingAccounts = rawAccounts.filter((account) => {
+      const accountChain = getStellarChainFromAccount(account);
+      return !accountChain || accountChain === this.chainId;
+    });
+
+    const stellarAccounts = extractValidStellarAddresses(matchingAccounts);
 
     if (stellarAccounts.length === 0) {
       this.failWith(
         new WalletConnectError(
-          'No Stellar accounts found in the WalletConnect session.',
+          'No Stellar accounts found in the WalletConnect session for the selected network.',
           'approving',
         ),
       );
       return;
     }
 
+    // Extract and validate Stellar addresses from CAIP-2 format
     const session: WalletConnectSession = {
       topic: this.sessionTopic,
       peerMetadata: settle.controller?.metadata ?? {
@@ -848,7 +930,7 @@ export class WalletConnectClient {
       method: METHOD_SESSION_REQUEST,
       params: {
         request: { method, params },
-        chainId: STELLAR_CHAIN,
+        chainId: this.chainId,
       },
     };
 
@@ -965,11 +1047,20 @@ export class WalletConnectClient {
 // One client instance per browser page — avoids multiple open WebSockets.
 let _client: WalletConnectClient | null = null;
 
-export function getWalletConnectClient(): WalletConnectClient {
+export function getWalletConnectClient(
+  network?: StellarWalletConnectNetwork | string,
+): WalletConnectClient {
   if (typeof window === 'undefined') {
     throw new Error('WalletConnectClient is only available in the browser');
   }
-  if (!_client) _client = new WalletConnectClient();
+  if (_client) {
+    if (network === undefined || _client.chainId === getStellarWalletConnectChain(network)) {
+      return _client;
+    }
+    _client?.disconnect();
+  }
+  const chainId = getStellarWalletConnectChain(network);
+  _client = new WalletConnectClient(undefined, chainId);
   return _client;
 }
 

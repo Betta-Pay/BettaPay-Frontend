@@ -1,7 +1,7 @@
 "use client";
 
-import { CheckCircle2, AlertTriangle, XCircle, HelpCircle } from "lucide-react";
 import { CheckCircle2, AlertTriangle, XCircle, type LucideIcon } from "lucide-react";
+import { HelpCircle } from "lucide-react";
 import type { ComponentStatusLevel } from "@/lib/status/data";
 import { STATUS_TONE_BADGE, STATUS_TONE_DOT, STATUS_TONE_TEXT, type StatusTone } from "@/lib/status/palette";
 import { useNow } from "@/lib/hooks/useNow";

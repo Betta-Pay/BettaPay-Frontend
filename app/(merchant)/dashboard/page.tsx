@@ -41,7 +41,8 @@ export default function DashboardPage() {
   const { user } = useAuthStore();
   const notify = useNotify();
   const { data: payments, isLoading: paymentsLoading } = usePayments();
-
+  const { data: settlements, isLoading: settlementsLoading } = useSettlements();
+  const { isLoading: ratesLoading, primaryRate } = useRates();
 
   const [activePeriod, setActivePeriod] = useState<Period>('7D');
 

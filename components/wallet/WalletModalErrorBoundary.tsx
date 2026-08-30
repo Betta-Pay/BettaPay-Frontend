@@ -1,13 +1,6 @@
-import React from 'react';
+"use client";
 
-declare global {
-  namespace JSX {
-    interface IntrinsicElements {
-      [elemName: string]: any;
-    }
-  }
-}
-import React, { Component, ReactNode } from 'react';
+import { Component, type ErrorInfo, type ReactNode } from 'react';
 
 interface WalletModalErrorBoundaryProps {
   children: ReactNode;
@@ -34,33 +27,31 @@ export class WalletModalErrorBoundary extends Component<
     return { hasError: true, error };
   }
 
-  componentDidCatch(error: Error, errorInfo: React.ErrorInfo): void {
-    console.error("WalletModalErrorBoundary caught an error:", error, errorInfo);
+  componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
+    console.error('WalletModalErrorBoundary caught an error:', error, errorInfo);
   }
 
   handleRetry = (): void => {
     this.setState({ hasError: false, error: null });
-    if (this.props.onRetry) {
-      this.props.onRetry();
-    }
+    this.props.onRetry?.();
   };
 
   render() {
     if (this.state.hasError) {
       return (
-        <div className="wallet-error-fallback p-4 text-center border border-red-200 rounded-lg bg-red-50 space-y-3">
-          <p className="text-sm text-red-600 font-medium">
+        <div className="wallet-error-fallback space-y-3 rounded-lg border border-red-200 bg-red-50 p-4 text-center">
+          <p className="text-sm font-medium text-red-600">
             Failed to connect wallet or load session.
           </p>
           {this.state.error?.message && (
-            <p className="text-xs text-red-500 font-mono break-all">
+            <p className="font-mono text-xs text-red-500 break-all">
               {this.state.error.message}
             </p>
           )}
           <button
             type="button"
             onClick={this.handleRetry}
-            className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold rounded-md shadow-sm transition-colors"
+            className="rounded-md bg-red-600 px-4 py-2 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-red-700"
           >
             Retry Connection
           </button>

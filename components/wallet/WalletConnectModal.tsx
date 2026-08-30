@@ -8,11 +8,12 @@ import { Button } from '@/components/ui';
 import {
   getWalletConnectClient,
   resetWalletConnectClient,
+} from '@/lib/stellar/walletconnect';
+import type {
+  StellarWalletConnectNetwork,
   WalletConnectStatus,
   WalletConnectSession,
 } from '@/lib/stellar/walletconnect';
-
-// ─── Copy-to-clipboard helper ─────────────────────────────────────────────────
 
 function useCopyUri(uri: string) {
   const [copied, setCopied] = useState(false);
@@ -28,8 +29,6 @@ function useCopyUri(uri: string) {
   return { copied, copy };
 }
 
-// ─── Status copy map ──────────────────────────────────────────────────────────
-
 const STATUS_LABEL: Record<WalletConnectStatus, string> = {
   idle: '',
   connecting: 'Waiting for wallet to scan…',
@@ -41,20 +40,17 @@ const STATUS_LABEL: Record<WalletConnectStatus, string> = {
   error: 'Connection failed',
 };
 
-// ─── Props ────────────────────────────────────────────────────────────────────
-
 interface WalletConnectModalProps {
   open: boolean;
   onOpenChange: (v: boolean) => void;
-  /** Called with the Stellar G-address once the session is established */
+  network: StellarWalletConnectNetwork;
   onConnected: (session: WalletConnectSession) => void;
 }
-
-// ─── Component ────────────────────────────────────────────────────────────────
 
 export function WalletConnectModal({
   open,
   onOpenChange,
+  network,
   onConnected,
 }: WalletConnectModalProps) {
   const [uri, setUri] = useState<string>('');
@@ -63,36 +59,34 @@ export function WalletConnectModal({
   const [statusDetail, setStatusDetail] = useState<string>('');
   const { copied, copy } = useCopyUri(uri);
 
-  // Track whether this modal instance started the connection so we don't
-  // attempt to start it twice on Strict Mode double-mount.
   const startedRef = useRef(false);
-  // Guard against stale session callbacks after the modal is closed.
+  const startedNetworkRef = useRef<StellarWalletConnectNetwork | null>(null);
   const closedRef = useRef(false);
 
   const startConnection = useCallback(async () => {
+    const activeNetwork = network;
     startedRef.current = true;
+    startedNetworkRef.current = activeNetwork;
     closedRef.current = false;
     setUri('');
     setErrorMsg('');
     setStatusDetail('');
     setStatus('idle');
 
-    // Always get a fresh client so keys/topics are rotated
     resetWalletConnectClient();
-    const client = getWalletConnectClient();
+    const client = getWalletConnectClient(activeNetwork);
 
     client.onStatus((s, detail) => {
-      if (closedRef.current) return;
+      if (closedRef.current || startedNetworkRef.current !== activeNetwork) return;
       setStatus(s);
       setStatusDetail(detail ?? '');
       if (s === 'error') setErrorMsg(detail ?? 'Unknown error');
     });
 
     client.onSession((session) => {
-      if (closedRef.current) return;
-      // Brief pause so the user sees the "connected" tick before the modal closes
+      if (closedRef.current || startedNetworkRef.current !== activeNetwork) return;
       setTimeout(() => {
-        if (closedRef.current) return;
+        if (closedRef.current || startedNetworkRef.current !== activeNetwork) return;
         onOpenChange(false);
         onConnected(session);
       }, 800);
@@ -100,26 +94,27 @@ export function WalletConnectModal({
 
     try {
       const wcUri = await client.connect();
+      if (closedRef.current || startedNetworkRef.current !== activeNetwork) return;
       setUri(wcUri);
     } catch (err) {
+      if (closedRef.current || startedNetworkRef.current !== activeNetwork) return;
       setStatus('error');
       setErrorMsg(err instanceof Error ? err.message : 'Failed to start WalletConnect');
     }
-  }, [onOpenChange, onConnected]);
+  }, [network, onOpenChange, onConnected]);
 
-  // Start a connection whenever the modal opens
   useEffect(() => {
     if (!open) {
       closedRef.current = true;
       startedRef.current = false;
+      startedNetworkRef.current = null;
       return;
     }
     closedRef.current = false;
-    if (startedRef.current) return;
+    if (startedRef.current && startedNetworkRef.current === network) return;
     void startConnection();
-  }, [open, startConnection]);
+  }, [open, network, startConnection]);
 
-  // Tear down the WebSocket when the modal is closed without completing
   const handleOpenChange = useCallback(
     (v: boolean) => {
       if (!v) {
@@ -130,13 +125,12 @@ export function WalletConnectModal({
         setErrorMsg('');
         setStatusDetail('');
         startedRef.current = false;
+        startedNetworkRef.current = null;
       }
       onOpenChange(v);
     },
     [onOpenChange],
   );
-
-  // ── Render ──────────────────────────────────────────────────────────────────
 
   const showQr =
     uri &&
@@ -160,7 +154,6 @@ export function WalletConnectModal({
         </DialogHeader>
 
         <div className="flex flex-col items-center gap-5 py-2" aria-live="polite">
-          {/* QR code */}
           {showQr && (
             <div className="flex flex-col items-center gap-3 w-full">
               <p className="text-sm text-muted-foreground text-center">
@@ -181,7 +174,6 @@ export function WalletConnectModal({
                 />
               </div>
 
-              {/* Copy URI button */}
               <Button
                 variant="outline"
                 size="sm"
@@ -204,7 +196,6 @@ export function WalletConnectModal({
             </div>
           )}
 
-          {/* Spinner overlay for approving / signing states */}
           {showSpinner && (
             <div className="flex flex-col items-center gap-3 py-6">
               <Loader2 className="w-10 h-10 text-primary animate-spin" />
@@ -216,7 +207,6 @@ export function WalletConnectModal({
             </div>
           )}
 
-          {/* Connected confirmation */}
           {status === 'connected' && (
             <div className="flex flex-col items-center gap-3 py-6">
               <CheckCircle2 className="w-10 h-10 text-success" />
@@ -226,7 +216,6 @@ export function WalletConnectModal({
             </div>
           )}
 
-          {/* Error state */}
           {status === 'error' && (
             <div className="w-full rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm flex flex-col gap-3">
               <div className="flex items-start gap-2">
@@ -250,25 +239,12 @@ export function WalletConnectModal({
             </div>
           )}
 
-          {/* Status label while waiting (connecting + URI already shown via QR) */}
           {status === 'connecting' && uri && (
             <p className="text-xs text-muted-foreground flex items-center gap-1.5">
               <span className="inline-block w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
               {STATUS_LABEL.connecting}
             </p>
           )}
-        </div>
-
-        {/* Footer cancel */}
-        <div className="pt-1">
-          <Button
-            variant="ghost"
-            className="w-full"
-            onClick={() => handleOpenChange(false)}
-          >
-            <X className="w-4 h-4 mr-1.5" />
-            Cancel
-          </Button>
         </div>
       </DialogContent>
     </Dialog>

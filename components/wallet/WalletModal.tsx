@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
-import { useWalletStore } from "@/lib/store/walletStore";
-import { WalletModalErrorBoundary } from "./WalletModalErrorBoundary";
+import { useEffect } from "react";
 import { X } from "lucide-react";
+import { useWalletStore } from "@/lib/store/walletStore";
+import { WalletConnectModal } from "./WalletConnectModal";
+import { WalletModalErrorBoundary } from "./WalletModalErrorBoundary";
+import type { WalletConnectSession } from "@/lib/stellar/walletconnect";
 
 export interface WalletModalProps {
   isOpen?: boolean;
@@ -155,14 +157,17 @@ function WalletConnectOptions() {
   );
 }
 
-export function WalletModal({ isOpen = true, onClose, onConnectWallet }: WalletModalProps) {
-export function WalletModal({ isOpen, onClose, onConnected }: WalletModalProps) {
+export function WalletModal({ isOpen = true, onClose, onConnected }: WalletModalProps) {
   const walletModalOpen = useWalletStore((s) => s.walletModalOpen);
+  const walletConnectPending = useWalletStore((s) => s.walletConnectPending);
+  const network = useWalletStore((s) => s.network);
   const setWalletModalOpen = useWalletStore((s) => s.setWalletModalOpen);
+  const cancelWalletConnect = useWalletStore((s) => s.cancelWalletConnect);
+  const resolveWalletConnect = useWalletStore((s) => s.resolveWalletConnect);
   const address = useWalletStore((s) => s.address);
 
   useEffect(() => {
-    if (isOpen !== undefined && isOpen !== walletModalOpen) {
+    if (isOpen !== walletModalOpen) {
       setWalletModalOpen(isOpen);
     }
   }, [isOpen, walletModalOpen, setWalletModalOpen]);
@@ -175,47 +180,66 @@ export function WalletModal({ isOpen, onClose, onConnected }: WalletModalProps) 
 
   const handleClose = () => {
     setWalletModalOpen(false);
-    if (onClose) onClose();
+    onClose?.();
+  };
+
+  const handleWalletConnectSession = (session: WalletConnectSession) => {
+    resolveWalletConnect(session);
+  };
+
+  const handleWalletConnectOpenChange = (open: boolean) => {
+    if (!open) {
+      cancelWalletConnect();
+    }
   };
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50">
-      <div className="w-full max-w-md bg-white rounded-lg shadow-xl overflow-hidden border border-gray-200">
-        <div className="flex items-center justify-between p-4 border-b border-gray-100">
-          <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-            Connect Wallet
-          </h2>
-          <button
-            type="button"
-            onClick={handleClose}
-            className="p-1 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-50 transition-colors"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
+    <>
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50">
+        <div className="w-full max-w-md bg-white rounded-lg shadow-xl overflow-hidden border border-gray-200">
+          <div className="flex items-center justify-between p-4 border-b border-gray-100">
+            <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+              Connect Wallet
+            </h2>
+            <button
+              type="button"
+              onClick={handleClose}
+              className="p-1 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-50 transition-colors"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
 
-        <div className="p-4">
-          <p className="text-sm text-gray-500 mb-4">
-            Select a secure provider endpoint to synchronize your ledger state.
-          </p>
+          <div className="p-4">
+            <p className="text-sm text-gray-500 mb-4">
+              Select a secure provider endpoint to synchronize your ledger state.
+            </p>
 
-          <WalletModalErrorBoundary onRetry={() => {}}>
-            <WalletConnectOptions />
-          </WalletModalErrorBoundary>
-        </div>
+            <WalletModalErrorBoundary onRetry={() => {}}>
+              <WalletConnectOptions />
+            </WalletModalErrorBoundary>
+          </div>
 
-        <div className="p-4 bg-gray-50 border-t border-gray-100 flex justify-end">
-          <button
-            type="button"
-            onClick={handleClose}
-            className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900"
-          >
-            Cancel
-          </button>
+          <div className="p-4 bg-gray-50 border-t border-gray-100 flex justify-end">
+            <button
+              type="button"
+              onClick={handleClose}
+              className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900"
+            >
+              Cancel
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+
+      <WalletConnectModal
+        open={walletModalOpen && walletConnectPending}
+        onOpenChange={handleWalletConnectOpenChange}
+        network={network}
+        onConnected={handleWalletConnectSession}
+      />
+    </>
   );
 }

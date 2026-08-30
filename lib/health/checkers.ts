@@ -12,6 +12,7 @@
 
 import type { ServiceHealth } from "@/lib/types/health";
 import type { AnchorHealth, AnchorHealthStatus } from "@/lib/types";
+import { API_URL, HORIZON_URL, SOROBAN_RPC_URL, ANCHOR_URL } from "@/lib/config";
 
 // ---------------------------------------------------------------------------
 // Internal helpers
@@ -84,7 +85,6 @@ export async function checkHorizon(): Promise<ServiceHealth> {
 // Soroban RPC
 // ---------------------------------------------------------------------------
 
-export async function checkSoroban(): Promise<ServiceHealth> {
 export async function checkSoroban(): Promise<ServiceHealth> {
   const endpoint = SOROBAN_RPC_URL || "https://soroban-testnet.stellar.org";
 
