@@ -2,7 +2,7 @@ import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { useAuthStore } from '../store/authStore';
 import { useRateLimitStore, isRequestRateLimited } from '../store/rateLimitStore';
 import { useOfflineStore } from '../store/offlineStore';
-import { getCsrfTokenFromCookie, CSRF_HEADER_NAME } from '../utils/csrf';
+import { getCsrfTokenFromCookie, csrfHeader, CSRF_HEADER_NAME } from '../utils/csrf';
 import { toast } from 'sonner';
 import { announce } from '@/lib/utils/announce';
 import { parseApiError, isTimeoutError, ApiError } from '../utils/apiError';
@@ -260,10 +260,15 @@ apiClient.interceptors.request.use((config) => {
 
 // Token refresh state
 let isRefreshing = false;
-// Auth is cookie-based (the refresh endpoint sets a fresh HttpOnly cookie and
-// returns no token), so queued requests only need to know whether the refresh
-// succeeded — there is no token to thread through. Each queued entry re-issues
-// its original request on resolve, so the real response flows back to callers.
+// Set once we've bounced the user to /auth/login after an unrecoverable
+// refresh failure, so N queued 401s don't each fire their own redirect +
+// "session expired" toast (issue #487: "redirect once, without toast spam").
+let hasRedirectedForExpiry = false;
+// Auth is primarily cookie-based (the refresh endpoint sets a fresh HttpOnly
+// `auth_token` cookie), but it *also* returns the new access token so the
+// in-memory auth store can be updated atomically with the queued-retry path —
+// otherwise the request interceptor's local JWT-expiry pre-check keeps
+// rejecting subsequent requests against the stale token (issue #487).
 let failedQueue: Array<{
   resolve: () => void;
   reject: (error: unknown) => void;
@@ -285,6 +290,12 @@ function redirectToLogin() {
   if (typeof window !== 'undefined' && window.location.pathname.startsWith('/auth')) {
     return;
   }
+  // Bounce once. A burst of queued 401s all reach here; without this each one
+  // triggers a redirect + toast (issue #487).
+  if (hasRedirectedForExpiry) {
+    return;
+  }
+  hasRedirectedForExpiry = true;
   useAuthStore.getState().logout();
 
   // Prefer a client-side navigation via the App Router so React state, context
@@ -343,7 +354,17 @@ apiClient.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        await refreshClient.post('/api/auth/refresh');
+        const refreshRes = await refreshClient.post('/api/auth/refresh', null, {
+          headers: { ...csrfHeader() },
+        });
+        // The route returns the new access token on a real rotation. Push it
+        // into the in-memory store so the request interceptor's JWT pre-check
+        // stops rejecting follow-up requests against the old token (#487).
+        const body = (refreshRes?.data ?? {}) as { refreshed?: boolean; token?: unknown };
+        if (body.refreshed && typeof body.token === 'string' && body.token.length > 0) {
+          useAuthStore.getState().setToken(body.token);
+        }
+        hasRedirectedForExpiry = false;
         processQueue(null);
         return apiClient(originalRequest);
       } catch (refreshError) {
