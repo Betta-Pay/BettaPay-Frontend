@@ -72,8 +72,9 @@
     /* ── Status palette (see components/status, StatusBadge, SystemHealthCard) ──
        Opaque foreground/background pairs rather than alpha tints, so the
        contrast ratio of every badge is exact and checkable. Each fg/bg pair and
-       each fg against --card is asserted at >= 4.5:1 (WCAG AA) by
-       __tests__/status-contrast.test.ts. */
+       each fg against --card is asserted at >= 4.5:1 (WCAG AA) in both light
+       and dark modes by __tests__/status-contrast.test.ts (theme token audit,
+       issue #460). */
     --status-ok-fg: #065F46;
     --status-ok-bg: #ECFDF5;
     --status-ok-border: #A7F3D0;
@@ -146,7 +147,7 @@
     --info: #60A5FA;
     --info-foreground: #0F172A;
 
-    /* ── Status palette (dark) ── */
+    /* ── Status palette (dark) — all fg/bg pairs verified >= 4.5:1 (WCAG AA, issue #460) ── */
     --status-ok-fg: #6EE7B7;
     --status-ok-bg: #0B3B2E;
     --status-ok-border: #065F46;

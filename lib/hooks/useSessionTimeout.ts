@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useCallback, useRef, useState } from 'react';
+import { useAuthStore } from '@/lib/store/authStore';
+import { csrfHeader } from '@/lib/utils/csrf';
 
 const ACTIVITY_EVENTS = ['mousedown', 'mousemove', 'keydown', 'scroll', 'click', 'touchstart'] as const;
 
@@ -100,15 +102,31 @@ export function useSessionTimeout({
     try {
       const res = await fetch('/api/auth/refresh', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...csrfHeader() },
         credentials: 'include',
       });
+
+      // The refresh token itself is invalid — this is a real logout, not a
+      // failed extension. Let the caller's onTimeout run once (issue #487:
+      // "redirect to login once, without toast spam").
+      if (res.status === 401) {
+        clearAllTimers();
+        setShowWarning(false);
+        onTimeoutRef.current();
+        return false;
+      }
 
       if (!res.ok) {
         throw new Error('Failed to refresh session');
       }
 
       const data = await res.json().catch(() => ({}));
+      // A real rotation returns the new access token — propagate it into the
+      // auth store so API calls stop tripping the local expiry pre-check
+      // (issue #487).
+      if (data.refreshed && typeof data.token === 'string' && data.token.length > 0) {
+        useAuthStore.getState().setToken(data.token);
+      }
       const newExpiresAt = typeof data.expiresAt === 'number' ? data.expiresAt : Date.now() + timeoutMs + gracePeriodMs;
       setExpiryDeadline(newExpiresAt);
       resetTimer();
@@ -119,7 +137,7 @@ export function useSessionTimeout({
     } finally {
       setIsExtending(false);
     }
-  }, [timeoutMs, gracePeriodMs, resetTimer]);
+  }, [timeoutMs, gracePeriodMs, resetTimer, clearAllTimers]);
 
   // Sync serverExpiresAt changes when updated externally
   useEffect(() => {

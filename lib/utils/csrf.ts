@@ -87,6 +87,68 @@ export function buildCsrfSidCookieHeader(binding: string): string {
   return parts.join('; ');
 }
 
+/** HTTP status returned when a state-changing request fails CSRF validation. */
+export const CSRF_FAILURE_STATUS = 403;
+
+type CsrfRequestLike = {
+  headers: { get(name: string): string | null };
+  cookies: { get(name: string): { value: string } | undefined };
+};
+
+export interface CsrfVerifyResult {
+  ok: boolean;
+  reason?: 'missing-header' | 'missing-cookie' | 'mismatch' | 'binding-mismatch';
+}
+
+/**
+ * Enforce CSRF for a state-changing request (issue #486). Two checks:
+ *
+ *  1. **double-submit** — `X-CSRF-Token` header must equal the `csrf_token`
+ *     cookie. Blocks a cross-site form POST, which can send the cookie but
+ *     not a matching custom header.
+ *  2. **session binding** — when an authenticated session exists
+ *     (`auth_token` present) the HttpOnly `csrf_sid` cookie must equal
+ *     `sha256(csrf_token . sessionKey)`. A `csrf_token` minted for a
+ *     different visitor / a pre-login page on the same browser profile
+ *     carries the wrong (or no) `csrf_sid`, so it is rejected once a real
+ *     session is in play — a bare random value is no longer enough.
+ *
+ * Pre-login requests (no `auth_token`) only need the double-submit check.
+ */
+export function verifyCsrfRequest(req: CsrfRequestLike): CsrfVerifyResult {
+  const header = req.headers.get(CSRF_HEADER_NAME) ?? req.headers.get(CSRF_HEADER_NAME.toLowerCase());
+  const cookieToken = req.cookies.get(CSRF_COOKIE_NAME)?.value;
+
+  if (!header) return { ok: false, reason: 'missing-header' };
+  if (!cookieToken) return { ok: false, reason: 'missing-cookie' };
+  if (!timingSafeStringEqual(header, cookieToken)) return { ok: false, reason: 'mismatch' };
+
+  const authToken = req.cookies.get('auth_token')?.value;
+  const actualBinding = req.cookies.get(CSRF_SID_COOKIE_NAME)?.value;
+  // Enforce the binding whenever a `csrf_sid` exists. A session predating the
+  // binding (or one whose sid was cleared) has none yet — fall back to the
+  // double-submit check alone rather than lock the user out; login/refresh
+  // mints the sid and upgrades them to full protection. Once a sid IS
+  // present it must match: a `csrf_token` replayed from another visitor / a
+  // pre-login page carries the wrong sid and is rejected.
+  if (authToken && actualBinding) {
+    const expectedBinding = deriveCsrfBinding(cookieToken, sessionKeyFromAuthToken(authToken));
+    if (!timingSafeStringEqual(actualBinding, expectedBinding)) {
+      return { ok: false, reason: 'binding-mismatch' };
+    }
+  }
+
+  return { ok: true };
+}
+
+/** Constant-time string compare so a mismatch position isn't observable. */
+function timingSafeStringEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
 /** Expires both CSRF cookies. Call on logout. */
 export function buildCsrfClearCookieHeaders(): string[] {
   const isProduction = process.env.NODE_ENV === 'production';
@@ -115,6 +177,37 @@ export function getCsrfTokenFromCookie(): string | null {
   const value = decodeURIComponent(match.split('=')[1]);
   // Basic sanity check — reject obviously invalid values before sending as a header.
   return value.length === CSRF_TOKEN_HEX_LENGTH ? value : null;
+}
+
+/**
+ * Header bag carrying the current CSRF token, for same-origin `fetch` calls
+ * to our own Next.js API routes (which now enforce the double-submit check —
+ * issue #486). Returns `{}` when no token is readable so callers can spread
+ * it unconditionally.
+ */
+export function csrfHeader(): Record<string, string> {
+  const token = getCsrfTokenFromCookie();
+  return token ? { [CSRF_HEADER_NAME]: token } : {};
+}
+
+/**
+ * Force a fresh `csrf_token` cookie from the client (issue #486). Call at
+ * identity-change moments that don't already rotate it — notably right after
+ * logout, so a token minted during the previous session can't linger.
+ * Resolves with the new token, or `null` if the request failed.
+ */
+export async function rotateCsrfToken(): Promise<string | null> {
+  if (typeof fetch === 'undefined') return null;
+  try {
+    await fetch('/api/auth/csrf?rotate=1', {
+      method: 'GET',
+      credentials: 'include',
+      cache: 'no-store',
+    });
+  } catch {
+    return null;
+  }
+  return getCsrfTokenFromCookie();
 }
 
 // ─── Cookie attributes helper (server-side) ──────────────────────────────────

@@ -1,4 +1,7 @@
-export * from './offline-banner';
+// `offline-banner` is intentionally NOT re-exported here: it pulls in
+// `@tanstack/react-query` and the offline store, which would drag app-level
+// state into every bundle that imports a UI primitive (e.g. the public
+// marketing pages). Import it directly from '@/components/ui/offline-banner'.
 export * from './card';
 export * from './popover';
 export * from './network-tooltip';

@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { Mail, Rss, CheckCircle2, Loader2 } from "lucide-react";
-import { Input } from "@/components/ui";
-import { Button } from "@/components/ui";
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { useNotify } from "@/lib/hooks/useNotify";
 import { subscriberEmailSchema } from "@/lib/status/subscribers";
 

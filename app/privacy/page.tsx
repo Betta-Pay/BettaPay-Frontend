@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
-import { Header, Footer } from '@/components/layout';
+import Header from '@/components/layout/Header';
+import Footer from '@/components/layout/Footer';
 import Link from 'next/link';
 import { Shield, ArrowRight, Mail, ExternalLink } from 'lucide-react';
 

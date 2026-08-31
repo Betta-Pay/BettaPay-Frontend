@@ -4,8 +4,8 @@ import Link from "next/link";
 import Image from "next/image";
 import { useState, useId } from "react";
 import { MessageCircle, Code2, Briefcase, Mail, CheckCircle2, AlertCircle, ArrowRight, Loader2 } from "lucide-react";
-import { Button } from "@/components/ui";
-import { Input } from "@/components/ui";
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 
 // ---------------------------------------------------------------------------
 // NewsletterForm
