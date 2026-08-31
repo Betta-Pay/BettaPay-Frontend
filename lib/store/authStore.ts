@@ -114,6 +114,15 @@ export const useAuthStore = create<AuthState>()(
             // presenting the session, and let a later request retry.
             expireAuthCookiesClientSide();
           }
+          // Rotate the CSRF token so one minted during the session just ended
+          // cannot be replayed by whoever uses this browser profile next
+          // (issue #486). Best-effort; the DELETE above already cleared it.
+          try {
+            const { rotateCsrfToken } = await import("@/lib/utils/csrf");
+            await rotateCsrfToken();
+          } catch {
+            /* csrf module / network unavailable */
+          }
         }
         return { serverInvalidated };
       },

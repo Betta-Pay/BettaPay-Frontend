@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
+import { csrfHeader } from '@/lib/utils/csrf';
 
 export type RateAlertRecurrence = 'once' | 'recurring';
 export type RateAlertChannel = 'in_app' | 'email' | 'webhook';
@@ -22,6 +23,8 @@ export interface RateAlert {
   window?: RateAlertWindow;
   triggered?: boolean;
   triggeredAt?: number;
+  /** #469: server dedupe marker — last time any channel delivered. */
+  lastDeliveredAt?: number;
   /** Set once the row is known to the backend (issue #469). */
   synced?: boolean;
 }
@@ -43,10 +46,30 @@ interface RateAlertState {
   reconcile: (serverAlerts: RateAlert[]) => void;
   /** Fetch `/api/rate-alerts` and reconcile. Safe to call on every boot. */
   hydrateFromServer: () => Promise<void>;
+  /** Ask the server to evaluate `pair` at `rate`: it fires + delivers +
+   *  dedupes, then we reconcile from its authoritative list (issue #469). */
+  evaluate: (pair: string, rate: number) => Promise<void>;
 }
 
 function localId(): string {
   return `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+}
+
+/** Same-origin JSON fetch to our Next API routes, with the CSRF header. */
+async function api(
+  path: string,
+  init?: { method?: string; body?: string },
+): Promise<Response> {
+  return fetch(path, {
+    method: init?.method ?? 'GET',
+    body: init?.body,
+    cache: 'no-store',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+      ...csrfHeader(),
+    },
+  });
 }
 
 export const useRateAlertStore = create<RateAlertState>()(
@@ -54,34 +77,76 @@ export const useRateAlertStore = create<RateAlertState>()(
     (set, get) => ({
       alerts: [],
       hydratedFromServer: false,
-      addAlert: (alert) =>
-        set((state) => ({
-          alerts: [
-            ...state.alerts,
-            {
-              pair: alert.pair,
-              condition: alert.condition,
-              target: alert.target,
-              recurrence: alert.recurrence ?? 'once',
-              channels: alert.channels ?? ['in_app'],
-              window: alert.window,
-              id: localId(),
-              enabled: true,
-              triggered: false,
-              synced: false,
-            },
-          ],
-        })),
-      toggleAlert: (id) =>
+      addAlert: (alert) => {
+        // Optimistic local insert so the UI (and the sync store tests) see the
+        // row immediately; then push to the server and swap in the real id.
+        const tempId = localId();
+        const optimistic: RateAlert = {
+          pair: alert.pair,
+          condition: alert.condition,
+          target: alert.target,
+          recurrence: alert.recurrence ?? 'once',
+          channels: alert.channels ?? ['in_app'],
+          window: alert.window,
+          id: tempId,
+          enabled: true,
+          triggered: false,
+          synced: false,
+        };
+        set((state) => ({ alerts: [...state.alerts, optimistic] }));
+
+        void api('/api/rate-alerts', {
+          method: 'POST',
+          body: JSON.stringify({
+            pair: optimistic.pair,
+            condition: optimistic.condition,
+            target: optimistic.target,
+            recurrence: optimistic.recurrence,
+            channels: optimistic.channels,
+            window: optimistic.window,
+          }),
+        })
+          .then(async (res) => {
+            if (!res.ok) return;
+            const body = (await res.json().catch(() => ({}))) as { alert?: RateAlert };
+            if (!body.alert) return;
+            set((state) => ({
+              alerts: state.alerts.map((a) =>
+                a.id === tempId ? { ...body.alert!, synced: true } : a,
+              ),
+            }));
+          })
+          .catch(() => {
+            /* offline — keep the local row, retry on next hydrate */
+          });
+      },
+      toggleAlert: (id) => {
+        const current = get().alerts.find((a) => a.id === id);
+        const nextEnabled = !(current?.enabled ?? true);
         set((state) => ({
           alerts: state.alerts.map((a) =>
             a.id === id
-              ? { ...a, enabled: !a.enabled, triggered: !a.enabled ? false : a.triggered }
+              ? { ...a, enabled: nextEnabled, triggered: nextEnabled ? false : a.triggered }
               : a,
           ),
-        })),
-      deleteAlert: (id) =>
-        set((state) => ({ alerts: state.alerts.filter((a) => a.id !== id) })),
+        }));
+        if (current?.synced) {
+          void api(`/api/rate-alerts/${id}`, {
+            method: 'PATCH',
+            body: JSON.stringify({
+              enabled: nextEnabled,
+              ...(nextEnabled ? {} : { triggered: false }),
+            }),
+          }).catch(() => {});
+        }
+      },
+      deleteAlert: (id) => {
+        const current = get().alerts.find((a) => a.id === id);
+        set((state) => ({ alerts: state.alerts.filter((a) => a.id !== id) }));
+        if (current?.synced) {
+          void api(`/api/rate-alerts/${id}`, { method: 'DELETE' }).catch(() => {});
+        }
+      },
       markAlertTriggered: (id) =>
         set((state) => ({
           alerts: state.alerts.map((a) => {
@@ -94,7 +159,9 @@ export const useRateAlertStore = create<RateAlertState>()(
       resetAlertTrigger: (id) =>
         set((state) => ({
           alerts: state.alerts.map((a) =>
-            a.id === id ? { ...a, triggered: false, triggeredAt: undefined } : a,
+            a.id === id
+              ? { ...a, triggered: false, triggeredAt: undefined, lastDeliveredAt: undefined }
+              : a,
           ),
         })),
       clearAllAlerts: () => set({ alerts: [] }),
@@ -110,12 +177,25 @@ export const useRateAlertStore = create<RateAlertState>()(
       },
       hydrateFromServer: async () => {
         try {
-          const res = await fetch('/api/rate-alerts', { cache: 'no-store' });
+          const res = await api('/api/rate-alerts', { method: 'GET' });
           if (!res.ok) return;
           const body = (await res.json().catch(() => ({}))) as { alerts?: RateAlert[] };
           if (Array.isArray(body.alerts)) get().reconcile(body.alerts);
         } catch {
           // offline — keep the persisted local list; try again next boot
+        }
+      },
+      evaluate: async (pair, rate) => {
+        try {
+          const res = await api('/api/rate-alerts/evaluate', {
+            method: 'POST',
+            body: JSON.stringify({ pair, rate }),
+          });
+          if (!res.ok) return;
+          const body = (await res.json().catch(() => ({}))) as { alerts?: RateAlert[] };
+          if (Array.isArray(body.alerts)) get().reconcile(body.alerts);
+        } catch {
+          // offline — fall back to the client-side check in the FX page
         }
       },
     }),

@@ -17,8 +17,14 @@ import {
 } from "@/components/ui/select";
 import { useRates } from '@/lib/api/hooks';
 import { USE_MOCK_RATE_DATA } from '@/lib/utils/constants';
-import { useRateAlertStore } from '@/lib/store/rateAlertStore';
+import { useRateAlertStore, type RateAlertChannel } from '@/lib/store/rateAlertStore';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui';
+
+const CHANNEL_LABELS: Record<RateAlertChannel, string> = {
+  in_app: 'In-app',
+  email: 'Email',
+  webhook: 'Webhook',
+};
 
 
 
@@ -32,17 +38,33 @@ export default function FxRatesPage() {
   const [lastRefresh] = useState('Just now');
   const [fxError, setFxError] = useState(false);
   const notify = useNotify();
-  const { alerts, addAlert, toggleAlert, deleteAlert, markAlertTriggered } = useRateAlertStore();
+  const { alerts, addAlert, toggleAlert, deleteAlert, markAlertTriggered, hydrateFromServer, evaluate } =
+    useRateAlertStore();
 
   const currentRate = typeof primaryRate === 'number' && Number.isFinite(primaryRate) ? primaryRate : null;
   const isRatesUnavailable = !ratesLoading && !ratesError && !currentRate && !USE_MOCK_RATE_DATA;
 
-  // Check rate alerts when rates update
+  // Restore alerts from the backend on boot so they survive a reload (#469).
+  useEffect(() => {
+    void hydrateFromServer();
+  }, [hydrateFromServer]);
+
+  // On every rate update, let the server evaluate + deliver + dedupe (#469).
+  // The client-side pass below is a best-effort fallback for when the API is
+  // unreachable, and only surfaces an in-app toast — it never double-delivers
+  // because the server owns `triggered` once a row is synced.
   useEffect(() => {
     if (!currentRate || isNaN(currentRate)) return;
+    if (alerts.length === 0) return;
+
+    if (alerts.some((a) => a.synced && a.enabled)) {
+      void evaluate('USDC/NGN', currentRate);
+    }
 
     alerts.forEach((alert) => {
+      if (alert.synced) return; // server handles synced alerts
       if (!alert.enabled || alert.triggered) return;
+      if (alert.pair !== 'USDC/NGN') return;
 
       const isMet =
         (alert.condition === 'above' && currentRate >= alert.target) ||
@@ -55,7 +77,7 @@ export default function FxRatesPage() {
         );
       }
     });
-  }, [currentRate, alerts, markAlertTriggered, notify]);
+  }, [currentRate, alerts, markAlertTriggered, notify, evaluate]);
 
   // Conversion calculator state
   const [convertAmount, setConvertAmount] = useState('100');
@@ -67,6 +89,17 @@ export default function FxRatesPage() {
   const [newPair, setNewPair] = useState('USDC/NGN');
   const [newCondition, setNewCondition] = useState<'above' | 'below'>('above');
   const [newTarget, setNewTarget] = useState('');
+  const [newRecurrence, setNewRecurrence] = useState<'once' | 'recurring'>('once');
+  const [newChannels, setNewChannels] = useState<RateAlertChannel[]>(['in_app']);
+  const [useWindow, setUseWindow] = useState(false);
+  const [windowStart, setWindowStart] = useState('09:00');
+  const [windowEnd, setWindowEnd] = useState('17:00');
+
+  const toggleChannel = (channel: RateAlertChannel) => {
+    setNewChannels((prev) =>
+      prev.includes(channel) ? prev.filter((c) => c !== channel) : [...prev, channel],
+    );
+  };
 
   const rawInput = parseFloat(convertAmount) || 0;
   const feePercent = 0.5;
@@ -92,14 +125,25 @@ export default function FxRatesPage() {
       notify.error('Please enter a valid target rate');
       return;
     }
+    if (newChannels.length === 0) {
+      notify.error('Pick at least one delivery channel');
+      return;
+    }
 
     addAlert({
       pair: newPair,
       condition: newCondition,
       target: Number(newTarget),
+      recurrence: newRecurrence,
+      channels: newChannels,
+      window: useWindow ? { start: windowStart, end: windowEnd } : undefined,
     });
     setNewTarget('');
-    notify.success('Rate alert created');
+    notify.success(
+      newRecurrence === 'recurring'
+        ? 'Recurring rate alert created'
+        : 'One-time rate alert created',
+    );
   };
 
   return (
@@ -332,6 +376,73 @@ export default function FxRatesPage() {
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-semibold mt-0.5">₦</span>
               </div>
             </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-foreground">Frequency</label>
+                <Select value={newRecurrence} onValueChange={(v) => v && setNewRecurrence(v as 'once' | 'recurring')}>
+                  <SelectTrigger className="h-10 border-border rounded-xl bg-muted">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="once">One-time</SelectItem>
+                    <SelectItem value="recurring">Recurring</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-foreground">Deliver via</label>
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  {(Object.keys(CHANNEL_LABELS) as RateAlertChannel[]).map((channel) => (
+                    <button
+                      key={channel}
+                      type="button"
+                      aria-pressed={newChannels.includes(channel)}
+                      onClick={() => toggleChannel(channel)}
+                      className={cn(
+                        'px-2.5 py-1 rounded-lg text-xs font-semibold border transition-colors',
+                        newChannels.includes(channel)
+                          ? 'bg-primary/10 text-primary border-primary/30'
+                          : 'bg-muted text-muted-foreground border-border',
+                      )}
+                    >
+                      {CHANNEL_LABELS[channel]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 text-xs font-semibold text-foreground">
+                <input
+                  type="checkbox"
+                  checked={useWindow}
+                  onChange={(e) => setUseWindow(e.target.checked)}
+                  className="h-3.5 w-3.5 rounded border-border accent-primary"
+                />
+                Only fire within a time window
+              </label>
+              {useWindow && (
+                <div className="grid grid-cols-2 gap-4">
+                  <Input
+                    type="time"
+                    aria-label="Window start"
+                    value={windowStart}
+                    onChange={(e) => setWindowStart(e.target.value)}
+                    className="h-10 border-border rounded-xl bg-muted"
+                  />
+                  <Input
+                    type="time"
+                    aria-label="Window end"
+                    value={windowEnd}
+                    onChange={(e) => setWindowEnd(e.target.value)}
+                    className="h-10 border-border rounded-xl bg-muted"
+                  />
+                </div>
+              )}
+            </div>
+
             <Button
               onClick={handleCreateAlert}
               className="w-full bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl h-10 font-semibold"
@@ -393,6 +504,14 @@ export default function FxRatesPage() {
                           ) : (
                             <span className="text-muted-foreground">Paused</span>
                           )}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">
+                          {alert.recurrence === 'recurring' ? 'Recurring' : 'One-time'}
+                          {' · '}
+                          {(alert.channels ?? ['in_app'])
+                            .map((c) => CHANNEL_LABELS[c] ?? c)
+                            .join(', ')}
+                          {alert.window ? ` · ${alert.window.start}–${alert.window.end}` : ''}
                         </p>
                       </div>
                     </div>

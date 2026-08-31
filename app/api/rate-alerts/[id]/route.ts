@@ -1,63 +1,60 @@
-import { NextResponse } from "next/server";
-import { z } from "zod";
-import { USER_ROLE_COOKIE } from "@/lib/auth/session";
+import { NextResponse, NextRequest } from 'next/server';
+import { z } from 'zod';
+import { verifyCsrfRequest, CSRF_FAILURE_STATUS } from '@/lib/utils/csrf';
+import { listFor, setFor, merchantKey } from '@/lib/server/rateAlerts';
 
-export const runtime = "nodejs";
-
-interface StoredAlert {
-  id: string;
-  enabled: boolean;
-  recurrence: "once" | "recurring";
-  target: number;
-  condition: "above" | "below";
-  triggered?: boolean;
-  triggeredAt?: number;
-  [k: string]: unknown;
-}
-
-const g = globalThis as unknown as { __bpRateAlerts?: Map<string, StoredAlert[]> };
-const store = (g.__bpRateAlerts ??= new Map<string, StoredAlert[]>());
-
-function key(req: Request): string {
-  const role = req.headers.get("cookie")?.match(new RegExp(`${USER_ROLE_COOKIE}=([^;]+)`))?.[1];
-  return `merchant:${role ?? "anon"}`;
-}
+export const runtime = 'nodejs';
 
 const patchSchema = z.object({
   enabled: z.boolean().optional(),
   target: z.number().positive().optional(),
-  condition: z.enum(["above", "below"]).optional(),
-  recurrence: z.enum(["once", "recurring"]).optional(),
+  condition: z.enum(['above', 'below']).optional(),
+  recurrence: z.enum(['once', 'recurring']).optional(),
+  channels: z.array(z.enum(['in_app', 'email', 'webhook'])).min(1).optional(),
   triggered: z.boolean().optional(),
 });
 
-export async function PATCH(req: Request, { params }: { params: { id: string } }) {
-  const list = store.get(key(req)) ?? [];
+export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+  const csrf = verifyCsrfRequest(req);
+  if (!csrf.ok) {
+    return NextResponse.json({ error: 'CSRF validation failed.' }, { status: CSRF_FAILURE_STATUS });
+  }
+
+  const list = listFor(merchantKey(req));
   const alert = list.find((a) => a.id === params.id);
-  if (!alert) return NextResponse.json({ error: "Alert not found." }, { status: 404 });
+  if (!alert) return NextResponse.json({ error: 'Alert not found.' }, { status: 404 });
 
   let body: unknown;
   try {
     body = await req.json();
   } catch {
-    return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
+    return NextResponse.json({ error: 'Invalid request body.' }, { status: 400 });
   }
   const parsed = patchSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: "Invalid update." }, { status: 400 });
+    return NextResponse.json({ error: 'Invalid update.' }, { status: 400 });
   }
+
   Object.assign(alert, parsed.data);
-  if (parsed.data.triggered === false) alert.triggeredAt = undefined;
+  if (parsed.data.triggered === false) {
+    alert.triggeredAt = undefined;
+    alert.lastDeliveredAt = undefined;
+  }
   return NextResponse.json({ alert });
 }
 
-export async function DELETE(req: Request, { params }: { params: { id: string } }) {
-  const k = key(req);
-  const list = store.get(k) ?? [];
+export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+  const csrf = verifyCsrfRequest(req);
+  if (!csrf.ok) {
+    return NextResponse.json({ error: 'CSRF validation failed.' }, { status: CSRF_FAILURE_STATUS });
+  }
+
+  const merchant = merchantKey(req);
+  const list = listFor(merchant);
   const next = list.filter((a) => a.id !== params.id);
   if (next.length === list.length) {
-    return NextResponse.json({ error: "Alert not found." }, { status: 404 });
+    return NextResponse.json({ error: 'Alert not found.' }, { status: 404 });
   }
-  store.set(k, next);
+  setFor(merchant, next);
   return NextResponse.json({ ok: true });
 }
