@@ -11,6 +11,7 @@ import Footer from '@/components/layout/Footer';
 import Image from 'next/image';
 import { useAuthStore } from '@/lib/store/authStore';
 import { CommandPalette } from '@/components/command/CommandPalette';
+import { ThemePreferenceSync } from '@/components/layout/ThemePreferenceSync';
 
 export default function AdminLayout({
   children,
@@ -55,6 +56,7 @@ export default function AdminLayout({
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
+      <ThemePreferenceSync />
       <AdminSidebar />
       <MobileNavDrawer
         isOpen={mobileMenuOpen}

@@ -1,6 +1,5 @@
 "use client";
 
-import { ThemeProvider } from "next-themes";
 import { ReactNode, useEffect, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -9,14 +8,25 @@ import { useSessionCheck } from "@/lib/hooks/useSessionCheck";
 import { useCrossTabAuth } from "@/lib/hooks/useCrossTabAuth";
 import { useCrossTabRateLimit } from "@/lib/hooks/useCrossTabRateLimit";
 import { setAppRouter } from "@/lib/navigation/appRouter";
-import { OfflineBanner } from "@/components/ui";
+import { OfflineBanner } from "@/components/ui/offline-banner";
 import { initRum } from "@/lib/rum";
 import { initErrorReporting } from "@/lib/errorReporting";
 import { useRouteChange } from "@/lib/rum/useRouteChange";
 import { useHydrationCapture } from "@/lib/rum/useHydrationCapture";
 import { isPublicRoute, isAuthRoute } from "@/lib/auth/session";
 
-export function Providers({ children }: { children: ReactNode }) {
+/**
+ * The authenticated-app provider stack: React Query, session verification,
+ * cross-tab auth/rate-limit sync, RUM + error reporting, and the offline
+ * banner.
+ *
+ * This is mounted by `ConditionalAppProviders` for every route EXCEPT the
+ * static marketing pages, so `@tanstack/react-query`, the auth/wallet stores
+ * and axios never reach the public landing bundle (issue #584). `ThemeProvider`
+ * is intentionally NOT here — it lives in the root layout so marketing pages
+ * still get theming.
+ */
+export function AppProviders({ children }: { children: ReactNode }) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const router = useRouter();
 
@@ -87,16 +97,14 @@ export function Providers({ children }: { children: ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider attribute="class" defaultTheme="system" enableSystem={true}>
-        <OfflineBanner />
-        {showFlashGuard ? (
-          <div className="min-h-[60vh] flex items-center justify-center p-8" aria-busy="true" aria-live="polite">
-            <div className="text-sm text-muted-foreground">Verifying session…</div>
-          </div>
-        ) : (
-          children
-        )}
-      </ThemeProvider>
+      <OfflineBanner />
+      {showFlashGuard ? (
+        <div className="min-h-[60vh] flex items-center justify-center p-8" aria-busy="true" aria-live="polite">
+          <div className="text-sm text-muted-foreground">Verifying session…</div>
+        </div>
+      ) : (
+        children
+      )}
     </QueryClientProvider>
   );
 }

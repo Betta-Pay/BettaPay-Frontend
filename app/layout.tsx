@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { Fraunces, DM_Sans } from "next/font/google";
+import { ThemeProvider } from "next-themes";
 import { Toaster } from "@/components/ui";
-import { Providers } from "@/components/providers";
+import { ConditionalAppProviders } from "@/components/providers/ConditionalAppProviders";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 import { SITE_URL } from "@/lib/config";
@@ -51,17 +52,17 @@ export default async function RootLayout({
 
   const inner = (
     <I18nProvider>
-      <Providers>
-        {children}
+      <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+        <ConditionalAppProviders>{children}</ConditionalAppProviders>
         <Toaster />
         <div id="announcer" aria-live="polite" aria-atomic="true" className="sr-only" />
-      </Providers>
+      </ThemeProvider>
       <TranslationCoveragePanel />
     </I18nProvider>
   );
 
   return (
-    <html lang="en" className={cn("font-sans antialiased", fraunces.variable, dmSans.variable)}>
+    <html lang="en" suppressHydrationWarning className={cn("font-sans antialiased", fraunces.variable, dmSans.variable)}>
       <body className="min-h-screen bg-background text-foreground">
         <a
           href="#main-content"

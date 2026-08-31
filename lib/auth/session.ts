@@ -73,6 +73,35 @@ export function isAuthRoute(pathname: string): boolean {
   return pathname.startsWith('/auth');
 }
 
+/**
+ * Static marketing / documentation routes that render without any
+ * authenticated-app machinery — no React Query, no auth/wallet stores, no
+ * axios. `ConditionalAppProviders` uses this to skip mounting `AppProviders`
+ * for these pages so they don't ship the app bundle (issue #584).
+ *
+ * This is deliberately stricter than `isPublicRoute`: `/pay` and
+ * `/fiat-settlements` are public but render React Query data islands, so they
+ * are NOT listed here.
+ */
+const MARKETING_ROUTE_PREFIXES = [
+  '/about',
+  '/pricing',
+  '/status',
+  '/contact',
+  '/terms',
+  '/privacy',
+  '/guides',
+  '/sdks',
+  '/docs',
+] as const;
+
+export function isMarketingRoute(pathname: string): boolean {
+  if (pathname === '/') return true;
+  return MARKETING_ROUTE_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+  );
+}
+
 /** Shape persisted in localStorage bp-session (zustand partialize). */
 export interface PersistedAuthState {
   isLoggedIn: boolean;
