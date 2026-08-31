@@ -12,6 +12,7 @@ describe('useWalletStore - Balance Refresh Retry Cap (#505)', () => {
       isReconnecting: false,
       error: null,
       connectError: null,
+      walletModalOpen: false,
     });
     jest.restoreAllMocks();
   });

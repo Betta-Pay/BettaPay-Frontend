@@ -2,6 +2,7 @@ import {
   isAllowed,
   setAllowed,
   requestAccess,
+  getAddress,
   getNetwork,
   signTransaction,
   signMessage,
@@ -128,6 +129,25 @@ export const connectFreighter = async (): Promise<string | null> => {
     console.error('Failed to connect Freighter', error);
     const classified = classifyFreighterError(error);
     throw classified;
+  }
+};
+
+export const restoreFreighterSession = async (): Promise<string | null> => {
+  try {
+    const allowedResp = await isAllowed();
+    if (!allowedResp?.isAllowed) return null;
+
+    const addressResp = await getAddress();
+    if (addressResp.error) {
+      throw classifyFreighterError(addressResp.error);
+    }
+
+    if (!addressResp.address) return null;
+    await checkNetworkMismatch();
+    return addressResp.address;
+  } catch (error) {
+    console.error('Failed to restore Freighter session', error);
+    throw classifyFreighterError(error);
   }
 };
 

@@ -1,6 +1,16 @@
 import { useWalletStore } from '../walletStore';
 import type { WalletConnectSession } from '@/lib/stellar/walletconnect';
 
+const mockWalletConnectClient = {
+  restoreSession: jest.fn().mockResolvedValue(undefined),
+  onStatus: jest.fn(),
+};
+
+jest.mock('@/lib/stellar/walletconnect', () => ({
+  getWalletConnectClient: jest.fn(() => mockWalletConnectClient),
+  resetWalletConnectClient: jest.fn(),
+}));
+
 describe('useWalletStore - Multi Account Support (#503)', () => {
   beforeEach(() => {
     useWalletStore.setState({
@@ -15,6 +25,7 @@ describe('useWalletStore - Multi Account Support (#503)', () => {
       connectError: null,
       walletConnectPending: false,
       walletConnectSession: null,
+      walletModalOpen: false,
     });
     jest.restoreAllMocks();
   });
