@@ -19,6 +19,9 @@ if (!(globalThis.crypto && 'subtle' in globalThis.crypto)) {
 import {
   WalletConnectClient,
   WalletConnectTimeoutError,
+  getStellarWalletConnectChain,
+  getWalletConnectClient,
+  resetWalletConnectClient,
   type WalletConnectStatus,
 } from '@/lib/stellar/walletconnect';
 
@@ -82,9 +85,9 @@ const factory = (url: string) =>
 const latest = () =>
   MockRelaySocket.instances[MockRelaySocket.instances.length - 1];
 
-function makeClient() {
+function makeClient(chainId: 'stellar:testnet' | 'stellar:pubnet' = 'stellar:testnet') {
   const statuses: Array<[WalletConnectStatus, string | undefined]> = [];
-  const client = new WalletConnectClient(factory);
+  const client = new WalletConnectClient(factory, chainId);
   client.onStatus((s, d) => statuses.push([s, d]));
   return { client, statuses };
 }
@@ -104,6 +107,7 @@ afterEach(() => {
   jest.clearAllTimers();
   jest.useRealTimers();
   jest.restoreAllMocks();
+  resetWalletConnectClient();
 });
 
 // ─── Reconnect ───────────────────────────────────────────────────────────────
@@ -228,6 +232,50 @@ describe('relay heartbeat', () => {
 
 // ─── Phase timeouts ──────────────────────────────────────────────────────────
 
+describe('chain negotiation', () => {
+  it('maps the UI network to the matching chain id', () => {
+    expect(getStellarWalletConnectChain('testnet')).toBe('stellar:testnet');
+    expect(getStellarWalletConnectChain('public')).toBe('stellar:pubnet');
+    expect(getStellarWalletConnectChain('mainnet')).toBe('stellar:pubnet');
+  });
+
+  it('keeps the active chain when callers reuse the singleton without a network override', () => {
+    const client = getWalletConnectClient('public');
+    expect(client.chainId).toBe('stellar:pubnet');
+    expect(getWalletConnectClient()).toBe(client);
+  });
+
+  it('advertises pubnet and rejects a mismatched wallet session', async () => {
+    const { client, statuses } = makeClient('stellar:pubnet');
+    const uri = await client.connect();
+    const sock = latest();
+    sock.accept();
+
+    await drivePairing(client, sock, uri, {
+      settleAccounts: [`stellar:testnet:G${'A'.repeat(55)}`],
+    });
+
+    expect(lastStatus(statuses)).toBe('error');
+    const detail = statuses[statuses.length - 1][1] ?? '';
+    expect(detail).toMatch(/reported stellar:testnet/i);
+
+    const publishes = sock
+      .parsedSent()
+      .filter((m) => m.method === 'irn_publish')
+      .map((m) => m.params as { topic: string; message: string });
+
+    const pairingTopic = uri.slice(3, uri.indexOf('@'));
+    const symKeyHex = uri.match(/symKey=([0-9a-f]+)/)![1];
+    const pairingKey = await importAesKey(symKeyHex);
+    const ackPublish = publishes.find((p) => p.topic === pairingTopic)!;
+    const ack = JSON.parse(await open(ackPublish.message, pairingKey)) as { result: { responderPublicKey: string } };
+    const sessionKey = await importAesKey(ack.result.responderPublicKey);
+    const sessionPublish = publishes.find((p) => p.topic !== pairingTopic)!;
+    const settle = JSON.parse(await open(sessionPublish.message, sessionKey)) as { params: { namespaces: { stellar: { chains: string[] } } } };
+    expect(settle.params.namespaces.stellar.chains).toEqual(['stellar:pubnet']);
+  });
+});
+
 describe('phase timeouts', () => {
   it('aborts pairing with a typed timeout error if no wallet connects', async () => {
     const { client, statuses } = makeClient();
@@ -349,6 +397,7 @@ async function drivePairing(
   client: WalletConnectClient,
   sock: MockRelaySocket,
   uri: string,
+  options?: { settleAccounts?: string[] },
 ) {
   const pairingTopic = uri.slice(3, uri.indexOf('@'));
   const symKeyHex = uri.match(/symKey=([0-9a-f]+)/)![1];
@@ -392,7 +441,7 @@ async function drivePairing(
     method: 'wc_sessionSettle',
     params: {
       namespaces: {
-        stellar: { accounts: [`stellar:testnet:G${'A'.repeat(55)}`] },
+        stellar: { accounts: options?.settleAccounts ?? [`stellar:testnet:G${'A'.repeat(55)}`] },
       },
       controller: {
         metadata: { name: 'Test Wallet', description: '', url: '', icons: [] },

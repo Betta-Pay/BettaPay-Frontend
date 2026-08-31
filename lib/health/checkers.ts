@@ -12,7 +12,7 @@
 
 import type { ServiceHealth } from "@/lib/types/health";
 import type { AnchorHealth, AnchorHealthStatus } from "@/lib/types";
-import { HORIZON_URL, SOROBAN_RPC_URL, ANCHOR_URL, API_URL } from "@/lib/config";
+import { API_URL, HORIZON_URL, SOROBAN_RPC_URL, ANCHOR_URL } from "@/lib/config";
 
 // ---------------------------------------------------------------------------
 // Internal helpers

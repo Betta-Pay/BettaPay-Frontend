@@ -1,49 +1,44 @@
 "use client";
 
-import React from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 
 interface PageTransitionProps {
-  children: React.ReactNode;
-  routingKey?: string; // The active route path (e.g., location.pathname or router.asPath)
+  children: ReactNode;
+  routingKey?: string;
 }
 
-// Global dictionary cache to store viewport depths across client-side navigation
 const scrollCoordinateCache: Record<string, number> = {};
 
 export function PageTransition({ children, routingKey = '' }: PageTransitionProps) {
-  const containerRef = React.useRef(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
 
-  // Capture scroll coordinates immediately prior to unmounting the current active route
-  React.useEffect(() => {
+  useEffect(() => {
     return () => {
       if (typeof window !== 'undefined') {
-        scrollCoordinateCache[routingKey] = window.scrollY || document.documentElement.scrollTop;
+        scrollCoordinateCache[routingKey] =
+          window.scrollY || document.documentElement.scrollTop;
       }
     };
   }, [routingKey]);
 
-  // Restore cached scroll position the millisecond the new page route settles
-  React.useEffect(() => {
+  useEffect(() => {
     if (typeof window !== 'undefined') {
       const targetScrollDepth = scrollCoordinateCache[routingKey] || 0;
-      
-      // Execute an instantaneous jump to eliminate jumpy layout bounce or refetch flashes
       window.scrollTo({
         top: targetScrollDepth,
-        behavior: 'auto'
+        behavior: 'auto',
       });
     }
   }, [routingKey]);
 
-  // Acceptance Criteria: Persistent page shell structure animating ONLY inner content opacity
   return (
-    <div 
+    <div
       ref={containerRef}
       className="persistent-page-shell"
       style={{
         width: '100%',
         minHeight: '100vh',
-        transition: 'opacity 200ms ease-in-out'
+        transition: 'opacity 200ms ease-in-out',
       }}
     >
       {children}

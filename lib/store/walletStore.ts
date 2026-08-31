@@ -53,6 +53,8 @@ export interface WalletState {
   connect: (connector?: Connector) => Promise<void>;
   /** Called by WalletConnectModal once a session is fully established. */
   resolveWalletConnect: (session: WalletConnectSession) => void;
+  /** Clears the pending WalletConnect QR flow without disconnecting a live wallet. */
+  cancelWalletConnect: () => void;
   selectAccount: (address: string) => void;
   disconnect: () => void;
   clearConnectError: () => void;
@@ -156,6 +158,10 @@ export const useWalletStore = create<WalletState>((set, get) => ({
       },
     });
     get().refreshBalances();
+  },
+
+  cancelWalletConnect: () => {
+    set({ walletConnectPending: false });
   },
 
   selectAccount: (address: string) => {
