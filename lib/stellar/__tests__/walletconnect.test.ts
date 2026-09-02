@@ -309,6 +309,36 @@ describe('phase timeouts', () => {
   });
 });
 
+describe('session disconnect', () => {
+  it('handles a wallet-issued session delete by disconnecting cleanly', async () => {
+    const { client, statuses } = makeClient();
+    const sessionKeyBytes = crypto.getRandomValues(new Uint8Array(32));
+    const sessionKeyHex = Array.from(sessionKeyBytes, (b) => b.toString(16).padStart(2, '0')).join('');
+    const sessionKey = await importAesKey(sessionKeyHex);
+    const sessionTopic = 'session-topic';
+
+    await client.restoreSession({
+      topic: sessionTopic,
+      peerMetadata: { name: 'Test Wallet', description: '', url: '', icons: [] },
+      stellarAccounts: ['GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF'],
+      address: 'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF',
+      sessionKey: sessionKeyHex,
+      sessionKeyVersion: 0,
+    });
+
+    const sock = latest();
+    sock.deliver(
+      relaySub(
+        sessionTopic,
+        await seal(JSON.stringify({ id: 99, jsonrpc: '2.0', method: 'wc_sessionDelete', params: {} }), sessionKey),
+      ),
+    );
+    await drain();
+
+    expect(lastStatus(statuses)).toBe('disconnected');
+  });
+});
+
 // ─── Handshake helpers ───────────────────────────────────────────────────────
 
 const RECONNECT_CEIL = 30_000 + 300;

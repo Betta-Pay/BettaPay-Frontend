@@ -74,6 +74,7 @@ const RELAY_SUBSCRIPTION = 'irn_subscription';
 const METHOD_SESSION_PROPOSE = 'wc_sessionPropose';
 const METHOD_SESSION_SETTLE = 'wc_sessionSettle';
 const METHOD_SESSION_REQUEST = 'wc_sessionRequest';
+const METHOD_SESSION_DELETE = 'wc_sessionDelete';
 const METHOD_STELLAR_SIGN_TX = 'stellar_signTransaction';
 const METHOD_STELLAR_SIGN_MSG = 'stellar_signMessage';
 
@@ -109,6 +110,9 @@ export interface WalletConnectSession {
   stellarAccounts: string[];
   /** Primary Stellar G-address derived from the session */
   address: string;
+  /** Hex-encoded WalletConnect session key used to resume relay traffic. */
+  sessionKey?: string;
+  sessionKeyVersion?: number;
 }
 
 interface WCPeerMetadata {
@@ -218,6 +222,13 @@ async function exportRawKey(key: CryptoKey): Promise<Uint8Array> {
   return new Uint8Array(raw);
 }
 
+async function importRawKey(bytes: Uint8Array): Promise<CryptoKey> {
+  return crypto.subtle.importKey('raw', bytes as unknown as BufferSource, 'AES-GCM', true, [
+    'encrypt',
+    'decrypt',
+  ]);
+}
+
 async function encrypt(
   plaintext: string,
   key: CryptoKey,
@@ -272,9 +283,20 @@ function fromBase64url(s: string): Uint8Array {
   return Uint8Array.from(binary, (c) => c.charCodeAt(0));
 }
 
+function bytesToHex(bytes: Uint8Array): string {
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+function hexToBytes(hex: string): Uint8Array {
+  if (!/^[0-9a-f]+$/i.test(hex) || hex.length % 2 !== 0) {
+    throw new WalletConnectError('Invalid WalletConnect session key.', 'relay');
+  }
+  return Uint8Array.from(hex.match(/.{2}/g) ?? [], (byte) => parseInt(byte, 16));
+}
+
 function randomHex(bytes: number): string {
   const arr = crypto.getRandomValues(new Uint8Array(bytes));
-  return Array.from(arr, (b) => b.toString(16).padStart(2, '0')).join('');
+  return bytesToHex(arr);
 }
 
 // ─── WalletConnect client ─────────────────────────────────────────────────────
@@ -287,6 +309,7 @@ export class WalletConnectClient {
   private sessionTopic: string = '';
   private sessionKey: CryptoKey | null = null;
   private sessionKeyVersion: number = 0;
+  private sessionKeyHex: string = '';
   private pendingRequests = new Map<
     number,
     { resolve: (v: unknown) => void; reject: (e: Error) => void }
@@ -350,7 +373,7 @@ export class WalletConnectClient {
 
     // Build the wc: URI per WC v2 spec
     // wc:<topic>@2?relay-protocol=irn&symKey=<hex>&projectId=<id>
-    const symKeyHex = Array.from(rawKey, (b) => b.toString(16).padStart(2, '0')).join('');
+    const symKeyHex = bytesToHex(rawKey);
     const relayParam = encodeURIComponent(JSON.stringify({ protocol: 'irn' }));
     const uri =
       `wc:${this.pairingTopic}@2` +
@@ -371,6 +394,23 @@ export class WalletConnectClient {
     this.setPhaseTimeout('pairing', PAIRING_TIMEOUT_MS);
 
     return uri;
+  }
+
+  async restoreSession(session: WalletConnectSession): Promise<void> {
+    if (!session.sessionKey) {
+      throw new WalletConnectError('WalletConnect session cannot be restored without a session key.', 'relay');
+    }
+
+    this.cleanup();
+    this.sessionTopic = session.topic;
+    this.sessionKey = await importRawKey(hexToBytes(session.sessionKey));
+    this.sessionKeyVersion = session.sessionKeyVersion ?? 0;
+    this.sessionKeyHex = session.sessionKey;
+    this.intentionalClose = false;
+    this.reconnectAttempts = 0;
+    this.wsUrl = `${RELAY_URL}?projectId=${PROJECT_ID}&ua=BettaPay%2F1.0`;
+    this.openSocket();
+    this.emit('connected');
   }
 
   /**
@@ -739,6 +779,11 @@ export class WalletConnectClient {
       return;
     }
 
+    if (method === METHOD_SESSION_DELETE) {
+      this.disconnect();
+      return;
+    }
+
     if (method === METHOD_SESSION_REQUEST) {
       // Responses to our outbound sign requests arrive here
       const pending = this.pendingRequests.get(msg.id);
@@ -774,9 +819,8 @@ export class WalletConnectClient {
     this.sessionKey = await generateSymKey();
     this.sessionKeyVersion = 0;
     const rawSessionKey = await exportRawKey(this.sessionKey);
-    const sessionKeyHex = Array.from(rawSessionKey, (b) =>
-      b.toString(16).padStart(2, '0'),
-    ).join('');
+    const sessionKeyHex = bytesToHex(rawSessionKey);
+    this.sessionKeyHex = sessionKeyHex;
 
     // Subscribe to the session topic
     this.relayRpc(RELAY_SUBSCRIBE, { topic: this.sessionTopic });
@@ -900,6 +944,8 @@ export class WalletConnectClient {
       },
       stellarAccounts,
       address: stellarAccounts[0],
+      sessionKey: this.sessionKeyHex,
+      sessionKeyVersion: this.sessionKeyVersion,
     };
 
     this.emit('connected');
@@ -1034,6 +1080,7 @@ export class WalletConnectClient {
     this.sessionTopic = '';
     this.sessionKey = null;
     this.sessionKeyVersion = 0;
+    this.sessionKeyHex = '';
     this.usedIvs.clear();
     this.rpcId = 1;
     this.reconnectAttempts = 0;

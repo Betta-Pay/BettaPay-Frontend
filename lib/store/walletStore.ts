@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { AssetBalance } from '../types';
-import { connectFreighter, FreighterNotInstalledError, FreighterCancelledError, FreighterNetworkMismatchError } from '@/lib/stellar/freighter';
+import { connectFreighter, restoreFreighterSession, FreighterNotInstalledError, FreighterCancelledError, FreighterNetworkMismatchError } from '@/lib/stellar/freighter';
 import { getWalletConnectClient, resetWalletConnectClient, WalletConnectSession } from '@/lib/stellar/walletconnect';
 import { retryWithBackoff } from '../utils/retry';
 import { setWalletContextProvider } from '../errorReporting/context';
@@ -17,6 +17,83 @@ function getNetwork(): 'testnet' | 'public' {
   const val = (process.env.NEXT_PUBLIC_STELLAR_NETWORK || 'testnet').toLowerCase();
   if (val === 'mainnet' || val === 'public') return 'public';
   return 'testnet';
+}
+
+const WALLET_SESSION_KEY = 'bettapay_wallet_session';
+
+type PersistedWalletSession = {
+  version: 1;
+  connector: Exclude<Connector, null>;
+  address: string;
+  stellarAccounts: string[];
+  network: 'testnet' | 'public';
+  walletConnectSession?: WalletConnectSession;
+};
+
+function readPersistedWalletSession(): PersistedWalletSession | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = window.localStorage.getItem(WALLET_SESSION_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<PersistedWalletSession>;
+    if (parsed.version !== 1 || !parsed.connector || !parsed.address) return null;
+    if (parsed.connector !== 'freighter' && parsed.connector !== 'walletconnect') return null;
+    return {
+      version: 1,
+      connector: parsed.connector,
+      address: parsed.address,
+      stellarAccounts: parsed.stellarAccounts?.length ? parsed.stellarAccounts : [parsed.address],
+      network: parsed.network === 'public' ? 'public' : 'testnet',
+      walletConnectSession: parsed.walletConnectSession,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function persistWalletSession(snapshot: PersistedWalletSession) {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(WALLET_SESSION_KEY, JSON.stringify(snapshot));
+  } catch {
+    /* storage unavailable */
+  }
+}
+
+export function clearPersistedWalletSession() {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.removeItem(WALLET_SESSION_KEY);
+  } catch {
+    /* storage unavailable */
+  }
+}
+
+function clearWalletConnectionState() {
+  clearPersistedWalletSession();
+  useWalletStore.setState({
+    address: null,
+    stellarAccounts: [],
+    isConnected: false,
+    connector: null,
+    balances: [],
+    loading: false,
+    isReconnecting: false,
+    error: null,
+    connectError: null,
+    walletConnectPending: false,
+    walletConnectSession: null,
+    walletModalOpen: false,
+  });
+}
+
+function registerWalletConnectDisconnectHandler() {
+  const client = getWalletConnectClient();
+  client.onStatus((status) => {
+    if (status === 'disconnected') {
+      clearWalletConnectionState();
+    }
+  });
 }
 
 interface ConnectError {
@@ -51,6 +128,7 @@ export interface WalletState {
   setWalletModalOpen: (open: boolean) => void;
 
   connect: (connector?: Connector) => Promise<void>;
+  restoreSession: (isAuthenticated: boolean) => Promise<void>;
   /** Called by WalletConnectModal once a session is fully established. */
   resolveWalletConnect: (session: WalletConnectSession) => void;
   /** Clears the pending WalletConnect QR flow without disconnecting a live wallet. */
@@ -88,7 +166,15 @@ export const useWalletStore = create<WalletState>((set, get) => ({
       if (connector === 'freighter') {
         const address = await connectFreighter();
         if (address) {
+          const network = get().network;
           set({ address, stellarAccounts: [address], isConnected: true, connector: 'freighter', connectError: null });
+          persistWalletSession({
+            version: 1,
+            connector: 'freighter',
+            address,
+            stellarAccounts: [address],
+            network,
+          });
           get().refreshBalances();
         } else {
           throw new Error('Freighter connection failed');
@@ -136,6 +222,71 @@ export const useWalletStore = create<WalletState>((set, get) => ({
     }
   },
 
+  restoreSession: async (isAuthenticated: boolean) => {
+    if (!isAuthenticated || get().isConnected) return;
+
+    const persisted = readPersistedWalletSession();
+    if (!persisted) return;
+
+    set({ isReconnecting: true, error: null, connectError: null, network: persisted.network });
+
+    try {
+      if (persisted.connector === 'freighter') {
+        const address = await restoreFreighterSession();
+        if (!address) {
+          clearWalletConnectionState();
+          return;
+        }
+
+        const stellarAccounts = [address];
+        set({
+          address,
+          stellarAccounts,
+          isConnected: true,
+          connector: 'freighter',
+          isReconnecting: false,
+        });
+        persistWalletSession({ ...persisted, address, stellarAccounts, network: get().network });
+        await get().refreshBalances();
+        return;
+      }
+
+      if (!persisted.walletConnectSession?.sessionKey) {
+        clearWalletConnectionState();
+        return;
+      }
+
+      const client = getWalletConnectClient(persisted.network);
+      await client.restoreSession(persisted.walletConnectSession);
+      set({
+        address: persisted.address,
+        stellarAccounts: persisted.stellarAccounts,
+        isConnected: true,
+        connector: 'walletconnect',
+        walletConnectSession: persisted.walletConnectSession,
+        isReconnecting: false,
+      });
+      registerWalletConnectDisconnectHandler();
+      await get().refreshBalances();
+    } catch (error) {
+      console.error('Failed to restore wallet session', error);
+      captureException(error, { source: 'wallet' });
+      clearPersistedWalletSession();
+      if (persisted.connector === 'walletconnect') resetWalletConnectClient();
+      set({
+        address: null,
+        stellarAccounts: [],
+        isConnected: false,
+        connector: null,
+        balances: [],
+        loading: false,
+        isReconnecting: false,
+        walletConnectSession: null,
+        error: error instanceof Error ? error.message : 'Failed to restore wallet session',
+      });
+    }
+  },
+
   resolveWalletConnect: (session: WalletConnectSession) => {
     const stellarAccounts = session.stellarAccounts && session.stellarAccounts.length > 0
       ? session.stellarAccounts
@@ -144,6 +295,12 @@ export const useWalletStore = create<WalletState>((set, get) => ({
       ? session.address
       : stellarAccounts[0] || null;
 
+    const activeSession = {
+      ...session,
+      address: selectedAddress || session.address,
+      stellarAccounts,
+    };
+
     set({
       address: selectedAddress,
       stellarAccounts,
@@ -151,12 +308,19 @@ export const useWalletStore = create<WalletState>((set, get) => ({
       connector: 'walletconnect',
       connectError: null,
       walletConnectPending: false,
-      walletConnectSession: {
-        ...session,
-        address: selectedAddress || session.address,
-        stellarAccounts,
-      },
+      walletConnectSession: activeSession,
     });
+    if (selectedAddress) {
+      persistWalletSession({
+        version: 1,
+        connector: 'walletconnect',
+        address: selectedAddress,
+        stellarAccounts,
+        network: get().network,
+        walletConnectSession: activeSession,
+      });
+    }
+    registerWalletConnectDisconnectHandler();
     get().refreshBalances();
   },
 
@@ -165,32 +329,36 @@ export const useWalletStore = create<WalletState>((set, get) => ({
   },
 
   selectAccount: (address: string) => {
-    const { stellarAccounts, address: currentAddress } = get();
+    const { stellarAccounts, address: currentAddress, connector, walletConnectSession } = get();
     if (!address || address === currentAddress) return;
     if (stellarAccounts.length > 0 && !stellarAccounts.includes(address)) return;
 
     set({ address, balances: [], loading: true, error: null });
+    if (connector === 'walletconnect' && walletConnectSession) {
+      set({ walletConnectSession: { ...walletConnectSession, address, stellarAccounts } });
+    }
+    const persisted = readPersistedWalletSession();
+    if (persisted) {
+      const walletConnectSession = persisted.walletConnectSession
+        ? { ...persisted.walletConnectSession, address, stellarAccounts }
+        : persisted.walletConnectSession;
+      persistWalletSession({
+        ...persisted,
+        address,
+        stellarAccounts,
+        walletConnectSession,
+      });
+    }
     get().refreshBalances();
   },
 
   disconnect: () => {
+    const wasWalletConnect = get().connector === 'walletconnect';
+    clearWalletConnectionState();
     // Clean up WalletConnect WebSocket if it was the active connector
-    if (get().connector === 'walletconnect') {
+    if (wasWalletConnect) {
       resetWalletConnectClient();
     }
-    set({
-      address: null,
-      stellarAccounts: [],
-      isConnected: false,
-      connector: null,
-      balances: [],
-      loading: false,
-      isReconnecting: false,
-      error: null,
-      connectError: null,
-      walletConnectPending: false,
-      walletConnectSession: null,
-    });
   },
 
   clearConnectError: () => {
@@ -209,6 +377,10 @@ export const useWalletStore = create<WalletState>((set, get) => ({
     const current = get().network;
     if (current === network) return;
     set({ network, balances: [], loading: true, error: null });
+    const persisted = readPersistedWalletSession();
+    if (persisted) {
+      persistWalletSession({ ...persisted, network });
+    }
     get().refreshBalances();
   },
 

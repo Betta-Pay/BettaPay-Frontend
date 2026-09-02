@@ -4,6 +4,7 @@ import { ReactNode, useEffect, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useAuthStore } from "@/lib/store/authStore";
+import { useWalletStore } from "@/lib/store/walletStore";
 import { useSessionCheck } from "@/lib/hooks/useSessionCheck";
 import { useCrossTabAuth } from "@/lib/hooks/useCrossTabAuth";
 import { useCrossTabRateLimit } from "@/lib/hooks/useCrossTabRateLimit";
@@ -28,6 +29,8 @@ import { isPublicRoute, isAuthRoute } from "@/lib/auth/session";
  */
 export function AppProviders({ children }: { children: ReactNode }) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const restoreWalletSession = useWalletStore((s) => s.restoreSession);
+  const refreshWalletBalances = useWalletStore((s) => s.refreshBalances);
   const router = useRouter();
 
   // Register the App Router in a module-level singleton so non-React code
@@ -67,6 +70,29 @@ export function AppProviders({ children }: { children: ReactNode }) {
     }
     wasAuthenticatedRef.current = isAuthenticated;
   }, [isAuthenticated, queryClient]);
+
+  const walletRestoreAttemptedRef = useRef(false);
+  useEffect(() => {
+    if (!isAuthenticated) {
+      walletRestoreAttemptedRef.current = false;
+      return;
+    }
+    if (walletRestoreAttemptedRef.current) return;
+    walletRestoreAttemptedRef.current = true;
+    void restoreWalletSession(true);
+  }, [isAuthenticated, restoreWalletSession]);
+
+  useEffect(() => {
+    const onVisibility = () => {
+      if (document.visibilityState !== 'visible') return;
+      const wallet = useWalletStore.getState();
+      if (useAuthStore.getState().isAuthenticated && wallet.isConnected) {
+        void refreshWalletBalances();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => document.removeEventListener('visibilitychange', onVisibility);
+  }, [refreshWalletBalances]);
 
   // Initialize RUM collection once per browser session
   useEffect(() => {
