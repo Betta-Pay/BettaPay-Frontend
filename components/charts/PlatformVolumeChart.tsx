@@ -7,7 +7,6 @@ import { useTheme } from 'next-themes';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend } from 'recharts';
 import { ChartFrame } from '@/components/charts/ChartFrame';
 import { ErrorDisplay } from '@/components/shared';
-import { Skeleton } from '@/components/ui';
 import { formatNumber } from '@/lib/utils/format';
 
 interface ChartDataItem {

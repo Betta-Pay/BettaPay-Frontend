@@ -18,7 +18,7 @@ export async function pingApiHealth(): Promise<boolean> {
     });
     clearTimeout(timeoutId);
     return res.status < 500;
-  } catch (err) {
+  } catch {
     return false;
   }
 }

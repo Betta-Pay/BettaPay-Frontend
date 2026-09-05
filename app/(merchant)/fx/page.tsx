@@ -42,7 +42,6 @@ export default function FxRatesPage() {
     useRateAlertStore();
 
   const currentRate = typeof primaryRate === 'number' && Number.isFinite(primaryRate) ? primaryRate : null;
-  const isRatesUnavailable = !ratesLoading && !ratesError && !currentRate && !USE_MOCK_RATE_DATA;
 
   // Restore alerts from the backend on boot so they survive a reload (#469).
   useEffect(() => {

@@ -3,7 +3,7 @@
 import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Loader2, ArrowLeft, Shield, CheckCircle2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 
 import { Button, Input } from '@/components/ui';
 import { useNotify } from '@/lib/hooks/useNotify';

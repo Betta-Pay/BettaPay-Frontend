@@ -56,7 +56,7 @@ export function AccountPicker({ onAccountSelected, className = '' }: AccountPick
                   : 'border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground'
               }`}
               aria-label={`Select account ${acc}`}
-              aria-selected={isSelected}
+              aria-pressed={isSelected}
             >
               <div className="flex items-center gap-2 overflow-hidden">
                 <span className="text-[10px] text-muted-foreground font-sans px-1.5 py-0.5 rounded bg-muted">

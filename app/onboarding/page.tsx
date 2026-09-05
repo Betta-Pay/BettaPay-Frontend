@@ -184,7 +184,7 @@ export default function OnboardingPage() {
       const currency = data.settlementCurrency;
       if (currency && currency !== "NGN") {
         const isCurrencyValid = ratesResponse.some(
-          (r: any) => r.from === currency && r.to === "NGN"
+          (r: { from: string; to: string }) => r.from === currency && r.to === "NGN"
         );
         if (!isCurrencyValid) {
           drifted.push("currency");
@@ -195,7 +195,7 @@ export default function OnboardingPage() {
       const anchor = data.preferredAnchor;
       if (anchor) {
         const isAnchorValid = enabledAnchors.some(
-          (a: any) =>
+          (a: { name: string; code: string }) =>
             a.name.toLowerCase().includes(anchor.toLowerCase()) ||
             a.code.toLowerCase().includes(anchor.toLowerCase()) ||
             (anchor.length >= 4 && (
@@ -214,7 +214,7 @@ export default function OnboardingPage() {
       } else {
         setRevalidated(true);
       }
-    } catch (error) {
+    } catch {
       setValidationError("Failed to connect to the backend to verify configuration. Please check your connection and try again.");
     } finally {
       setIsValidating(false);

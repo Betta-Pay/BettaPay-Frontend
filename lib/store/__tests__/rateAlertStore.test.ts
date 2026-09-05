@@ -27,11 +27,14 @@ describe('Rate Alert Store (Persistence & Triggers)', () => {
       pair: 'USDC/NGN',
       condition: 'above',
       target: 1600,
+      recurrence: 'recurring',
     });
 
     const alertId = useRateAlertStore.getState().alerts[0].id;
     useRateAlertStore.getState().markAlertTriggered(alertId);
     expect(useRateAlertStore.getState().alerts[0].triggered).toBe(true);
+    // Recurring alerts stay enabled after triggering (once alerts deactivate per #469)
+    expect(useRateAlertStore.getState().alerts[0].enabled).toBe(true);
 
     // Disable
     useRateAlertStore.getState().toggleAlert(alertId);

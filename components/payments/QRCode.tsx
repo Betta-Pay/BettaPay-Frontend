@@ -41,6 +41,20 @@ export const QRCode = memo(function QRCode({
   fgColor = "#000000",
   title,
 }: QRCodeProps) {
+  const notify = useNotify();
+  const [copied, setCopied] = useState(false);
+
+  const handleCopyLink = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(true);
+      notify.success("Payment link copied to clipboard");
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch {
+      notify.error("Failed to copy link");
+    }
+  }, [value, notify]);
+
   if (!value) {
     return (
       <div
@@ -57,20 +71,6 @@ export const QRCode = memo(function QRCode({
       </div>
     );
   }
-
-  const notify = useNotify();
-  const [copied, setCopied] = useState(false);
-
-  const handleCopyLink = useCallback(async () => {
-    try {
-      await navigator.clipboard.writeText(value);
-      setCopied(true);
-      notify.success("Payment link copied to clipboard");
-      window.setTimeout(() => setCopied(false), 2000);
-    } catch {
-      notify.error("Failed to copy link");
-    }
-  }, [value, notify]);
 
   return (
     <div className={cn("flex w-full max-w-[220px] flex-col items-center justify-center gap-2 text-center", className)}>

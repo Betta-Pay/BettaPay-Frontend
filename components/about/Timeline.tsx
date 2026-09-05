@@ -75,7 +75,7 @@ export function Timeline() {
 
           <ul className="grid grid-cols-5 gap-4 relative z-10">
             {milestones.map((item, idx) => {
-              const IconComp = item.icon as any;
+              const IconComp = item.icon as unknown as React.ComponentType<{ className?: string }>;
               const isEven = idx % 2 === 0;
 
               return (
@@ -136,7 +136,7 @@ export function Timeline() {
         {/* Mobile / Tablet Vertical Timeline (Hidden on Large Desktop) */}
         <ul className="lg:hidden relative pl-6 space-y-8 my-8 border-l-2 border-primary/40">
           {milestones.map((item, idx) => {
-            const IconComp = item.icon as any;
+            const IconComp = item.icon as unknown as React.ComponentType<{ className?: string }>;
             return (
               <motion.li
                 key={item.date}

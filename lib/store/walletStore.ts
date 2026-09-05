@@ -445,7 +445,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
           baseDelay: 500,
           maxDelay: 3000,
           isRetryable: () => true,
-          onRetry: (_err, attempt) => {
+          onRetry: () => {
             set({ isReconnecting: true });
           },
         },

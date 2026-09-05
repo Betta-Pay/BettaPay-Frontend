@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { Loader2, CheckCircle2, AlertTriangle, Copy, RefreshCw, X } from 'lucide-react';
+import { Loader2, CheckCircle2, AlertTriangle, Copy, RefreshCw } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui';
 import { Button } from '@/components/ui';
 import {

@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { DocsLayout } from '@/components/docs/DocsLayout';
-import { docsNavigation, docsSectionIds, findNavItem, findNavGroup } from '@/lib/docs/navigation';
+import { docsSectionIds, findNavItem, findNavGroup } from '@/lib/docs/navigation';
 import { Overview } from '@/components/docs/content/Overview';
 import { Authentication } from '@/components/docs/content/Authentication';
 import { Quickstart } from '@/components/docs/content/Quickstart';

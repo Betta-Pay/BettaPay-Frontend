@@ -34,8 +34,6 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-import { useAuthStore } from "@/lib/store/authStore";
-
 const EVENT_TYPES = [
   { value: "payment.completed", label: "payment.completed" },
   { value: "settlement.completed", label: "settlement.completed" },
@@ -137,26 +135,9 @@ export function WebhookTester({
   initialEndpointUrl = "https://your-app.com/webhooks/bettapay",
   initialWebhookSecret = "whsec_test_secret123",
 }: WebhookTesterProps = {}) {
-  const { user } = useAuthStore();
   const [endpointUrl, setEndpointUrl] = useState(initialEndpointUrl);
   const [webhookSecret, setWebhookSecret] = useState(initialWebhookSecret);
   const [selectedEvent, setSelectedEvent] = useState<string>("payment.completed");
-  const [targetUrl, setTargetUrl] = useState<string>(() => {
-    if (initialEndpointUrl) return initialEndpointUrl;
-    if (typeof window !== "undefined") {
-      try {
-        const draft = localStorage.getItem("onboardingDraft");
-        if (draft) {
-          const parsed = JSON.parse(draft);
-          if (parsed.data?.webhookUrl) return parsed.data.webhookUrl;
-        }
-      } catch {
-        // Fallback below
-      }
-    }
-    return user?.id ? `https://api.bettapay.io/merchants/${user.id}/webhooks` : "https://api.bettapay.io/webhooks/merchant_01";
-  });
-  const [urlError, setUrlError] = useState<string | null>(null);
   const [isSending, setIsSending] = useState(false);
   const [response, setResponse] = useState<{
     status: number;

@@ -74,6 +74,7 @@ export function KeyUsagePanel({ keyId }: { keyId: string }) {
           throw new Error("Unavailable");
         }
       } else {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const json = (await res.json().catch(() => null)) as any;
         if (
           json &&
@@ -101,7 +102,7 @@ export function KeyUsagePanel({ keyId }: { keyId: string }) {
           throw new Error("No usage data");
         }
       }
-    } catch (err) {
+    } catch {
       setError("Usage information is unavailable");
     } finally {
       setIsLoading(false);

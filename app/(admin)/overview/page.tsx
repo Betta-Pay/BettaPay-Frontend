@@ -6,9 +6,6 @@ import { CurrencyDisplay, ErrorDisplay, StatCard, ErrorBoundary } from '@/compon
 import { Users, AlertTriangle, ArrowUpRight, Activity, DollarSign } from 'lucide-react';
 import { useAdminStats } from '@/lib/api/hooks';
 import PlatformVolumeChart from '@/components/charts/PlatformVolumeChart';
-import { PlatformTicker } from '@/components/admin/PlatformTicker';
-
-
 
 // Memoised so future additions of state to the parent won't re-render the chart.
 const AdminChartSection = memo(function AdminChartSection() {

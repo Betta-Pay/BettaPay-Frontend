@@ -23,6 +23,7 @@ interface TeamState {
 const g = globalThis as unknown as { __bpTeams?: Map<string, TeamState> };
 const teams = (g.__bpTeams ??= new Map<string, TeamState>());
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function seed(merchantId: string): TeamState {
   const now = new Date().toISOString();
   const members = new Map<string, TeamMember>();

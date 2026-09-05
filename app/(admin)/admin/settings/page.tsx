@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, Button } from '@/components/ui';
 import { PageHeader } from '@/components/shared/PageHeader';
-import { Sliders, RefreshCcw, Bell, Shield, Gauge } from 'lucide-react';
+import { Sliders, Bell, Shield, Gauge } from 'lucide-react';
 import { useNotify } from '@/lib/hooks/useNotify';
 
 const POLL_RATES = [

@@ -82,6 +82,7 @@ export const SettlementConfirmation = ({
 }: SettlementConfirmationProps) => {
   const [state, setState] = useState<SettlementState>("summary");
   const [confirmed, setConfirmed] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [processingStep, setProcessingStep] = useState(0);
   const [showFeeBreakdown, setShowFeeBreakdown] = useState(false);
 

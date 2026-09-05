@@ -149,7 +149,7 @@ export function LinkAnalytics({
         <CardContent className="pt-0">
           <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
             {kpiCards.map((card) => {
-              const Icon = card.icon as any;
+              const Icon = card.icon as unknown as React.ComponentType<{ className?: string }>;
               return (
                 <div
                   key={card.label}

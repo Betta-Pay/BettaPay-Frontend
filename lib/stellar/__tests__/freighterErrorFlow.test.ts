@@ -2,7 +2,6 @@ import {
   connectFreighter,
   FreighterNotInstalledError,
   FreighterCancelledError,
-  FreighterNetworkMismatchError,
 } from '../freighter';
 import * as freighterApi from '@stellar/freighter-api';
 

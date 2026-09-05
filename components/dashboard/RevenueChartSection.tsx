@@ -67,7 +67,7 @@ export const RevenueChartSection = memo(function RevenueChartSection({
 }: RevenueChartSectionProps) {
   const [activePeriod, setActivePeriod] = useState<Period>('7D');
   const { data: paymentsData, isLoading: paymentsLoading } = usePayments();
-  const payments: RevenuePayment[] = dataOverride ?? (paymentsData as RevenuePayment[]) ?? [];
+  const payments = useMemo<RevenuePayment[]>(() => dataOverride ?? (paymentsData as RevenuePayment[]) ?? [], [dataOverride, paymentsData]);
 
   const handlePeriodChange = useCallback((p: Period) => {
     setActivePeriod(p);

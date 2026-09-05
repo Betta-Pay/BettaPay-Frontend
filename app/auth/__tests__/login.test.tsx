@@ -90,12 +90,26 @@ jest.mock('@/lib/store/walletStore', () => {
   };
 });
 
-// Mock apiClient
+// Mock apiClient and base URL helpers
 jest.mock('@/lib/api/axios', () => ({
   apiClient: {
     get: jest.fn().mockResolvedValue({ data: { id: 'merchant_id', name: 'Test' } }),
     post: jest.fn().mockResolvedValue({ data: {} }),
   },
+  resolveApiBaseUrl: jest.fn(() => 'http://localhost:3001'),
+  getApiBaseUrl: jest.fn(() => 'http://localhost:3001'),
+  DEFAULT_API_BASE_URL: 'http://localhost:3001',
+  setApiBaseUrl: jest.fn(),
+  resetApiBaseUrl: jest.fn(),
+}));
+
+jest.mock('@/lib/config/api', () => ({
+  getApiBaseUrl: jest.fn(() => 'http://localhost:3001'),
+  resolveApiBaseUrl: jest.fn(() => 'http://localhost:3001'),
+  DEFAULT_API_BASE_URL: 'http://localhost:3001',
+  setApiBaseUrl: jest.fn(),
+  resetApiBaseUrl: jest.fn(),
+  warnIfApiUnreachable: jest.fn(),
 }));
 
 // Mock the UI Select component as a plain <select> without nesting buttons inside it

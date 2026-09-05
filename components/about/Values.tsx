@@ -58,7 +58,7 @@ export function Values() {
         {/* Responsive Grid */}
         <ul className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {values.map((val, idx) => {
-            const IconComp = val.icon as any;
+            const IconComp = val.icon as unknown as React.ComponentType<{ className?: string }>;
             return (
               <motion.li
                 key={val.title}

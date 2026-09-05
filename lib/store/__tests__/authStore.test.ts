@@ -79,7 +79,7 @@ describe('useAuthStore', () => {
     });
   });
 
-  it('persist partialize only stores the non-sensitive isLoggedIn flag', () => {
+  it('persist partialize stores identity and derived session flags together (issue #485)', () => {
     const partialize = useAuthStore.persist.getOptions().partialize;
 
     expect(partialize).toBeDefined();
@@ -92,6 +92,12 @@ describe('useAuthStore', () => {
         isAuthenticated: true,
         isLoggedIn: true,
       })
-    ).toEqual({ isLoggedIn: true });
+    ).toEqual({
+      user: testUser,
+      token: 'session-token',
+      role: 'admin',
+      isAuthenticated: true,
+      isLoggedIn: true,
+    });
   });
 });

@@ -1,5 +1,3 @@
-import { QueryOptions } from '@tanstack/react-query';
-
 /**
  * Per-domain query defaults so FX rates, history, payments, and settlements
  * each get the freshness policy that matches their usage pattern.

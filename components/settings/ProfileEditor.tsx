@@ -200,6 +200,7 @@ export function ProfileEditor({
             <div className="flex items-center gap-4">
               <div className="w-20 h-20 rounded-xl border-2 border-dashed border-border bg-muted flex items-center justify-center overflow-hidden flex-shrink-0">
                 {logoPreview ? (
+                  // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={logoPreview}
                     alt="Logo preview"

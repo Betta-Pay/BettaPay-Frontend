@@ -43,6 +43,7 @@ export function useSessionTimeout({
     Math.floor(gracePeriodMs / 1000)
   );
   const [isExtending, setIsExtending] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [expiryDeadline, setExpiryDeadline] = useState<number | null>(serverExpiresAt);
 
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);

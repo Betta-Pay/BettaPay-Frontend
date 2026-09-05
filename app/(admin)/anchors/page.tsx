@@ -4,8 +4,6 @@ import { useState, useCallback } from "react";
 import {
   Card,
   CardContent,
-  CardHeader,
-  CardTitle,
   Button,
   Badge,
   Toggle,
@@ -17,7 +15,7 @@ import {
   DialogFooter,
   DialogDescription,
 } from "@/components/ui";
-import { StatCard, ErrorBoundary, EmptyState } from "@/components/shared";
+import { StatCard, EmptyState } from "@/components/shared";
 import {
   Table,
   TableHeader,
@@ -32,7 +30,6 @@ import {
   Plus,
   RefreshCcw,
   Activity,
-  Zap,
   AlertTriangle,
   ExternalLink,
   Trash2,
@@ -292,7 +289,7 @@ function CreateAnchorDialog({
         currency: form.currency,
         country: form.country,
         flag: form.flag,
-        kycLevels: form.kycLevels.split(",").map((s) => s.trim()) as any,
+        kycLevels: form.kycLevels.split(",").map((s) => s.trim()) as string[],
         settlementTime: form.settlementTime || "Pending",
         websiteUrl: form.websiteUrl || null,
       },

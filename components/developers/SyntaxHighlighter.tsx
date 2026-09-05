@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { type Language } from './codeSnippets';
 
 interface SyntaxHighlighterProps {
@@ -93,7 +93,7 @@ export function SyntaxHighlighter({ code, language }: SyntaxHighlighterProps) {
 
     rehighlight();
     return () => { cancelled = true; };
-  }, [code, language]);
+  }, [code, language, html]);
 
   return (
     <div className="rounded-xl overflow-x-auto bg-white dark:bg-slate-950">

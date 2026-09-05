@@ -47,7 +47,9 @@ export function resetAllUserState() {
     }
   });
 
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { useWalletStore } = require("@/lib/store/walletStore");
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { useOfflineStore } = require("@/lib/store/offlineStore");
 
   useWalletStore.getState().disconnect();

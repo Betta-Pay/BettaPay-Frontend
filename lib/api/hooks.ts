@@ -329,13 +329,13 @@ export function useRates(): UseRatesResult {
     },
   });
 
-  const rates: ApiRate[] = query.data?.rates ?? [];
+  const rates = useMemo<ApiRate[]>(() => query.data?.rates ?? [], [query.data?.rates]);
   const primaryRate = useMemo(
     () =>
       query.data?.usdcNgn ??
       rates.find((r) => r.from === 'USDC' && r.to === 'NGN')?.rate ??
       null,
-    [query.data, rates],
+    [query.data?.usdcNgn, rates],
   );
 
   return {

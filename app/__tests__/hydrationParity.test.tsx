@@ -120,6 +120,12 @@ jest.mock('@/components/about/Press', () => ({
 function extractText(html: string): string {
   return html
     .replace(/<[^>]+>/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#x27;/g, "'")
+    .replace(/&#39;/g, "'")
     .replace(/\s+/g, ' ')
     .trim();
 }
@@ -130,7 +136,9 @@ describe('Hydration Parity — lib/config.ts', () => {
   it('exports deterministic string values regardless of import order', () => {
     // Import twice (Node module cache ensures same object) and verify the
     // values are stable strings, not live process.env accessors.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const config1 = require('@/lib/config');
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const config2 = require('@/lib/config');
 
     // Referential equality — same module instance
@@ -156,13 +164,18 @@ describe('Hydration Parity — lib/config.ts', () => {
   });
 
   it('SITE_URL is a valid URL', () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { SITE_URL } = require('@/lib/config');
     expect(() => new URL(SITE_URL)).not.toThrow();
   });
 
   it('has no inline process.env reads in lib/utils/constants.ts', () => {
     // Importing constants must not throw and must use values from config
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { STELLAR_NETWORK, HORIZON_URL } = require('@/lib/utils/constants');
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const config = require('@/lib/config');
     expect(STELLAR_NETWORK).toBe(config.STELLAR_NETWORK);
     expect(HORIZON_URL).toBe(config.HORIZON_URL);
@@ -252,6 +265,7 @@ describe('Hydration Parity — Pricing Page (/pricing)', () => {
   });
 
   it('SSR and client renders both contain all three tier cards', () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { PRICING_TIERS } = require('@/lib/pricing');
 
     const ssrHtml = renderToString(React.createElement(PricingPage));

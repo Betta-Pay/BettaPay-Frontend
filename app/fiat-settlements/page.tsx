@@ -198,7 +198,7 @@ export default function FiatSettlementsPage() {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {BENEFITS.map((benefit) => {
-                const Icon = benefit.icon as any;
+                const Icon = benefit.icon as unknown as React.ComponentType<{ className?: string }>;
                 return (
                   <div key={benefit.title} className="p-6 rounded-2xl bg-card border border-border shadow-sm space-y-3">
                     <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center">

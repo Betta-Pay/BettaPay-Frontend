@@ -165,7 +165,7 @@ const ActivityItem = memo(function ActivityItem({
     color: "text-muted-foreground",
     bgColor: "bg-muted",
   };
-  const Icon = config.icon as any;
+  const Icon = config.icon as unknown as React.ComponentType<{ className?: string; }>;
 
   return (
     <Link

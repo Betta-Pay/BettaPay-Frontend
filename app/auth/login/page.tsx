@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, Suspense } from 'react';
+import React, { Suspense } from 'react';
 import { Loader2, Shield, Zap, Globe, ArrowRight } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
@@ -18,6 +18,9 @@ import { MagicLinkForm } from '@/components/auth/MagicLinkForm';
 // once across the lifetime of the JS bundle. Avoids the Strict Mode effect
 // double-fire that would otherwise spam `console.warn`.
 let hasWarnedMissingGoogleClientId = false;
+export function __resetGoogleWarnForTests() {
+  hasWarnedMissingGoogleClientId = false;
+}
 
 const WalletModal = dynamic(() => import('@/components/wallet/WalletModal').then(m => m.WalletModal), { ssr: false });
 

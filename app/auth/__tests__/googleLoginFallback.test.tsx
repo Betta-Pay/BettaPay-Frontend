@@ -3,6 +3,7 @@
 import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import LoginPage from '../login/page';
 
 jest.mock('next/navigation', () => ({
   useRouter: () => ({ push: jest.fn(), refresh: jest.fn() }),
@@ -64,39 +65,36 @@ jest.mock('lucide-react', () => {
   );
 });
 
+jest.mock('@/components/auth/EmailLoginForm', () => ({
+  EmailLoginForm: () => null,
+}));
+
+jest.mock('@/components/auth/MagicLinkForm', () => ({
+  MagicLinkForm: () => null,
+}));
+
+jest.mock('@react-oauth/google', () => ({
+  GoogleLogin: () => <button data-testid="mock-google-login">Continue with Google</button>,
+  GoogleOAuthProvider: ({ children }: any) => <>{children}</>,
+}));
+
+jest.mock('sonner', () => ({
+  toast: { success: jest.fn(), error: jest.fn(), info: jest.fn() },
+}));
+
 const ORIGINAL_ENV = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
 
-beforeEach(() => {
-  // Force the missing-config branch by deleting the env var on this module.
+beforeEach(async () => {
+  // Force the missing-config branch by deleting the env var.
   delete process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
-  jest.resetModules();
-  jest.doMock('next/navigation', () => ({
-    useRouter: () => ({ push: jest.fn(), refresh: jest.fn() }),
-    usePathname: () => '/auth/login',
-    useSearchParams: () => new URLSearchParams(),
-  }));
-  jest.doMock('next/link', () => ({ children, href }: any) => <a href={href}>{children}</a>);
-  jest.doMock('@/lib/i18n/useAppTranslation', () => ({
-    useAppTranslation: () => ({
-      t: (key: string) => key,
-      i18n: { isInitialized: true, language: 'en', changeLanguage: jest.fn() },
-      ready: true,
-    }),
-  }));
-  jest.doMock('@/lib/hooks/useLogin', () => ({
-    useLogin: () => ({
-      isWalletLoading: false,
-      walletModalOpen: false,
-      setWalletModalOpen: jest.fn(),
-      onGoogleSuccess: jest.fn(),
-      onWalletConnected: jest.fn(),
-      error: jest.fn(),
-    }),
-  }));
-  jest.doMock('next/dynamic', () => () => () => null);
-  jest.doMock('@/components/auth/EmailLoginForm', () => ({
-    EmailLoginForm: () => null,
-  }));
+  // Reset the module-level warning sentinel so each test can assert warn behavior.
+  try {
+    const mod = await import('../login/page');
+    if (typeof (mod as any).__resetGoogleWarnForTests === 'function') {
+      (mod as any).__resetGoogleWarnForTests();
+    }
+  } catch {}
+  jest.clearAllMocks();
 });
 
 afterAll(() => {
@@ -109,7 +107,6 @@ afterAll(() => {
 
 describe('Login page — Google OAuth fallback when client ID is missing', () => {
   it('renders a disabled Google placeholder instead of <GoogleLogin>', async () => {
-    const LoginPage = (await import('../login/page')).default;
     render(<LoginPage />);
 
     // The real Google button must NOT mount under any circumstances.
@@ -127,7 +124,6 @@ describe('Login page — Google OAuth fallback when client ID is missing', () =>
   });
 
   it('exposes the same tooltip message via hover', async () => {
-    const LoginPage = (await import('../login/page')).default;
     render(<LoginPage />);
 
     const fallback = screen.getByRole('button', {
@@ -150,8 +146,12 @@ describe('Login page — Google OAuth fallback when client ID is missing', () =>
     const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
     const originalNodeEnv = process.env.NODE_ENV;
     (process.env as any).NODE_ENV = 'development';
+    // Ensure sentinel is reset for this specific warn test (beforeEach already did, but re-reset in case prior test set it)
+    try {
+      const mod = await import('../login/page');
+      if (typeof (mod as any).__resetGoogleWarnForTests === 'function') (mod as any).__resetGoogleWarnForTests();
+    } catch {}
 
-    const LoginPage = (await import('../login/page')).default;
     render(<LoginPage />);
 
     await waitFor(() => {
@@ -172,8 +172,11 @@ describe('Login page — Google OAuth fallback when client ID is missing', () =>
     const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
     const originalNodeEnv = process.env.NODE_ENV;
     (process.env as any).NODE_ENV = 'production';
+    try {
+      const mod = await import('../login/page');
+      if (typeof (mod as any).__resetGoogleWarnForTests === 'function') (mod as any).__resetGoogleWarnForTests();
+    } catch {}
 
-    const LoginPage = (await import('../login/page')).default;
     render(<LoginPage />);
 
     // Give the effect a tick to run if it were going to.

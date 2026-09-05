@@ -31,6 +31,7 @@ jest.mock('@/components/ui', () => ({
 
 jest.mock('qrcode.react', () => ({
   QRCodeSVG: ({
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     includeMargin: _includeMargin,
     ...props
   }: React.SVGProps<SVGSVGElement> & { includeMargin?: boolean }) => (

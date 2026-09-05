@@ -12,7 +12,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { anchorStore, mockAnchorStats } from "@/lib/mock/anchors";
 import { checkSep24Anchor } from "@/lib/health/checkers";
-import type { AnchorHealth, AnchorSettlementStats } from "@/lib/types";
+import type { AnchorHealth } from "@/lib/types";
 
 export const runtime = "nodejs";
 

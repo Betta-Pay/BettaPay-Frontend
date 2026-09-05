@@ -17,9 +17,10 @@ describe('QRCode Component', () => {
     
     const wrapper = screen.getByRole('img');
     expect(wrapper).toBeInTheDocument();
-    expect(wrapper).toHaveClass('custom-qr');
     expect(wrapper).toHaveAttribute('aria-label', `QR code for ${testUrl}`);
     expect(container.querySelector('canvas')).toBeInTheDocument();
+    // custom-qr is applied to the outer wrapper (flex container) per component implementation
+    expect(container.querySelector('.custom-qr')).toBeInTheDocument();
   });
 
   it('renders title in aria-label when title prop is provided', () => {

@@ -428,7 +428,7 @@ export default function PaymentLinkDetailPage() {
 
       <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
         {kpiCards.map((card) => {
-          const Icon = card.icon as any;
+          const Icon = card.icon as unknown as React.ComponentType<{ className?: string }>;
           return (
             <Card
               key={card.label}

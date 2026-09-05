@@ -113,7 +113,7 @@ export function Hero() {
           className="mt-16 md:mt-24 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6"
         >
           {metrics.map((metric, idx) => {
-            const IconComponent = metric.icon as any;
+            const IconComponent = metric.icon as unknown as React.ComponentType<{ className?: string }>;
             return (
               <li
                 key={idx}
