@@ -6,8 +6,6 @@
 .pnp.js
 .yarn/install-state.gz
 
-fix.md
-
 # testing
 /coverage
 /test-results/
@@ -40,4 +38,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-fix.md
+
+# local build artifacts
+build-output.txt
+*.tsbuildinfo

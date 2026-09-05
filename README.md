@@ -1,4 +1,4 @@
-# <img src="./docs_logo.png" width="30" /> BettaPay Frontend (Next.js)
+# BettaPay Frontend (Next.js)
 
 **Live Deployment:** [https://betta-pay-frontend.vercel.app/](https://betta-pay-frontend.vercel.app/)
 
