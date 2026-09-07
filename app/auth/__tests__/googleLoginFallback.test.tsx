@@ -89,7 +89,7 @@ beforeEach(async () => {
   delete process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
   // Reset the module-level warning sentinel so each test can assert warn behavior.
   try {
-    const mod = await import('../login/page');
+    const mod = await import('@/lib/utils/googleWarn');
     if (typeof (mod as any).__resetGoogleWarnForTests === 'function') {
       (mod as any).__resetGoogleWarnForTests();
     }
@@ -148,7 +148,7 @@ describe('Login page — Google OAuth fallback when client ID is missing', () =>
     (process.env as any).NODE_ENV = 'development';
     // Ensure sentinel is reset for this specific warn test (beforeEach already did, but re-reset in case prior test set it)
     try {
-      const mod = await import('../login/page');
+      const mod = await import('@/lib/utils/googleWarn');
       if (typeof (mod as any).__resetGoogleWarnForTests === 'function') (mod as any).__resetGoogleWarnForTests();
     } catch {}
 
@@ -173,7 +173,7 @@ describe('Login page — Google OAuth fallback when client ID is missing', () =>
     const originalNodeEnv = process.env.NODE_ENV;
     (process.env as any).NODE_ENV = 'production';
     try {
-      const mod = await import('../login/page');
+      const mod = await import('@/lib/utils/googleWarn');
       if (typeof (mod as any).__resetGoogleWarnForTests === 'function') (mod as any).__resetGoogleWarnForTests();
     } catch {}
 

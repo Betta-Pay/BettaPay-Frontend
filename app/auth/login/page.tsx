@@ -14,13 +14,7 @@ import { useLogin } from '@/lib/hooks/useLogin';
 import { EmailLoginForm } from '@/components/auth/EmailLoginForm';
 import { MagicLinkForm } from '@/components/auth/MagicLinkForm';
 
-// Module-level sentinel: fires the dev-mode missing-config warning at most
-// once across the lifetime of the JS bundle. Avoids the Strict Mode effect
-// double-fire that would otherwise spam `console.warn`.
-let hasWarnedMissingGoogleClientId = false;
-export function __resetGoogleWarnForTests() {
-  hasWarnedMissingGoogleClientId = false;
-}
+import { shouldWarnMissingGoogleClientId } from '@/lib/utils/googleWarn';
 
 const WalletModal = dynamic(() => import('@/components/wallet/WalletModal').then(m => m.WalletModal), { ssr: false });
 
@@ -49,10 +43,9 @@ export default function LoginPage() {
   // useEffects twice in dev, and we don't want to spam the console.
   if (
     !googleConfigured &&
-    !hasWarnedMissingGoogleClientId &&
+    shouldWarnMissingGoogleClientId() &&
     process.env.NODE_ENV !== 'production'
   ) {
-    hasWarnedMissingGoogleClientId = true;
     // eslint-disable-next-line no-console
     console.warn(
       '[BettaPay] Google login is not configured. Set NEXT_PUBLIC_GOOGLE_CLIENT_ID to enable Google sign-in.',
