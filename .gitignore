@@ -41,4 +41,5 @@ next-env.d.ts
 
 # local build artifacts
 build-output.txt
+test-output.txt
 *.tsbuildinfo
