@@ -16,6 +16,12 @@ if (!(globalThis.crypto && 'subtle' in globalThis.crypto)) {
   });
 }
 
+// A real project id is required to pair (issue #500); the relay is mocked here.
+jest.mock('@/lib/config', () => ({
+  ...jest.requireActual('@/lib/config'),
+  WALLETCONNECT_PROJECT_ID: 'test-project-id',
+}));
+
 import {
   WalletConnectClient,
   WalletConnectTimeoutError,

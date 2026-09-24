@@ -191,6 +191,40 @@ export class WalletConnectConnectionError extends WalletConnectError {
   }
 }
 
+/**
+ * `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` is missing, so the relay would reject
+ * the pairing. Raised before any socket is opened or QR code produced.
+ */
+export class WalletConnectConfigError extends WalletConnectError {
+  constructor() {
+    super(
+      'WalletConnect is not configured: NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID is not set.',
+      'pairing',
+    );
+    this.name = 'WalletConnectConfigError';
+  }
+}
+
+let warnedMissingProjectId = false;
+
+/**
+ * True when a WalletConnect project id is configured. Without one the relay
+ * rejects the pairing, so the UI must show a configuration error instead of a
+ * QR code that can never settle (issue #500). Logs a one-time dev warning.
+ */
+export function isWalletConnectConfigured(): boolean {
+  if (PROJECT_ID) return true;
+  if (process.env.NODE_ENV !== 'production' && !warnedMissingProjectId) {
+    warnedMissingProjectId = true;
+    console.warn(
+      '[WalletConnect] NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID is not set — WalletConnect ' +
+        'pairing is disabled. Create a project at https://cloud.walletconnect.com and add ' +
+        'its id to .env.local (see README → Environment variables).',
+    );
+  }
+  return false;
+}
+
 export class WalletConnectNetworkMismatchError extends WalletConnectError {
   readonly expectedChainId: StellarWalletConnectChainId;
   readonly reportedChainIds: StellarWalletConnectChainId[];
@@ -362,6 +396,10 @@ export class WalletConnectClient {
    * Begin a new pairing. Returns the `wc:` URI to encode in the QR code.
    */
   async connect(): Promise<string> {
+    // Fail fast: an empty project id is rejected by the relay, so never hand
+    // the UI a QR code that cannot pair.
+    if (!isWalletConnectConfigured()) throw new WalletConnectConfigError();
+
     this.cleanup();
     this.emit('connecting');
 
@@ -379,7 +417,7 @@ export class WalletConnectClient {
       `wc:${this.pairingTopic}@2` +
       `?relay-protocol=irn` +
       `&symKey=${symKeyHex}` +
-      (PROJECT_ID ? `&projectId=${PROJECT_ID}` : '');
+      `&projectId=${PROJECT_ID}`;
 
     void relayParam; // kept for reference; encoded into QR URI above
 
@@ -400,6 +438,7 @@ export class WalletConnectClient {
     if (!session.sessionKey) {
       throw new WalletConnectError('WalletConnect session cannot be restored without a session key.', 'relay');
     }
+    if (!isWalletConnectConfigured()) throw new WalletConnectConfigError();
 
     this.cleanup();
     this.sessionTopic = session.topic;

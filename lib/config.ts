@@ -84,9 +84,14 @@ export const WALLETCONNECT_RELAY_URL: string =
   process.env.NEXT_PUBLIC_WALLETCONNECT_RELAY_URL ||
   'wss://relay.walletconnect.com';
 
-/** WalletConnect v2 project ID. */
+/**
+ * WalletConnect v2 project ID from https://cloud.walletconnect.com.
+ * Empty when unset or whitespace — the public relay rejects pairing without a
+ * real id, so callers must treat empty as a configuration error (issue #500),
+ * never as a usable default. See `isWalletConnectConfigured()`.
+ */
 export const WALLETCONNECT_PROJECT_ID: string =
-  process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || '';
+  process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID?.trim() ?? '';
 
 // ─── Anchor ───────────────────────────────────────────────────────────────────
 
