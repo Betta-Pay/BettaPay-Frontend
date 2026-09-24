@@ -29,7 +29,7 @@ export const merchantProfileSchema = z.object({
   businessType: businessTypeEnum,
   country: z.string().min(1, 'Country is required'),
   industry: z.string().min(1, 'Industry is required'),
-  websiteUrl: z.string().url('Invalid URL format').nullable().or(z.literal('')),
+  websiteUrl: z.string().regex(/^https:\/\/.*/, 'Website URL must start with https://').or(z.literal('')).nullable(),
   contactEmail: z.string().email('Invalid email format'),
   phoneNumber: z.string().nullable().or(z.literal('')),
   logoUrl: z.string().nullable(),

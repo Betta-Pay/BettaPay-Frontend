@@ -94,6 +94,10 @@ export interface NewAlertInput {
 }
 
 export function createAlert(input: NewAlertInput): StoredAlert {
+  if (input.target <= 0) {
+    throw new Error('Threshold must be a positive number');
+  }
+
   return {
     id: randomUUID(),
     pair: input.pair,
