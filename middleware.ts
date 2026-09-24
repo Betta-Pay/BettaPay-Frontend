@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { ensureCsrfCookieInMiddleware } from '@/lib/utils/csrf';
 import { isAdminRoute as isAdminPath, isMerchantRoute as isMerchantPath } from '@/lib/auth/routeAccess';
+import { ROUTES } from '@/lib/navigation/routes';
 
 export function middleware(request: NextRequest) {
   const token = request.cookies.get('auth_token')?.value;
@@ -18,7 +19,7 @@ export function middleware(request: NextRequest) {
     return response;
   };
 
-  const isAuthPage = request.nextUrl.pathname.startsWith('/auth');
+  const isAuthPage = request.nextUrl.pathname.startsWith(ROUTES.AUTH_PREFIX);
   // Public marketing/reference surfaces. The API documentation in particular
   // must be readable by anonymous developers evaluating BettaPay.
   const isPublicPage = request.nextUrl.pathname === '/' ||
@@ -45,34 +46,34 @@ export function middleware(request: NextRequest) {
   if (isAuthPage) {
     if (token) {
       if (role === 'admin') {
-        return withCsrf(NextResponse.redirect(new URL('/overview', request.url)));
+        return withCsrf(NextResponse.redirect(new URL(ROUTES.OVERVIEW, request.url)));
       }
-      return withCsrf(NextResponse.redirect(new URL('/dashboard', request.url)));
+      return withCsrf(NextResponse.redirect(new URL(ROUTES.DASHBOARD, request.url)));
     }
     return withCsrf(NextResponse.next());
   }
 
   // Require auth for everything else
   if (!token) {
-    return withCsrf(NextResponse.redirect(new URL('/auth/login', request.url)));
+    return withCsrf(NextResponse.redirect(new URL(ROUTES.LOGIN, request.url)));
   }
 
   // Redirect onboarded merchants away from onboarding page
   const isOnboarded = request.cookies.get('merchant_onboarded')?.value === 'true';
-  if (request.nextUrl.pathname === '/onboarding' && isOnboarded) {
-    return withCsrf(NextResponse.redirect(new URL('/dashboard', request.url)));
+  if (request.nextUrl.pathname === ROUTES.ONBOARDING && isOnboarded) {
+    return withCsrf(NextResponse.redirect(new URL(ROUTES.DASHBOARD, request.url)));
   }
 
   // Role-based protection
   if (isAdminRoute && role !== 'admin') {
-    return withCsrf(NextResponse.redirect(new URL('/dashboard', request.url))); // redirect merchants from admin
+    return withCsrf(NextResponse.redirect(new URL(ROUTES.DASHBOARD, request.url))); // redirect merchants from admin
   }
 
   // Protect merchant routes from admins
   const isMerchantRoute = isMerchantPath(request.nextUrl.pathname);
 
   if (isMerchantRoute && role === 'admin') {
-    return withCsrf(NextResponse.redirect(new URL('/overview', request.url)));
+    return withCsrf(NextResponse.redirect(new URL(ROUTES.OVERVIEW, request.url)));
   }
 
   return withCsrf(NextResponse.next());

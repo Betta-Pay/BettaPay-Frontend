@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { LanguageSelector } from '@/components/i18n/LanguageSelector';
 import { useAppTranslation } from '@/lib/i18n/useAppTranslation';
+import { ROUTES } from '@/lib/navigation/routes';
 import { useHeaderAuth } from './HeaderAuthContext';
 
 export default function Header() {
@@ -19,7 +20,7 @@ export default function Header() {
           <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center p-1">
             <Image src="/logo.png" alt="BettaPay Logo" width={24} height={24} className="w-full h-full object-contain" />
           </div>
-          <Link href="/" className="text-lg font-bold text-foreground">BettaPay</Link>
+          <Link href={ROUTES.HOME} className="text-lg font-bold text-foreground">BettaPay</Link>
         </div>
 
         <nav className="hidden md:flex items-center gap-8 text-sm text-muted-foreground" aria-label="Main navigation">
@@ -31,15 +32,15 @@ export default function Header() {
         <div className="flex items-center gap-3">
           <LanguageSelector />
           {isAuthenticated ? (
-            <Link href={role === 'admin' ? '/overview' : '/dashboard'}>
+            <Link href={role === 'admin' ? ROUTES.OVERVIEW : ROUTES.DASHBOARD}>
               <Button className="hidden bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-button sm:inline-flex">{t('navigation.dashboard')}</Button>
             </Link>
           ) : (
             <>
-              <Link href="/auth/login">
+              <Link href={ROUTES.LOGIN}>
                 <Button variant="ghost" className="hidden text-muted-foreground hover:text-foreground font-medium sm:inline-flex">{t('navigation.login')}</Button>
               </Link>
-              <Link href="/auth/register">
+              <Link href={ROUTES.REGISTER}>
                 <Button className="hidden bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-button md:inline-flex">{t('navigation.getStarted')}</Button>
               </Link>
             </>

@@ -10,6 +10,7 @@ import { Values } from "@/components/about/Values";
 import { Careers } from "@/components/about/Careers";
 import { Press } from "@/components/about/Press";
 import { Button } from "@/components/ui";
+import { ROUTES } from "@/lib/navigation/routes";
 import { ArrowRight, MessageSquare } from "lucide-react";
 
 export const metadata: Metadata = {
@@ -80,7 +81,7 @@ export default function AboutPage() {
               Join thousands of African merchants expanding their reach with non-custodial stablecoin payments and instant fiat settlement.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
-              <Link href="/auth/register" className="w-full sm:w-auto">
+              <Link href={ROUTES.REGISTER} className="w-full sm:w-auto">
                 <Button size="lg" className="w-full sm:w-auto bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-button px-8 gap-2 group">
                   Get Started
                   <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />

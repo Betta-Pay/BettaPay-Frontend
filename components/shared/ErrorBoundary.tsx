@@ -4,6 +4,7 @@ import { Component, type ReactNode } from "react";
 import Link from "next/link";
 import { AlertTriangle, RotateCcw } from "lucide-react";
 import { captureException } from "@/lib/errorReporting";
+import { ROUTES } from "@/lib/navigation/routes";
 
 const buttonBase =
   "inline-flex items-center justify-center rounded-lg px-4 h-11 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
@@ -95,7 +96,7 @@ export class ErrorBoundary extends Component<
               Try Again
             </button>
             <Link
-              href="/dashboard"
+              href={ROUTES.DASHBOARD}
               className={`${buttonBase} border border-border bg-background hover:bg-muted hover:text-foreground`}
             >
               Go to Dashboard

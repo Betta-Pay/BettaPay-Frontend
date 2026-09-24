@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { merchantNavItems } from "@/lib/navigation/merchantNav";
+import { ROUTES } from "@/lib/navigation/routes";
 import { useAuthStore } from "@/lib/store/authStore";
 import Image from 'next/image';
 import { ChevronLeft, ChevronRight } from "lucide-react";
@@ -81,7 +82,7 @@ export const MerchantSidebar = () => {
     >
       {/* Logo + collapse toggle */}
       <div className={cn("p-5 border-b border-border flex items-center", collapsed ? "justify-center px-2" : "justify-between gap-2")}>
-        <Link href="/dashboard" className={cn("flex items-center gap-2.5 min-w-0", collapsed && "justify-center")}>
+        <Link href={ROUTES.DASHBOARD} className={cn("flex items-center gap-2.5 min-w-0", collapsed && "justify-center")}>
           <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center p-1 shadow-sm flex-shrink-0">
             <Image src="/logo.png" alt="BettaPay Logo" width={24} height={24} className="w-full h-full object-contain" />
           </div>

@@ -10,6 +10,7 @@ import { PageTransition, ErrorBoundary } from "@/components/shared";
 import { OnboardingWizard } from "@/components/onboarding/OnboardingWizard";
 import { useWalletStore } from "@/lib/store/walletStore";
 import { useAuthStore } from "@/lib/store/authStore";
+import { ROUTES } from "@/lib/navigation/routes";
 import { useSessionTimeout } from "@/lib/hooks/useSessionTimeout";
 import { useRateLimitCountdown } from "@/lib/hooks/useRateLimitCountdown";
 import { SessionTimeoutModal } from "@/components/SessionTimeoutModal";
@@ -33,7 +34,7 @@ export default function MerchantLayout({
 
   const handleTimeoutLogout = useCallback(() => {
     logout();
-    router.push('/auth/login');
+    router.push(ROUTES.LOGIN);
   }, [logout, router]);
 
   const { showWarning, secondsRemaining, isExtending, extendSession } = useSessionTimeout({
@@ -46,7 +47,7 @@ export default function MerchantLayout({
     const success = await extendSession();
     if (!success) {
       logout();
-      router.push('/auth/login');
+      router.push(ROUTES.LOGIN);
     }
   }, [logout, router, extendSession]);
 

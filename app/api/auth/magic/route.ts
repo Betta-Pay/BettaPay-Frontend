@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { consumeMagicToken } from "@/lib/auth/magicLink";
 import { AUTH_TOKEN_COOKIE, USER_ROLE_COOKIE } from "@/lib/auth/session";
+import { ROUTES } from "@/lib/navigation/routes";
 
 export const runtime = "nodejs";
 
@@ -47,7 +48,7 @@ export async function POST(req: Request) {
     JSON.stringify({ sub: result.email, via: "magic-link", iat: Date.now() }),
   ).toString("base64url")}`;
 
-  const res = NextResponse.json({ ok: true, email: result.email, redirectTo: "/dashboard" });
+  const res = NextResponse.json({ ok: true, email: result.email, redirectTo: ROUTES.DASHBOARD });
   const secure = process.env.NODE_ENV === "production";
   const maxAge = 60 * 30; // 30 minutes, matching the session route
   res.cookies.set(AUTH_TOKEN_COOKIE, sessionToken, {

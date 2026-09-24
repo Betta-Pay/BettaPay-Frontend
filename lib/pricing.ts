@@ -1,3 +1,5 @@
+import { ROUTES } from '@/lib/navigation/routes';
+
 export type TierId = 'starter' | 'growth' | 'enterprise';
 
 export interface PricingTier {
@@ -127,7 +129,7 @@ export const PRICING_TIERS: PricingTier[] = [
       'Payment links & QR codes',
       'Basic dashboard analytics',
     ],
-    cta: { label: 'Get Started', href: '/auth/register' },
+    cta: { label: 'Get Started', href: ROUTES.REGISTER },
     highlighted: false,
   },
   {
@@ -159,7 +161,7 @@ export const PRICING_TIERS: PricingTier[] = [
       'Webhooks & API access',
       'Advanced analytics & exports',
     ],
-    cta: { label: 'Get Started', href: '/auth/register' },
+    cta: { label: 'Get Started', href: ROUTES.REGISTER },
     highlighted: true,
   },
   {

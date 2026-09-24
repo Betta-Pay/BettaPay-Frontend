@@ -10,6 +10,7 @@ import { Topbar } from '@/components/layout';
 import Footer from '@/components/layout/Footer';
 import Image from 'next/image';
 import { useAuthStore } from '@/lib/store/authStore';
+import { ROUTES } from '@/lib/navigation/routes';
 import { CommandPalette } from '@/components/command/CommandPalette';
 import { ThemePreferenceSync } from '@/components/layout/ThemePreferenceSync';
 
@@ -35,7 +36,7 @@ export default function AdminLayout({
 
   useEffect(() => {
     if (isMerchant) {
-      router.replace('/dashboard');
+      router.replace(ROUTES.DASHBOARD);
     }
   }, [isMerchant, router]);
 

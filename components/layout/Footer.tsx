@@ -6,6 +6,7 @@ import { useState, useId } from "react";
 import { MessageCircle, Code2, Briefcase, Mail, CheckCircle2, AlertCircle, ArrowRight, Loader2 } from "lucide-react";
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { ROUTES } from '@/lib/navigation/routes';
 
 // ---------------------------------------------------------------------------
 // NewsletterForm
@@ -223,7 +224,7 @@ export default function Footer() {
             <h3 className="font-semibold text-foreground mb-4">Product</h3>
             <ul className="space-y-3">
               <li>
-                <Link href="/auth/login" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+                <Link href={ROUTES.LOGIN} className="text-sm text-muted-foreground hover:text-foreground transition-colors">
                   Merchant Dashboard
                 </Link>
               </li>

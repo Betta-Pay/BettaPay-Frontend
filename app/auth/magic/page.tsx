@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Loader2, CheckCircle2, XCircle } from "lucide-react";
 import { MagicLinkForm } from "@/components/auth/MagicLinkForm";
+import { ROUTES } from "@/lib/navigation/routes";
 
 type State =
   | { status: "verifying" }
@@ -46,7 +47,7 @@ function MagicCallback() {
         };
         if (res.ok && body.ok) {
           setState({ status: "success" });
-          setTimeout(() => router.replace(body.redirectTo ?? "/dashboard"), 900);
+          setTimeout(() => router.replace(body.redirectTo ?? ROUTES.DASHBOARD), 900);
           return;
         }
         setState({
@@ -100,7 +101,7 @@ function MagicCallback() {
           </div>
 
           <Link
-            href="/auth/login"
+            href={ROUTES.LOGIN}
             className="mt-6 inline-block text-xs font-semibold text-primary hover:underline"
           >
             Back to sign in
