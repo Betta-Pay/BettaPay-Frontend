@@ -12,11 +12,18 @@ interface ErrorBoundaryProps {
   children: ReactNode;
   pathname?: string;
   fallback?: ReactNode;
+  /**
+   * Increment (or otherwise change) to remount the children with a clean
+   * state after an error — the React-recommended way for a parent to offer a
+   * programmatic "reset the boundary" action.
+   */
+  resetKey?: string | number;
 }
 
 interface ErrorBoundaryState {
   hasError: boolean;
   pathname?: string;
+  resetKey?: string | number;
 }
 
 /**
@@ -30,6 +37,7 @@ export class ErrorBoundary extends Component<
   state: ErrorBoundaryState = {
     hasError: false,
     pathname: this.props.pathname,
+    resetKey: this.props.resetKey,
   };
 
   static getDerivedStateFromError(): ErrorBoundaryState {
@@ -41,7 +49,11 @@ export class ErrorBoundary extends Component<
     state: ErrorBoundaryState,
   ): ErrorBoundaryState | null {
     if (props.pathname !== state.pathname) {
-      return { hasError: false, pathname: props.pathname };
+      return { hasError: false, pathname: props.pathname, resetKey: props.resetKey };
+    }
+    if (props.resetKey !== state.resetKey) {
+      // Parent-triggered reset: remount the children with a clean state.
+      return { hasError: false, resetKey: props.resetKey };
     }
     return null;
   }
