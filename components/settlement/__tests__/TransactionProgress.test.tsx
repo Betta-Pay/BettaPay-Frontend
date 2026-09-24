@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
-import { TransactionProgress } from '@/components/settlement/TransactionProgress';
+import { TransactionProgress, type ProgressStep } from '@/components/settlement/TransactionProgress';
 
 describe('TransactionProgress — backend-driven states', () => {
   it('idle shows all steps pending (no active spinner beyond)', () => {
@@ -81,5 +81,38 @@ describe('TransactionProgress — backend-driven states', () => {
   it('legacy currentStep=3 renders completed (all checkmarks)', () => {
     render(<TransactionProgress currentStep={3} />);
     expect(screen.queryByLabelText(/in progress/)).not.toBeInTheDocument();
+  });
+});
+
+describe('TransactionProgress — custom step flows', () => {
+  const WITHDRAWAL_STEPS: ProgressStep<'requested' | 'approved' | 'paid_out' | 'reconciled'>[] = [
+    { key: 'requested', label: 'Withdrawal Requested', description: 'Request received' },
+    { key: 'approved', label: 'Compliance Approval', description: 'Reviewing the withdrawal' },
+    { key: 'paid_out', label: 'Bank Payout', description: 'Sending funds to your bank' },
+    { key: 'reconciled', label: 'Reconciled', description: 'Ledger updated' },
+  ];
+
+  it('renders the supplied steps instead of the settlement defaults', () => {
+    render(<TransactionProgress steps={WITHDRAWAL_STEPS} status="idle" />);
+    expect(screen.getByText('Bank Payout')).toBeInTheDocument();
+    expect(screen.queryByText('Freighter Signing')).not.toBeInTheDocument();
+    expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuemax', '4');
+  });
+
+  it('activates the step whose key matches status', () => {
+    render(<TransactionProgress steps={WITHDRAWAL_STEPS} status="paid_out" />);
+    expect(screen.getByLabelText('Bank Payout in progress')).toBeInTheDocument();
+    expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '3');
+  });
+
+  it('marks the failed step by index within the custom flow', () => {
+    render(<TransactionProgress steps={WITHDRAWAL_STEPS} status="failed" failedStep={3} />);
+    expect(screen.getAllByText('Failed — see error below')).toHaveLength(1);
+    expect(screen.queryByText('Ledger updated')).not.toBeInTheDocument();
+  });
+
+  it('reports completion against the custom step count', () => {
+    render(<TransactionProgress steps={WITHDRAWAL_STEPS} status="completed" />);
+    expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '4');
   });
 });
