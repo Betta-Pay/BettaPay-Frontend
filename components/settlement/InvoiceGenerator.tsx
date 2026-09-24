@@ -5,6 +5,7 @@ import { Button } from '@/components/ui';
 import { FileDown, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuthStore } from '@/lib/store/authStore';
+import { getActiveLocale, toIntlLocale } from '@/lib/utils/format';
 import type { ApiSettlement } from '@/lib/api/hooks';
 import type { InvoiceMerchant } from '@/lib/utils/pdf';
 
@@ -41,7 +42,8 @@ function generatePdfViaWorker(type: 'SINGLE' | 'BATCH', payload: any): Promise<{
 }
 
 async function triggerDownload(type: 'SINGLE' | 'BATCH', payload: any) {
-  const result = await generatePdfViaWorker(type, payload);
+  const intlLocale = toIntlLocale(getActiveLocale());
+  const result = await generatePdfViaWorker(type, { ...payload, intlLocale });
   if (!result) return;
   const url = URL.createObjectURL(result.blob);
   const a = document.createElement('a');
