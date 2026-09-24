@@ -23,6 +23,25 @@ const scriptSrc = isDev
 
 const nextConfig = {
   reactStrictMode: true,
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "lh3.googleusercontent.com",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "**.googleusercontent.com",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "avatars.githubusercontent.com",
+        pathname: "/**",
+      },
+    ],
+  },
   eslint: {
     // Existing repo has many pre-existing lint violations (unused vars, any, etc.)
     // that are outside the scope of the current fix batch. Ignore during builds
