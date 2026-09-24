@@ -94,5 +94,63 @@
       "tooManyRequests": "Muitas tentativas. Aguarde alguns minutos e tente novamente.",
       "generic": "Algo deu errado. Por favor, tente novamente mais tarde."
     }
+  },
+  "zod": {
+    "errors": {
+      "invalidType": "Entrada inválida: esperado {{expected}}, recebido {{received}}",
+      "invalidTypeNoReceived": "Entrada inválida: esperado {{expected}}",
+      "tooSmall": {
+        "string": "Deve ter pelo menos {{minimum}} caracteres",
+        "stringExclusive": "Deve ter mais de {{minimum}} caracteres",
+        "number": "Deve ser maior ou igual a {{minimum}}",
+        "numberExclusive": "Deve ser maior que {{minimum}}",
+        "array": "Deve conter pelo menos {{minimum}} itens",
+        "arrayExclusive": "Deve conter mais de {{minimum}} itens",
+        "default": "O valor deve ser pelo menos {{minimum}}",
+        "defaultExclusive": "O valor deve ser maior que {{minimum}}"
+      },
+      "tooBig": {
+        "string": "Deve ter no máximo {{maximum}} caracteres",
+        "stringExclusive": "Deve ter menos de {{maximum}} caracteres",
+        "number": "Deve ser menor ou igual a {{maximum}}",
+        "numberExclusive": "Deve ser menor que {{maximum}}",
+        "array": "Deve conter no máximo {{maximum}} itens",
+        "arrayExclusive": "Deve conter menos de {{maximum}} itens",
+        "default": "O valor deve ser no máximo {{maximum}}",
+        "defaultExclusive": "O valor deve ser menor que {{maximum}}"
+      },
+      "invalidFormat": {
+        "email": "Endereço de e-mail inválido",
+        "url": "URL inválida",
+        "regex": "Formato inválido",
+        "default": "Formato inválido"
+      },
+      "invalidValue": "Valor inválido: esperado um de {{values}}",
+      "notMultipleOf": "O valor deve ser múltiplo de {{divisor}}",
+      "unrecognizedKeys": "Chave(s) não reconhecida(s): {{keys}}",
+      "invalidUnion": "Entrada inválida",
+      "invalidKey": "Chave inválida",
+      "invalidElement": "Elemento inválido",
+      "default": "Entrada inválida"
+    }
+  },
+  "validation": {
+    "paymentLink": {
+      "labelMin": "O rótulo deve ter pelo menos 2 caracteres",
+      "amountValid": "O valor deve ser um número válido com até 7 casas decimais",
+      "amountPositive": "O valor deve ser estritamente positivo",
+      "amountCurrencyRequired": "Valor e moeda são obrigatórios para links de valor fixo"
+    },
+    "merchantProfile": {
+      "businessNameRequired": "O nome da empresa é obrigatório",
+      "countryRequired": "O país é obrigatório",
+      "industryRequired": "O setor é obrigatório",
+      "websiteHttps": "A URL do site deve começar com https://",
+      "emailInvalid": "Formato de e-mail inválido"
+    },
+    "editPaymentLink": {
+      "labelRequired": "O rótulo é obrigatório",
+      "urlInvalid": "URL inválida"
+    }
   }
 }

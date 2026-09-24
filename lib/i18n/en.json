@@ -94,5 +94,63 @@
       "tooManyRequests": "Too many attempts. Please wait a few minutes and try again.",
       "generic": "Something went wrong. Please try again later."
     }
+  },
+  "zod": {
+    "errors": {
+      "invalidType": "Invalid input: expected {{expected}}, received {{received}}",
+      "invalidTypeNoReceived": "Invalid input: expected {{expected}}",
+      "tooSmall": {
+        "string": "Must be at least {{minimum}} characters",
+        "stringExclusive": "Must be more than {{minimum}} characters",
+        "number": "Must be greater than or equal to {{minimum}}",
+        "numberExclusive": "Must be greater than {{minimum}}",
+        "array": "Must contain at least {{minimum}} items",
+        "arrayExclusive": "Must contain more than {{minimum}} items",
+        "default": "Value must be at least {{minimum}}",
+        "defaultExclusive": "Value must be greater than {{minimum}}"
+      },
+      "tooBig": {
+        "string": "Must be at most {{maximum}} characters",
+        "stringExclusive": "Must be less than {{maximum}} characters",
+        "number": "Must be less than or equal to {{maximum}}",
+        "numberExclusive": "Must be less than {{maximum}}",
+        "array": "Must contain at most {{maximum}} items",
+        "arrayExclusive": "Must contain fewer than {{maximum}} items",
+        "default": "Value must be at most {{maximum}}",
+        "defaultExclusive": "Value must be less than {{maximum}}"
+      },
+      "invalidFormat": {
+        "email": "Invalid email address",
+        "url": "Invalid URL",
+        "regex": "Invalid format",
+        "default": "Invalid format"
+      },
+      "invalidValue": "Invalid value: expected one of {{values}}",
+      "notMultipleOf": "Value must be a multiple of {{divisor}}",
+      "unrecognizedKeys": "Unrecognized key(s): {{keys}}",
+      "invalidUnion": "Invalid input",
+      "invalidKey": "Invalid key",
+      "invalidElement": "Invalid element",
+      "default": "Invalid input"
+    }
+  },
+  "validation": {
+    "paymentLink": {
+      "labelMin": "Label must be at least 2 characters",
+      "amountValid": "Amount must be a valid number with up to 7 decimal places",
+      "amountPositive": "Amount must be strictly positive",
+      "amountCurrencyRequired": "Amount and currency are required for fixed links"
+    },
+    "merchantProfile": {
+      "businessNameRequired": "Business name is required",
+      "countryRequired": "Country is required",
+      "industryRequired": "Industry is required",
+      "websiteHttps": "Website URL must start with https://",
+      "emailInvalid": "Invalid email format"
+    },
+    "editPaymentLink": {
+      "labelRequired": "Label is required",
+      "urlInvalid": "Invalid URL"
+    }
   }
 }
