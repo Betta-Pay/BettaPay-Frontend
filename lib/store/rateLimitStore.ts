@@ -70,76 +70,91 @@ function mergeWindow(
   };
 }
 
-export const useRateLimitStore = create<RateLimitState>()(
-  persist(
-    (set, get) => ({
-      rateLimitedUntil: 0,
-      secondsRemaining: 0,
-      endpoint: null,
-      limit: null,
+export function createRateLimitStore(
+  storage?: { getItem: (name: string) => Promise<string | null> | string | null; setItem: (name: string, value: string) => Promise<void> | void; removeItem: (name: string) => Promise<void> | void }
+) {
+  return create<RateLimitState>()(
+    persist(
+      (set, get) => ({
+        rateLimitedUntil: 0,
+        secondsRemaining: 0,
+        endpoint: null,
+        limit: null,
 
-      setRateLimited: (retryAfterSeconds: number, endpoint?: string | null, limit?: number | null) => {
-        set(mergeWindow(get(), {
-          rateLimitedUntil: Date.now() + retryAfterSeconds * 1000,
-          endpoint: endpoint ?? null,
-          limit: limit ?? null,
-        }));
-      },
+        setRateLimited: (retryAfterSeconds: number, endpoint?: string | null, limit?: number | null) => {
+          set(mergeWindow(get(), {
+            rateLimitedUntil: Date.now() + retryAfterSeconds * 1000,
+            endpoint: endpoint ?? null,
+            limit: limit ?? null,
+          }));
+        },
 
-      applyRemoteWindow: (window: RateLimitWindow | null) => {
-        if (!window || window.rateLimitedUntil <= Date.now()) {
+        applyRemoteWindow: (window: RateLimitWindow | null) => {
+          if (!window || window.rateLimitedUntil <= Date.now()) {
+            set({ rateLimitedUntil: 0, secondsRemaining: 0, endpoint: null, limit: null });
+            return;
+          }
+
+          // Ignore a remote window that would shorten the local one.
+          if (window.rateLimitedUntil <= get().rateLimitedUntil) return;
+
+          set(mergeWindow(get(), window));
+        },
+
+        tick: () => {
+          const { rateLimitedUntil } = get();
+          if (rateLimitedUntil === 0) return;
+
+          const remaining = secondsUntil(rateLimitedUntil);
+          if (remaining <= 0) {
+            set({ rateLimitedUntil: 0, secondsRemaining: 0, endpoint: null, limit: null });
+          } else {
+            set({ secondsRemaining: remaining });
+          }
+        },
+
+        clearRateLimit: () => {
           set({ rateLimitedUntil: 0, secondsRemaining: 0, endpoint: null, limit: null });
-          return;
-        }
-
-        // Ignore a remote window that would shorten the local one.
-        if (window.rateLimitedUntil <= get().rateLimitedUntil) return;
-
-        set(mergeWindow(get(), window));
-      },
-
-      tick: () => {
-        const { rateLimitedUntil } = get();
-        if (rateLimitedUntil === 0) return;
-
-        const remaining = secondsUntil(rateLimitedUntil);
-        if (remaining <= 0) {
-          set({ rateLimitedUntil: 0, secondsRemaining: 0, endpoint: null, limit: null });
-        } else {
-          set({ secondsRemaining: remaining });
-        }
-      },
-
-      clearRateLimit: () => {
-        set({ rateLimitedUntil: 0, secondsRemaining: 0, endpoint: null, limit: null });
-      },
-    }),
-    {
-      name: RATE_LIMIT_STORAGE_KEY,
-      // Persist the window itself, not the derived countdown — `secondsRemaining`
-      // is recomputed from the deadline on rehydrate so a reload mid-window
-      // resumes with the correct number rather than a stale one.
-      partialize: (state) => ({
-        rateLimitedUntil: state.rateLimitedUntil,
-        endpoint: state.endpoint,
-        limit: state.limit,
+        },
       }),
-      onRehydrateStorage: () => (state) => {
-        if (!state) return;
+      {
+        name: RATE_LIMIT_STORAGE_KEY,
+        storage: storage ? {
+          getItem: async (name: string) => {
+            const val = await storage.getItem(name);
+            return val ? JSON.parse(val) : null;
+          },
+          setItem: async (name: string, value: unknown) => {
+            await storage.setItem(name, JSON.stringify(value));
+          },
+          removeItem: async (name: string) => {
+            await storage.removeItem(name);
+          },
+        } : undefined,
+        partialize: (state) => ({
+          rateLimitedUntil: state.rateLimitedUntil,
+          endpoint: state.endpoint,
+          limit: state.limit,
+        }),
+        onRehydrateStorage: () => (state) => {
+          if (!state) return;
 
-        if (state.rateLimitedUntil <= Date.now()) {
-          state.rateLimitedUntil = 0;
-          state.secondsRemaining = 0;
-          state.endpoint = null;
-          state.limit = null;
-          return;
-        }
+          if (state.rateLimitedUntil <= Date.now()) {
+            state.rateLimitedUntil = 0;
+            state.secondsRemaining = 0;
+            state.endpoint = null;
+            state.limit = null;
+            return;
+          }
 
-        state.secondsRemaining = secondsUntil(state.rateLimitedUntil);
-      },
-    }
-  )
-);
+          state.secondsRemaining = secondsUntil(state.rateLimitedUntil);
+        },
+      }
+    )
+  );
+}
+
+export const useRateLimitStore = createRateLimitStore();
 
 /** Read the current shared window, or null when no window is open. */
 export function getRateLimitWindow(): RateLimitWindow | null {
