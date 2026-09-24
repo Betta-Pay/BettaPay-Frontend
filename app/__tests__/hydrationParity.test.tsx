@@ -186,7 +186,7 @@ describe('Hydration Parity — Landing Page (/)', () => {
   let LandingPage: React.ComponentType;
 
   beforeAll(async () => {
-    LandingPage = (await import('@/app/page')).default;
+    LandingPage = (await import('@/app/(marketing)/page')).default;
   });
 
   it('SSR and client renders contain identical hero headline', () => {
@@ -249,7 +249,7 @@ describe('Hydration Parity — Pricing Page (/pricing)', () => {
   let PricingPage: React.ComponentType;
 
   beforeAll(async () => {
-    PricingPage = (await import('@/app/pricing/page')).default;
+    PricingPage = (await import('@/app/(marketing)/pricing/page')).default;
   });
 
   it('SSR and client renders both show the pricing hero heading', () => {
@@ -294,7 +294,7 @@ describe('Hydration Parity — About Page (/about)', () => {
   let AboutPage: React.ComponentType;
 
   beforeAll(async () => {
-    AboutPage = (await import('@/app/about/page')).default;
+    AboutPage = (await import('@/app/(marketing)/about/page')).default;
   });
 
   it('SSR and client renders both contain the about hero section', () => {

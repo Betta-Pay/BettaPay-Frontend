@@ -1,7 +1,7 @@
 /* eslint-disable react/display-name, @typescript-eslint/no-explicit-any */
 import React from 'react';
 import { render, screen } from '@testing-library/react';
-import LandingPage from '@/app/page';
+import LandingPage from '@/app/(marketing)/page';
 
 // Mock translations
 jest.mock('@/lib/i18n/useAppTranslation', () => ({
