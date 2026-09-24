@@ -75,7 +75,16 @@ describe("Header auth state (issue #712)", () => {
     expect(ssr()).toContain('href="/auth/login"');
   });
 
-  it("falls back to logged-out links outside the marketing layout", () => {
+  it("server-renders the dashboard link on /payment-links (auth-only route using the public Header)", () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const PaymentLinksLayout = require("@/app/payment-links/layout").default as typeof MarketingLayout;
+    cookieJar.set("auth_token", "tok");
+    const html = renderToString(PaymentLinksLayout({ children: <Header /> }));
+    expect(html).toContain('href="/dashboard"');
+    expect(html).not.toContain("/auth/login");
+  });
+
+  it("falls back to logged-out links outside a server auth layout", () => {
     const html = renderToString(<Header />);
     expect(html).toContain('href="/auth/login"');
   });
