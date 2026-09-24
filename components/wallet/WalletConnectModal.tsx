@@ -2,12 +2,14 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { Loader2, CheckCircle2, AlertTriangle, Copy, RefreshCw } from 'lucide-react';
+import { Loader2, CheckCircle2, AlertTriangle, Copy, RefreshCw, Settings } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui';
 import { Button } from '@/components/ui';
 import {
   getWalletConnectClient,
+  isWalletConnectConfigured,
   resetWalletConnectClient,
+  WalletConnectConfigError,
 } from '@/lib/stellar/walletconnect';
 import type {
   StellarWalletConnectNetwork,
@@ -57,6 +59,9 @@ export function WalletConnectModal({
   const [status, setStatus] = useState<WalletConnectStatus>('idle');
   const [errorMsg, setErrorMsg] = useState<string>('');
   const [statusDetail, setStatusDetail] = useState<string>('');
+  // Missing NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID (issue #500): retrying cannot
+  // help, so this gets its own state instead of the generic "Connection failed".
+  const [configError, setConfigError] = useState(false);
   const { copied, copy } = useCopyUri(uri);
 
   const startedRef = useRef(false);
@@ -72,6 +77,12 @@ export function WalletConnectModal({
     setErrorMsg('');
     setStatusDetail('');
     setStatus('idle');
+    setConfigError(false);
+
+    if (!isWalletConnectConfigured()) {
+      setConfigError(true);
+      return;
+    }
 
     resetWalletConnectClient();
     const client = getWalletConnectClient(activeNetwork);
@@ -98,6 +109,10 @@ export function WalletConnectModal({
       setUri(wcUri);
     } catch (err) {
       if (closedRef.current || startedNetworkRef.current !== activeNetwork) return;
+      if (err instanceof WalletConnectConfigError) {
+        setConfigError(true);
+        return;
+      }
       setStatus('error');
       setErrorMsg(err instanceof Error ? err.message : 'Failed to start WalletConnect');
     }
@@ -125,6 +140,7 @@ export function WalletConnectModal({
         setStatus('idle');
         setErrorMsg('');
         setStatusDetail('');
+        setConfigError(false);
         startedRef.current = false;
         startedNetworkRef.current = null;
       }
@@ -155,6 +171,28 @@ export function WalletConnectModal({
         </DialogHeader>
 
         <div className="flex flex-col items-center gap-5 py-2" aria-live="polite">
+          {configError && (
+            <div
+              role="alert"
+              className="w-full rounded-lg border border-border bg-muted/50 p-4 text-sm flex items-start gap-2"
+            >
+              <Settings className="w-4 h-4 text-muted-foreground mt-0.5 shrink-0" />
+              <div>
+                <p className="font-medium">WalletConnect is not configured</p>
+                <p className="text-muted-foreground mt-1">
+                  Mobile wallet pairing isn&apos;t available on this deployment yet. Connect
+                  with Freighter instead, or contact the site operator.
+                </p>
+                {process.env.NODE_ENV !== 'production' && (
+                  <p className="text-muted-foreground mt-2 text-xs">
+                    Developers: set <code className="font-mono">NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID</code>{' '}
+                    in <code className="font-mono">.env.local</code> (see README) and restart the dev server.
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
           {showQr && (
             <div className="flex flex-col items-center gap-3 w-full">
               <p className="text-sm text-muted-foreground text-center">

@@ -15,7 +15,8 @@
     "developers": "Développeurs",
     "company": "Entreprise",
     "login": "Se connecter",
-    "getStarted": "Commencer"
+    "getStarted": "Commencer",
+    "dashboard": "Tableau de bord"
   },
   "landing": {
     "badge": "Disponible sur le testnet Soroban",

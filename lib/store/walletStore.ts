@@ -276,7 +276,10 @@ export const useWalletStore = create<WalletState>((set, get) => ({
         return;
       }
 
-      if (!persisted.walletConnectSession?.sessionKey) {
+      // Expired (or pre-expiry, undated) sessions are dead on the wallet side
+      // too — drop them quietly instead of reviving a stale topic (issue #499).
+      const wcSession = persisted.walletConnectSession;
+      if (!wcSession?.sessionKey || !wcSession.expiry || wcSession.expiry * 1000 <= Date.now()) {
         clearWalletConnectionState();
         return;
       }
