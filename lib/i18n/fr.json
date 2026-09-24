@@ -94,5 +94,36 @@
       "tooManyRequests": "Trop de tentatives. Veuillez attendre quelques minutes et réessayer.",
       "generic": "Une erreur s'est produite. Veuillez réessayer plus tard."
     }
+  },
+  "onboarding": {
+    "gettingStarted": "Pour commencer",
+    "stepProgress": "Étape {{current}} sur {{total}}",
+    "dismissAriaLabel": "Fermer l'assistant de démarrage",
+    "skip": "Passer",
+    "skipAll": "Tout passer",
+    "connected": "Connecté",
+    "goToStep": "Aller à l'étape {{number}}",
+    "steps": {
+      "connectWallet": {
+        "title": "Connectez votre portefeuille Freighter",
+        "description": "Liez votre portefeuille Stellar pour commencer à accepter les paiements USDC sur le réseau Stellar.",
+        "cta": "Connecter le portefeuille"
+      },
+      "createPaymentLink": {
+        "title": "Créez votre premier lien de paiement",
+        "description": "Générez un lien de paiement réutilisable ou un code QR à partager avec vos clients.",
+        "cta": "Créer un lien de paiement"
+      },
+      "setupBankAccount": {
+        "title": "Configurez votre compte bancaire",
+        "description": "Ajoutez les coordonnées de votre compte bancaire nigérian pour activer les règlements USDC → NGN.",
+        "cta": "Configurer les règlements"
+      },
+      "testPayment": {
+        "title": "Testez un paiement",
+        "description": "Essayez l'environnement sandbox pour vérifier votre intégration avant de passer en production.",
+        "cta": "Ouvrir le sandbox"
+      }
+    }
   }
 }
