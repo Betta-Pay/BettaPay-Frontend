@@ -1,4 +1,5 @@
 import { middleware, config } from '../middleware';
+import type { NextRequest } from 'next/server';
 
 jest.mock('next/server', () => {
   return {
@@ -39,7 +40,7 @@ describe('Next.js Middleware Auth & RBAC', () => {
           return value ? { value } : undefined;
         },
       },
-    } as any;
+    } as unknown as NextRequest;
   };
 
   describe('Unauthenticated redirects', () => {
@@ -116,23 +117,75 @@ describe('Next.js Middleware Auth & RBAC', () => {
   });
 
   describe('Middleware config matcher', () => {
-    const matcherPattern = config.matcher[0];
-    const isExcludedByPattern = (path: string) => {
-      const testRegex = /^\/((?!api|_next\/static|_next\/image|favicon\.ico).*)$/;
-      return !testRegex.test(path);
-    };
+    // Mirrors Next.js `:path*` matching (prefix or prefix + any number of
+    // segments) against the positive allow-list in `config.matcher`.
+    const matchesAnyMatcher = (path: string): boolean =>
+      config.matcher.some((pattern) => {
+        const wildcard = pattern.indexOf('/:path*');
+        const prefix = wildcard === -1 ? pattern : pattern.slice(0, wildcard);
+        return path === prefix || path.startsWith(`${prefix}/`);
+      });
 
-    it('should match the expected paths and exclude api, static files, and favicon', () => {
-      expect(matcherPattern).toBe('/((?!api|_next/static|_next/image|favicon.ico).*)');
-      
-      expect(isExcludedByPattern('/api/auth/session')).toBe(true);
-      expect(isExcludedByPattern('/_next/static/chunks/main.js')).toBe(true);
-      expect(isExcludedByPattern('/_next/image?url=logo.png')).toBe(true);
-      expect(isExcludedByPattern('/favicon.ico')).toBe(true);
+    it('includes every route that needs authentication evaluation', () => {
+      const authAwarePaths = [
+        '/auth/login',
+        '/auth/magic',
+        '/onboarding',
+        '/onboarding/step-2',
+        '/dashboard',
+        '/dashboard/revenue',
+        '/transactions',
+        '/wallet',
+        '/fx',
+        '/developers',
+        '/settings',
+        '/payments',
+        '/settlement',
+        '/payment-links',
+        '/notifications',
+        '/overview',
+        '/merchants',
+        '/merchants/kyb',
+        '/anchors',
+        '/fx-management',
+        '/compliance',
+        '/admin',
+        '/pay/link_1',
+        '/pay/status/tx_1',
+      ];
+      for (const path of authAwarePaths) {
+        if (!matchesAnyMatcher(path)) {
+          throw new Error(`expected matcher to include ${path}`);
+        }
+      }
+    });
 
-      expect(isExcludedByPattern('/dashboard')).toBe(false);
-      expect(isExcludedByPattern('/overview')).toBe(false);
-      expect(isExcludedByPattern('/pay/link_1')).toBe(false);
+    it('excludes static assets, API routes, and public/marketing pages', () => {
+      const bypassedPaths = [
+        '/',
+        '/about',
+        '/pricing',
+        '/docs',
+        '/docs/api-reference',
+        '/contact',
+        '/privacy',
+        '/terms',
+        '/fiat-settlements',
+        '/guides',
+        '/sdks',
+        '/status',
+        '/api/auth/session',
+        '/api/payments',
+        '/_next/static/chunks/main.js',
+        '/_next/image?url=logo.png',
+        '/favicon.ico',
+        '/fonts/GeistVF.woff',
+      ];
+      for (const path of bypassedPaths) {
+        if (matchesAnyMatcher(path)) {
+          throw new Error(`expected matcher to exclude ${path}`);
+        }
+      }
     });
   });
 });
