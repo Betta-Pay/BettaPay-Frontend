@@ -91,6 +91,7 @@ describe('useWalletStore wallet session persistence', () => {
       address: ADDRESS,
       sessionKey: 'a'.repeat(64),
       sessionKeyVersion: 0,
+      expiry: Math.floor(Date.now() / 1000) + 3600,
     };
 
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
@@ -135,5 +136,61 @@ describe('useWalletStore wallet session persistence', () => {
     useWalletStore.getState().disconnect();
 
     expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
+  });
+
+  describe('WalletConnect session expiry (issue #499)', () => {
+    const baseSession = {
+      topic: 'topic-123',
+      peerMetadata: { name: 'Test Wallet', description: '', url: '', icons: [] },
+      stellarAccounts: [ADDRESS],
+      address: ADDRESS,
+      sessionKey: 'a'.repeat(64),
+      sessionKeyVersion: 0,
+    };
+
+    const persist = (walletConnectSession: object) =>
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        version: 1,
+        connector: 'walletconnect',
+        address: ADDRESS,
+        stellarAccounts: [ADDRESS],
+        network: 'testnet',
+        walletConnectSession,
+      }));
+
+    it.each([
+      ['expired', { ...baseSession, expiry: Math.floor(Date.now() / 1000) - 1 }],
+      ['undated (persisted before expiry enforcement)', baseSession],
+    ])('drops a %s session without touching the relay', async (_label, session) => {
+      persist(session);
+
+      await useWalletStore.getState().restoreSession(true);
+
+      expect(mockWalletConnectClient.restoreSession).not.toHaveBeenCalled();
+      expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
+      expect(useWalletStore.getState()).toMatchObject({
+        isConnected: false,
+        walletConnectSession: null,
+        error: null,
+      });
+    });
+
+    it('does not accumulate session state across repeated connect / disconnect', () => {
+      for (let i = 0; i < 50; i += 1) {
+        useWalletStore.getState().resolveWalletConnect({
+          ...baseSession,
+          topic: `topic-${i}`,
+          expiry: Math.floor(Date.now() / 1000) + 3600,
+        });
+        expect(useWalletStore.getState().walletConnectSession?.topic).toBe(`topic-${i}`);
+        useWalletStore.getState().disconnect();
+      }
+
+      const state = useWalletStore.getState();
+      expect(state.walletConnectSession).toBeNull();
+      expect(state.stellarAccounts).toEqual([]);
+      expect(state.isConnected).toBe(false);
+      expect(localStorage.length).toBe(0);
+    });
   });
 });

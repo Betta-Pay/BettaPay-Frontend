@@ -68,6 +68,7 @@ export function getStellarWalletConnectChain(
 /** WalletConnect relay JSON-RPC method */
 const RELAY_PUBLISH = 'irn_publish';
 const RELAY_SUBSCRIBE = 'irn_subscribe';
+const RELAY_UNSUBSCRIBE = 'irn_unsubscribe';
 const RELAY_SUBSCRIPTION = 'irn_subscription';
 
 /** App-level WalletConnect methods */
@@ -102,6 +103,17 @@ const APPROVE_TIMEOUT_MS = 30_000;
 /** Max time to wait for a signature before auto-aborting the request. */
 const SIGN_TIMEOUT_MS = 60_000;
 
+// ─── Expiry & replay tuning (issue #499) ─────────────────────────────────────
+
+/** Lifetime we advertise (and enforce) for a settled session. */
+const SESSION_TTL_MS = 7 * 24 * 3600 * 1000;
+/** Envelopes older than this are rejected, bounding the replay window. */
+const ENVELOPE_MAX_AGE_MS = 5 * 60_000;
+/** Tolerated sender clock drift for envelopes stamped in the future. */
+const ENVELOPE_MAX_SKEW_MS = 60_000;
+/** How often expired topics (and stale IV history) are purged. */
+const TOPIC_PURGE_INTERVAL_MS = 60_000;
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface WalletConnectSession {
@@ -113,6 +125,8 @@ export interface WalletConnectSession {
   /** Hex-encoded WalletConnect session key used to resume relay traffic. */
   sessionKey?: string;
   sessionKeyVersion?: number;
+  /** Unix seconds after which the session is dead and must not be reused. */
+  expiry?: number;
 }
 
 interface WCPeerMetadata {
@@ -131,17 +145,26 @@ interface WCRelayMessage {
   params?: unknown;
 }
 
+/**
+ * Encrypted relay payload. The topic key is never carried on the wire — both
+ * peers already hold it from the pairing URI / proposal response.
+ *
+ * `topic`, `version` and the sender timestamp `ts` are bound into the AES-GCM
+ * additional authenticated data (see `envelopeAad`), so a ciphertext cannot be
+ * replayed onto another topic or key version, and its age cannot be forged to
+ * slip past the freshness check (issue #499).
+ */
 interface WCEncryptedEnvelope {
   /** Base64url-encoded ciphertext */
   message: string;
   /** Base64url-encoded 12-byte IV */
   iv: string;
-  /** Base64url-encoded 32-byte raw symmetric key */
-  symKey: string;
   /** Encryption type — 0 = AES-256-GCM */
   type: number;
   /** Key version/derivation counter */
   version: number;
+  /** Sender timestamp, epoch milliseconds (authenticated via AAD). */
+  ts: number;
 }
 
 export type WalletConnectStatus =
@@ -205,6 +228,14 @@ export class WalletConnectConfigError extends WalletConnectError {
   }
 }
 
+/** A proposal, settle or persisted session was past its expiry and was refused. */
+export class WalletConnectExpiredError extends WalletConnectError {
+  constructor(message: string, phase: WalletConnectErrorPhase) {
+    super(message, phase);
+    this.name = 'WalletConnectExpiredError';
+  }
+}
+
 let warnedMissingProjectId = false;
 
 /**
@@ -263,33 +294,61 @@ async function importRawKey(bytes: Uint8Array): Promise<CryptoKey> {
   ]);
 }
 
+/** AES-GCM additional data binding an envelope to its topic, key version and send time. */
+function envelopeAad(topic: string, version: number, ts: number): Uint8Array {
+  return new TextEncoder().encode(`wc2:${topic}:${version}:${ts}`);
+}
+
 async function encrypt(
   plaintext: string,
   key: CryptoKey,
+  topic: string,
   version: number,
 ): Promise<WCEncryptedEnvelope> {
   const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ts = Date.now();
   const encoded = new TextEncoder().encode(plaintext);
-  const cipherBuf = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, encoded);
-  const rawKey = await exportRawKey(key);
+  const cipherBuf = await crypto.subtle.encrypt(
+    {
+      name: 'AES-GCM',
+      iv,
+      additionalData: envelopeAad(topic, version, ts) as unknown as BufferSource,
+    },
+    key,
+    encoded,
+  );
   return {
     message: toBase64url(new Uint8Array(cipherBuf)),
     iv: toBase64url(iv),
-    symKey: toBase64url(rawKey),
     type: 0,
     version,
+    ts,
   };
 }
 
-async function decrypt(envelope: WCEncryptedEnvelope, key: CryptoKey): Promise<string> {
+async function decrypt(
+  envelope: WCEncryptedEnvelope,
+  key: CryptoKey,
+  topic: string,
+): Promise<string> {
   const iv = fromBase64url(envelope.iv);
   const ciphertext = fromBase64url(envelope.message);
   const plainBuf = await crypto.subtle.decrypt(
-    { name: 'AES-GCM', iv: iv as unknown as BufferSource },
+    {
+      name: 'AES-GCM',
+      iv: iv as unknown as BufferSource,
+      additionalData: envelopeAad(topic, envelope.version, envelope.ts) as unknown as BufferSource,
+    },
     key,
     ciphertext as unknown as BufferSource,
   );
   return new TextDecoder().decode(plainBuf);
+}
+
+/** True when an envelope's authenticated timestamp is inside the freshness window. */
+function isEnvelopeFresh(envelope: WCEncryptedEnvelope, now: number): boolean {
+  if (typeof envelope.ts !== 'number' || !Number.isFinite(envelope.ts)) return false;
+  return now - envelope.ts <= ENVELOPE_MAX_AGE_MS && envelope.ts - now <= ENVELOPE_MAX_SKEW_MS;
 }
 
 function getStellarChainFromAccount(accountId: string): StellarWalletConnectChainId | null {
@@ -348,8 +407,21 @@ export class WalletConnectClient {
     number,
     { resolve: (v: unknown) => void; reject: (e: Error) => void }
   >();
-  /** Tracks used (version, iv) pairs per topic to detect IV reuse */
-  private usedIvs = new Map<string, Set<string>>();
+  /**
+   * Seen `version:iv` → envelope timestamp, per topic, to detect IV reuse.
+   * Entries older than ENVELOPE_MAX_AGE_MS are pruned: such envelopes are
+   * rejected as stale anyway, so the history stays bounded on long sessions.
+   */
+  private usedIvs = new Map<string, Map<string, number>>();
+  /** Every topic we are subscribed to, with the epoch-ms deadline it dies at. */
+  private topicExpiry = new Map<string, number>();
+  /** Relay subscription id per topic, needed for `irn_unsubscribe`. */
+  private subscriptionIds = new Map<string, string>();
+  /** In-flight `irn_subscribe` rpc id → topic, resolved into `subscriptionIds`. */
+  private pendingSubscribes = new Map<number, string>();
+  private sessionExpiresAt = 0;
+  private sessionExpiryTimer: ReturnType<typeof setTimeout> | null = null;
+  private purgeTimer: ReturnType<typeof setInterval> | null = null;
   private rpcId = 1;
   private statusListener: StatusListener | null = null;
   private sessionListener: ((session: WalletConnectSession) => void) | null = null;
@@ -403,23 +475,24 @@ export class WalletConnectClient {
     this.cleanup();
     this.emit('connecting');
 
-    // Generate a fresh pairing topic + symmetric key
+    // Generate a fresh pairing topic + symmetric key. The pairing lives exactly
+    // as long as the wallet is given to scan, and is purged after that.
+    const pairingExpiresAt = Date.now() + PAIRING_TIMEOUT_MS;
     this.pairingTopic = randomHex(32);
+    this.topicExpiry.set(this.pairingTopic, pairingExpiresAt);
     this.pairingKey = await generateSymKey();
     this.pairingKeyVersion = 0;
     const rawKey = await exportRawKey(this.pairingKey);
 
     // Build the wc: URI per WC v2 spec
-    // wc:<topic>@2?relay-protocol=irn&symKey=<hex>&projectId=<id>
+    // wc:<topic>@2?relay-protocol=irn&symKey=<hex>&expiryTimestamp=<unix s>&projectId=<id>
     const symKeyHex = bytesToHex(rawKey);
-    const relayParam = encodeURIComponent(JSON.stringify({ protocol: 'irn' }));
     const uri =
       `wc:${this.pairingTopic}@2` +
       `?relay-protocol=irn` +
       `&symKey=${symKeyHex}` +
+      `&expiryTimestamp=${Math.floor(pairingExpiresAt / 1000)}` +
       `&projectId=${PROJECT_ID}`;
-
-    void relayParam; // kept for reference; encoded into QR URI above
 
     // Open relay WebSocket. From here on, an unexpected close triggers the
     // reconnect path rather than a permanent wedge.
@@ -427,6 +500,7 @@ export class WalletConnectClient {
     this.reconnectAttempts = 0;
     this.wsUrl = `${RELAY_URL}?projectId=${PROJECT_ID}&ua=BettaPay%2F1.0`;
     this.openSocket();
+    this.startTopicPurge();
 
     // The wallet has a bounded window to scan the QR and propose a session.
     this.setPhaseTimeout('pairing', PAIRING_TIMEOUT_MS);
@@ -439,9 +513,15 @@ export class WalletConnectClient {
       throw new WalletConnectError('WalletConnect session cannot be restored without a session key.', 'relay');
     }
     if (!isWalletConnectConfigured()) throw new WalletConnectConfigError();
+    // A session without an expiry predates enforcement and cannot be trusted
+    // to still be alive on the wallet side; an expired one must never be reused.
+    if (!session.expiry || session.expiry * 1000 <= Date.now()) {
+      throw new WalletConnectExpiredError('WalletConnect session has expired. Please reconnect your wallet.', 'relay');
+    }
 
     this.cleanup();
     this.sessionTopic = session.topic;
+    this.setSessionExpiry(session.expiry * 1000);
     this.sessionKey = await importRawKey(hexToBytes(session.sessionKey));
     this.sessionKeyVersion = session.sessionKeyVersion ?? 0;
     this.sessionKeyHex = session.sessionKey;
@@ -449,6 +529,7 @@ export class WalletConnectClient {
     this.reconnectAttempts = 0;
     this.wsUrl = `${RELAY_URL}?projectId=${PROJECT_ID}&ua=BettaPay%2F1.0`;
     this.openSocket();
+    this.startTopicPurge();
     this.emit('connected');
   }
 
@@ -477,6 +558,23 @@ export class WalletConnectClient {
     this.emit('disconnected');
   }
 
+  /**
+   * Live resource counts, for leak diagnostics and tests: after a disconnect
+   * every figure is zero, however many pairings came before (issue #499).
+   */
+  getResourceStats() {
+    let ivEntries = 0;
+    for (const ivs of this.usedIvs.values()) ivEntries += ivs.size;
+    return {
+      topics: this.topicExpiry.size,
+      subscriptions: this.subscriptionIds.size,
+      pendingSubscribes: this.pendingSubscribes.size,
+      pendingRequests: this.pendingRequests.size,
+      ivTopics: this.usedIvs.size,
+      ivEntries,
+    };
+  }
+
   /** Abort a pending connection if the user closes the modal early. */
   abortInitialization() {
     if (this.currentStatus === 'connecting' || this.currentStatus === 'reconnecting') {
@@ -503,12 +601,12 @@ export class WalletConnectClient {
 
     // Re-establish every subscription we depend on. Re-subscribing an already
     // known topic is idempotent on the relay.
-    if (this.pairingTopic) {
-      this.relayRpc(RELAY_SUBSCRIBE, { topic: this.pairingTopic });
-    }
-    if (this.sessionTopic) {
-      this.relayRpc(RELAY_SUBSCRIBE, { topic: this.sessionTopic });
-    }
+    // Drop anything that expired while we were offline rather than reviving it.
+    this.purgeExpiredTopics();
+    if (!this.ws) return; // the purge expired the session and tore everything down
+    this.pendingSubscribes.clear();
+    if (this.pairingTopic) this.subscribe(this.pairingTopic);
+    if (this.sessionTopic) this.subscribe(this.sessionTopic);
 
     this.startHeartbeat();
 
@@ -705,6 +803,7 @@ export class WalletConnectClient {
     }
     this.intentionalClose = true;
     this.stopAllTimers();
+    for (const topic of Array.from(this.topicExpiry.keys())) this.releaseTopic(topic);
     this.closeSocket();
     this.emit('error', err.message);
   }
@@ -713,6 +812,11 @@ export class WalletConnectClient {
     this.clearReconnectTimer();
     this.stopHeartbeat();
     this.clearPhaseTimeout();
+    this.stopTopicPurge();
+    if (this.sessionExpiryTimer) {
+      clearTimeout(this.sessionExpiryTimer);
+      this.sessionExpiryTimer = null;
+    }
   }
 
   private closeSocket() {
@@ -744,6 +848,16 @@ export class WalletConnectClient {
 
     // Relay publish acknowledgement — nothing to do
     if (msg.result !== undefined && !msg.method) {
+      const subscribedTopic = this.pendingSubscribes.get(msg.id);
+      if (subscribedTopic !== undefined) {
+        this.pendingSubscribes.delete(msg.id);
+        // Only keep ids for topics that are still live — a late ack for a
+        // topic purged in the meantime must not resurrect it.
+        if (typeof msg.result === 'string' && this.topicExpiry.has(subscribedTopic)) {
+          this.subscriptionIds.set(subscribedTopic, msg.result);
+        }
+        return;
+      }
       const pending = this.pendingRequests.get(msg.id);
       if (pending) {
         pending.resolve(msg.result);
@@ -770,29 +884,40 @@ export class WalletConnectClient {
 
     const { topic, message: encMessage } = subscriptionData.data;
 
+    // Traffic on a topic past its deadline is never processed; purge it now
+    // instead of waiting for the next sweep.
+    const now = Date.now();
+    const topicDeadline = this.topicExpiry.get(topic);
+    if (topicDeadline !== undefined && topicDeadline <= now) {
+      this.purgeExpiredTopics(now);
+      return;
+    }
+
     // Determine which key to use for decryption
+    let key: CryptoKey;
+    if (topic === this.pairingTopic && this.pairingKey) {
+      key = this.pairingKey;
+    } else if (topic === this.sessionTopic && this.sessionKey) {
+      key = this.sessionKey;
+    } else {
+      // Unknown topic — ignore
+      return;
+    }
+
     let decrypted: string;
     try {
-      if (topic === this.pairingTopic && this.pairingKey) {
-        const envelope = JSON.parse(encMessage) as WCEncryptedEnvelope;
-        const version = envelope.version ?? 0;
-        // Validate IV has not been reused with this key version
-        if (!this.trackIv(topic, version, envelope.iv)) {
-          console.error('IV reuse detected on pairing topic');
-          return;
-        }
-        decrypted = await decrypt(envelope, this.pairingKey);
-      } else if (topic === this.sessionTopic && this.sessionKey) {
-        const envelope = JSON.parse(encMessage) as WCEncryptedEnvelope;
-        const version = envelope.version ?? 0;
-        // Validate IV has not been reused with this key version
-        if (!this.trackIv(topic, version, envelope.iv)) {
-          console.error('IV reuse detected on session topic');
-          return;
-        }
-        decrypted = await decrypt(envelope, this.sessionKey);
-      } else {
-        // Unknown topic — ignore
+      const envelope = JSON.parse(encMessage) as WCEncryptedEnvelope;
+      const version = envelope.version ?? 0;
+      if (!isEnvelopeFresh(envelope, now)) {
+        console.warn('[WalletConnect] dropped stale or undated envelope on', topic === this.pairingTopic ? 'pairing topic' : 'session topic');
+        return;
+      }
+      // Authenticate before recording the IV, so forged frames cannot fill
+      // the history. AAD binds topic + version + ts (see envelopeAad).
+      decrypted = await decrypt(envelope, key, topic);
+      // Validate IV has not been reused with this key version
+      if (!this.trackIv(topic, version, envelope.iv, envelope.ts)) {
+        console.error('IV reuse detected on', topic === this.pairingTopic ? 'pairing topic' : 'session topic');
         return;
       }
     } catch {
@@ -849,19 +974,48 @@ export class WalletConnectClient {
     _pairingTopic: string,
     msg: WCRelayMessage,
   ) {
-    this.emit('approving');
-    // The wallet now has a bounded window to settle the session.
-    this.setPhaseTimeout('approving', APPROVE_TIMEOUT_MS);
-
     const proposal = msg.params as {
       id: number;
       proposer: { publicKey: string; metadata: WCPeerMetadata };
       relays: Array<{ protocol: string }>;
       requiredNamespaces: Record<string, unknown>;
+      /** Unix seconds; WC v2 proposals are only valid until then. */
+      expiryTimestamp?: number;
     };
 
-    // Generate a new session topic + key with version 0
+    // An expired proposal must be rejected, never answered with a settle —
+    // otherwise a captured proposal could be replayed to open a session.
+    if (
+      typeof proposal?.expiryTimestamp === 'number' &&
+      proposal.expiryTimestamp * 1000 <= Date.now()
+    ) {
+      console.warn('[WalletConnect] rejected expired session proposal', proposal.id);
+      this.failWith(
+        new WalletConnectExpiredError(
+          'The wallet sent an expired session proposal. Generate a fresh QR code and try again.',
+          'pairing',
+        ),
+      );
+      return;
+    }
+
+    this.emit('approving');
+    // The wallet now has a bounded window to settle the session.
+    this.setPhaseTimeout('approving', APPROVE_TIMEOUT_MS);
+
+    // The pairing may be purged while we await crypto below; hold on to what
+    // the acknowledgement needs.
+    const pairingTopic = this.pairingTopic;
+    const pairingKey = this.pairingKey;
+    const pairingKeyVersion = this.pairingKeyVersion;
+    if (!pairingKey) return;
+
+    // Generate a new session topic + key with version 0. Until the wallet
+    // settles, the approve phase timeout bounds it; after that, the expiry.
+    const sessionExpiresAt = Date.now() + SESSION_TTL_MS;
     this.sessionTopic = randomHex(32);
+    this.sessionExpiresAt = sessionExpiresAt;
+    this.topicExpiry.set(this.sessionTopic, sessionExpiresAt);
     this.sessionKey = await generateSymKey();
     this.sessionKeyVersion = 0;
     const rawSessionKey = await exportRawKey(this.sessionKey);
@@ -869,7 +1023,7 @@ export class WalletConnectClient {
     this.sessionKeyHex = sessionKeyHex;
 
     // Subscribe to the session topic
-    this.relayRpc(RELAY_SUBSCRIBE, { topic: this.sessionTopic });
+    this.subscribe(this.sessionTopic);
 
     // Build the settle response: echo back the proposer's requested
     // namespaces with dummy accounts — the real accounts arrive in
@@ -897,9 +1051,9 @@ export class WalletConnectClient {
             chains: [this.chainId],
           },
         },
-        expiry: Math.floor(Date.now() / 1000) + 7 * 24 * 3600,
+        expiry: Math.floor(sessionExpiresAt / 1000),
         acknowledged: false,
-        pairingTopic: this.pairingTopic,
+        pairingTopic,
       },
     };
 
@@ -921,9 +1075,9 @@ export class WalletConnectClient {
       },
     };
     await this.publishEncrypted(
-      this.pairingTopic,
-      this.pairingKey!,
-      this.pairingKeyVersion,
+      pairingTopic,
+      pairingKey,
+      pairingKeyVersion,
       JSON.stringify(ack),
     );
   }
@@ -937,10 +1091,27 @@ export class WalletConnectClient {
         };
       };
       controller: { metadata: WCPeerMetadata };
+      /** Unix seconds the wallet agrees the session lives until. */
+      expiry?: number;
     };
 
     // The session is settling — the approve budget no longer applies.
     this.clearPhaseTimeout();
+
+    // Never accept a settle that is already dead, and never let the wallet
+    // stretch the session past the lifetime we advertised.
+    const now = Date.now();
+    const peerExpiryMs = typeof settle?.expiry === 'number' ? settle.expiry * 1000 : null;
+    if (peerExpiryMs !== null && peerExpiryMs <= now) {
+      this.failWith(
+        new WalletConnectExpiredError(
+          'The wallet settled a session that has already expired. Please try again.',
+          'approving',
+        ),
+      );
+      return;
+    }
+    const expiresAt = Math.min(peerExpiryMs ?? this.sessionExpiresAt, this.sessionExpiresAt);
 
     const stellarNS = settle?.namespaces?.stellar;
     const rawAccounts: string[] = stellarNS?.accounts ?? [];
@@ -992,7 +1163,16 @@ export class WalletConnectClient {
       address: stellarAccounts[0],
       sessionKey: this.sessionKeyHex,
       sessionKeyVersion: this.sessionKeyVersion,
+      expiry: Math.floor(expiresAt / 1000),
     };
+
+    // The pairing has done its job; release it instead of holding the
+    // subscription open for the lifetime of the session.
+    this.releaseTopic(this.pairingTopic);
+    this.pairingTopic = '';
+    this.pairingKey = null;
+    this.pairingKeyVersion = 0;
+    this.setSessionExpiry(expiresAt);
 
     this.emit('connected');
     this.sessionListener?.(session);
@@ -1055,7 +1235,7 @@ export class WalletConnectClient {
 
   // ── Relay transport helpers ─────────────────────────────────────────────────
 
-  private relayRpc(method: string, params: unknown): void {
+  private relayRpc(method: string, params: unknown): number {
     const msg: WCRelayMessage = {
       id: this.nextId(),
       jsonrpc: '2.0',
@@ -1063,6 +1243,89 @@ export class WalletConnectClient {
       params,
     };
     this.ws?.send(JSON.stringify(msg));
+    return msg.id;
+  }
+
+  private subscribe(topic: string) {
+    const id = this.relayRpc(RELAY_SUBSCRIBE, { topic });
+    this.pendingSubscribes.set(id, topic);
+  }
+
+  // ── Topic lifecycle (issue #499) ────────────────────────────────────────────
+
+  /**
+   * Forget a topic entirely: unsubscribe on the relay (best effort — the
+   * socket may already be gone) and drop its deadline, subscription id and IV
+   * history so nothing about it outlives the topic.
+   */
+  private releaseTopic(topic: string) {
+    if (!topic) return;
+    if (this.ws && this.ws.readyState === 1 /* OPEN */) {
+      const id = this.subscriptionIds.get(topic);
+      try {
+        this.relayRpc(RELAY_UNSUBSCRIBE, id ? { topic, id } : { topic });
+      } catch {
+        /* socket died under us — the relay drops its subscriptions with it */
+      }
+    }
+    this.topicExpiry.delete(topic);
+    this.subscriptionIds.delete(topic);
+    this.usedIvs.delete(topic);
+    for (const [rpcId, pendingTopic] of this.pendingSubscribes) {
+      if (pendingTopic === topic) this.pendingSubscribes.delete(rpcId);
+    }
+  }
+
+  private setSessionExpiry(expiresAt: number) {
+    this.sessionExpiresAt = expiresAt;
+    this.topicExpiry.set(this.sessionTopic, expiresAt);
+    if (this.sessionExpiryTimer) clearTimeout(this.sessionExpiryTimer);
+    // setTimeout overflows past ~24.8 days; the periodic purge covers longer.
+    const delay = Math.min(Math.max(expiresAt - Date.now(), 0), 2 ** 31 - 1);
+    this.sessionExpiryTimer = setTimeout(() => this.purgeExpiredTopics(), delay);
+  }
+
+  /**
+   * Drop every topic past its deadline plus stale IV history. Runs on an
+   * interval, on (re)connect, and whenever traffic arrives for a dead topic.
+   */
+  private purgeExpiredTopics(now: number = Date.now()) {
+    for (const [topic, deadline] of this.topicExpiry) {
+      if (deadline > now) continue;
+
+      if (topic === this.sessionTopic) {
+        console.info('[WalletConnect] session expired — releasing topic');
+        this.releaseTopic(topic);
+        // Tear down like a wallet-initiated delete so the store clears state.
+        this.disconnect();
+        return;
+      }
+
+      this.releaseTopic(topic);
+      if (topic === this.pairingTopic) {
+        this.pairingTopic = '';
+        this.pairingKey = null;
+        this.pairingKeyVersion = 0;
+      }
+    }
+
+    for (const ivs of this.usedIvs.values()) {
+      for (const [iv, ts] of ivs) {
+        if (now - ts > ENVELOPE_MAX_AGE_MS) ivs.delete(iv);
+      }
+    }
+  }
+
+  private startTopicPurge() {
+    this.stopTopicPurge();
+    this.purgeTimer = setInterval(() => this.purgeExpiredTopics(), TOPIC_PURGE_INTERVAL_MS);
+  }
+
+  private stopTopicPurge() {
+    if (this.purgeTimer) {
+      clearInterval(this.purgeTimer);
+      this.purgeTimer = null;
+    }
   }
 
   private async publishEncrypted(
@@ -1071,11 +1334,12 @@ export class WalletConnectClient {
     version: number,
     plaintext: string,
   ): Promise<void> {
-    const envelope = await encrypt(plaintext, key, version);
+    const envelope = await encrypt(plaintext, key, topic, version);
     this.relayRpc(RELAY_PUBLISH, {
       topic,
       message: JSON.stringify(envelope),
-      ttl: 86400,
+      // Nothing we send is valid past the receiver's freshness window.
+      ttl: Math.ceil(ENVELOPE_MAX_AGE_MS / 1000),
       tag: 0,
     });
   }
@@ -1083,17 +1347,18 @@ export class WalletConnectClient {
   // ── Utilities ───────────────────────────────────────────────────────────────
 
   /** Track and validate IV for a given topic and key version to detect reuse */
-  private trackIv(topic: string, version: number, iv: string): boolean {
-    const key = `${topic}:${version}`;
-    if (!this.usedIvs.has(key)) {
-      this.usedIvs.set(key, new Set());
+  private trackIv(topic: string, version: number, iv: string, ts: number): boolean {
+    let ivs = this.usedIvs.get(topic);
+    if (!ivs) {
+      ivs = new Map();
+      this.usedIvs.set(topic, ivs);
     }
-    const ivSet = this.usedIvs.get(key)!;
-    if (ivSet.has(iv)) {
+    const key = `${version}:${iv}`;
+    if (ivs.has(key)) {
       // IV reuse detected
       return false;
     }
-    ivSet.add(iv);
+    ivs.set(key, ts);
     return true;
   }
 
@@ -1110,6 +1375,9 @@ export class WalletConnectClient {
     // Mark the teardown as ours so `onclose` does not kick off a reconnect.
     this.intentionalClose = true;
     this.stopAllTimers();
+    // Unsubscribe while the socket is still open so the relay stops holding
+    // (and queueing messages for) topics we will never read again.
+    for (const topic of Array.from(this.topicExpiry.keys())) this.releaseTopic(topic);
     this.closeSocket();
 
     // Reject anything still in flight so callers are never left hanging.
@@ -1127,7 +1395,11 @@ export class WalletConnectClient {
     this.sessionKey = null;
     this.sessionKeyVersion = 0;
     this.sessionKeyHex = '';
+    this.sessionExpiresAt = 0;
     this.usedIvs.clear();
+    this.topicExpiry.clear();
+    this.subscriptionIds.clear();
+    this.pendingSubscribes.clear();
     this.rpcId = 1;
     this.reconnectAttempts = 0;
     this.statusBeforeReconnect = null;
