@@ -1,11 +1,19 @@
 "use client";
 
 import { memo } from 'react';
+import dynamic from 'next/dynamic';
 import { Card, CardContent, CardHeader, CardTitle, Skeleton } from '@/components/ui';
 import { CurrencyDisplay, ErrorDisplay, StatCard, ErrorBoundary } from '@/components/shared';
 import { Users, AlertTriangle, ArrowUpRight, Activity, DollarSign } from 'lucide-react';
 import { useAdminStats } from '@/lib/api/hooks';
-import PlatformVolumeChart from '@/components/charts/PlatformVolumeChart';
+
+const PlatformVolumeChart = dynamic(
+  () => import('@/components/charts/PlatformVolumeChart'),
+  {
+    ssr: false,
+    loading: () => <Skeleton className="h-[300px] w-full" />,
+  }
+);
 
 // Memoised so future additions of state to the parent won't re-render the chart.
 const AdminChartSection = memo(function AdminChartSection() {
