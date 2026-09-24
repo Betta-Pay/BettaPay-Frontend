@@ -94,5 +94,34 @@
       "tooManyRequests": "Too many attempts. Please wait a few minutes and try again.",
       "generic": "Something went wrong. Please try again later."
     }
+  },
+  "walletConnect": {
+    "title": "Connect with WalletConnect",
+    "description": "Scan the QR code with your Stellar mobile wallet to connect.",
+    "qrAriaLabel": "WalletConnect QR code",
+    "scanPrompt": "Scan with your Stellar mobile wallet (Lobstr, Solar, or any WalletConnect v2 compatible wallet).",
+    "copyUri": "Copy URI",
+    "copied": "Copied",
+    "copyAriaLabel": "Copy WalletConnect URI to clipboard",
+    "tryAgain": "Try again",
+    "notConfigured": {
+      "title": "WalletConnect is not configured",
+      "description": "Mobile wallet pairing isn't available on this deployment yet. Connect with Freighter instead, or contact the site operator.",
+      "developerHintPrefix": "Developers: set",
+      "developerHintSuffix": "in .env.local (see README) and restart the dev server."
+    },
+    "errors": {
+      "unknown": "Unknown error",
+      "startFailed": "Failed to start WalletConnect"
+    },
+    "status": {
+      "connecting": "Waiting for wallet to scan…",
+      "reconnecting": "Reconnecting to the relay…",
+      "approving": "Approving session…",
+      "connected": "Wallet connected",
+      "signing": "Waiting for signature in wallet…",
+      "disconnected": "Disconnected",
+      "error": "Connection failed"
+    }
   }
 }

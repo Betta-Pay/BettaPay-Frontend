@@ -1,5 +1,9 @@
 import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
+
+// Bootstrap the bundled i18next instance so `useAppTranslation` resolves real
+// English text (and does not warn about a missing instance).
+import '@/lib/i18n/config';
 import { WalletConnectModal } from '../WalletConnectModal';
 
 const connect = jest.fn().mockResolvedValue('wc:test-uri');
@@ -109,5 +113,15 @@ describe('WalletConnectModal network wiring', () => {
 
     expect(await screen.findByTestId('qr')).toBeInTheDocument();
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('renders localized copy through the translation layer (issue #746)', async () => {
+    render(
+      <WalletConnectModal open onOpenChange={jest.fn()} network="testnet" onConnected={jest.fn()} />,
+    );
+
+    expect(await screen.findByText('Connect with WalletConnect')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Copy WalletConnect URI to clipboard' })).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'WalletConnect QR code' })).toBeInTheDocument();
   });
 });
