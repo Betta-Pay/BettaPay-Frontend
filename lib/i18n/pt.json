@@ -94,5 +94,34 @@
       "tooManyRequests": "Muitas tentativas. Aguarde alguns minutos e tente novamente.",
       "generic": "Algo deu errado. Por favor, tente novamente mais tarde."
     }
+  },
+  "walletConnect": {
+    "title": "Conectar com WalletConnect",
+    "description": "Escaneie o código QR com sua carteira móvel Stellar para conectar.",
+    "qrAriaLabel": "Código QR do WalletConnect",
+    "scanPrompt": "Escaneie com sua carteira móvel Stellar (Lobstr, Solar ou qualquer carteira compatível com WalletConnect v2).",
+    "copyUri": "Copiar URI",
+    "copied": "Copiado",
+    "copyAriaLabel": "Copiar URI do WalletConnect para a área de transferência",
+    "tryAgain": "Tentar novamente",
+    "notConfigured": {
+      "title": "WalletConnect não está configurado",
+      "description": "O emparelhamento de carteira móvel ainda não está disponível nesta implantação. Conecte com o Freighter ou entre em contato com o operador do site.",
+      "developerHintPrefix": "Desenvolvedores: defina",
+      "developerHintSuffix": "em .env.local (veja o README) e reinicie o servidor de desenvolvimento."
+    },
+    "errors": {
+      "unknown": "Erro desconhecido",
+      "startFailed": "Falha ao iniciar o WalletConnect"
+    },
+    "status": {
+      "connecting": "Aguardando a leitura pela carteira…",
+      "reconnecting": "Reconectando ao relé…",
+      "approving": "Aprovando sessão…",
+      "connected": "Carteira conectada",
+      "signing": "Aguardando assinatura na carteira…",
+      "disconnected": "Desconectado",
+      "error": "Falha na conexão"
+    }
   }
 }

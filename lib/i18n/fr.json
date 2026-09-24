@@ -94,5 +94,34 @@
       "tooManyRequests": "Trop de tentatives. Veuillez attendre quelques minutes et réessayer.",
       "generic": "Une erreur s'est produite. Veuillez réessayer plus tard."
     }
+  },
+  "walletConnect": {
+    "title": "Se connecter avec WalletConnect",
+    "description": "Scannez le code QR avec votre portefeuille mobile Stellar pour vous connecter.",
+    "qrAriaLabel": "Code QR WalletConnect",
+    "scanPrompt": "Scannez avec votre portefeuille mobile Stellar (Lobstr, Solar ou tout portefeuille compatible WalletConnect v2).",
+    "copyUri": "Copier l'URI",
+    "copied": "Copié",
+    "copyAriaLabel": "Copier l'URI WalletConnect dans le presse-papiers",
+    "tryAgain": "Réessayer",
+    "notConfigured": {
+      "title": "WalletConnect n'est pas configuré",
+      "description": "L'appairage de portefeuille mobile n'est pas encore disponible sur ce déploiement. Connectez-vous avec Freighter ou contactez l'opérateur du site.",
+      "developerHintPrefix": "Développeurs : définissez",
+      "developerHintSuffix": "dans .env.local (voir le README) et redémarrez le serveur de développement."
+    },
+    "errors": {
+      "unknown": "Erreur inconnue",
+      "startFailed": "Échec du démarrage de WalletConnect"
+    },
+    "status": {
+      "connecting": "En attente du scan par le portefeuille…",
+      "reconnecting": "Reconnexion au relais…",
+      "approving": "Approbation de la session…",
+      "connected": "Portefeuille connecté",
+      "signing": "En attente de la signature dans le portefeuille…",
+      "disconnected": "Déconnecté",
+      "error": "Échec de la connexion"
+    }
   }
 }

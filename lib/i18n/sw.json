@@ -94,5 +94,34 @@
       "tooManyRequests": "Majaribio mengi sana. Tafadhali subiri dakika chache na ujaribu tena.",
       "generic": "Hitilafu fulani imetokea. Tafadhali jaribu tena baadaye."
     }
+  },
+  "walletConnect": {
+    "title": "Unganisha na WalletConnect",
+    "description": "Changanua msimbo wa QR kwa pochi yako ya simu ya Stellar ili kuunganisha.",
+    "qrAriaLabel": "Msimbo wa QR wa WalletConnect",
+    "scanPrompt": "Changanua kwa pochi yako ya simu ya Stellar (Lobstr, Solar, au pochi yoyote inayooana na WalletConnect v2).",
+    "copyUri": "Nakili URI",
+    "copied": "Imenakiliwa",
+    "copyAriaLabel": "Nakili URI ya WalletConnect kwenye ubao wa kunakili",
+    "tryAgain": "Jaribu tena",
+    "notConfigured": {
+      "title": "WalletConnect haijasanidiwa",
+      "description": "Uoanishaji wa pochi ya simu haupatikani kwenye usambazaji huu bado. Unganisha na Freighter badala yake, au wasiliana na mwendeshaji wa tovuti.",
+      "developerHintPrefix": "Wasanidi: weka",
+      "developerHintSuffix": "katika .env.local (ona README) na uanzishe upya seva ya ukuzaji."
+    },
+    "errors": {
+      "unknown": "Hitilafu isiyojulikana",
+      "startFailed": "Imeshindwa kuanzisha WalletConnect"
+    },
+    "status": {
+      "connecting": "Inasubiri pochi ichanganue…",
+      "reconnecting": "Inaunganisha tena kwa relay…",
+      "approving": "Inaidhinisha kipindi…",
+      "connected": "Pochi imeunganishwa",
+      "signing": "Inasubiri sahihi kwenye pochi…",
+      "disconnected": "Imetenganishwa",
+      "error": "Muunganisho umeshindwa"
+    }
   }
 }
