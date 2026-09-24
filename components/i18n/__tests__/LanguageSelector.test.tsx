@@ -1,5 +1,10 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 
+jest.mock("next/navigation", () => ({
+  useRouter: () => ({ push: jest.fn() }),
+  usePathname: () => "/en/dashboard",
+}));
+
 import { I18nProvider } from "../I18nProvider";
 import { LanguageSelector } from "../LanguageSelector";
 import { localeStorageKey } from "@/lib/i18n/config";

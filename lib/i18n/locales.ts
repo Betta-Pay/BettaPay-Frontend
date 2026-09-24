@@ -40,6 +40,13 @@ export const defaultLocale: Locale = resolveDefaultLocale();
 export const localeStorageKey = "bettapay-language";
 
 /**
+ * Cookie set by the locale middleware so the server and client can both
+ * resolve the active locale without relying solely on localStorage (which
+ * is unavailable during SSR).
+ */
+export const LOCALE_COOKIE = "NEXT_LOCALE";
+
+/**
  * Map each supported app locale to a BCP-47 tag for `Intl` number/date
  * formatting. `en` maps to `en-US` so existing formatting output is unchanged.
  */
