@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { isSupportedLocale, localeStorageKey, supportedLocales } from "@/lib/i18n/config";
+import { getLocaleDirection } from "@/lib/i18n/locales";
 
 export function LanguageSelector() {
   const { i18n, t } = useTranslation();
@@ -31,6 +32,7 @@ export function LanguageSelector() {
     try {
       window.localStorage.setItem(localeStorageKey, locale);
       document.documentElement.lang = locale;
+      document.documentElement.dir = getLocaleDirection(locale);
     } catch {
       // localStorage access may fail in private mode; still change language in memory
     }

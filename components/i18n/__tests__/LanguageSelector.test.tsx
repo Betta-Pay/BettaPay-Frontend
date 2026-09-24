@@ -16,5 +16,6 @@ describe("LanguageSelector", () => {
     await waitFor(() => expect(screen.getByRole("combobox", { name: "Langue" })).toHaveValue("fr"));
     expect(window.localStorage.getItem(localeStorageKey)).toBe("fr");
     expect(document.documentElement.lang).toBe("fr");
+    expect(document.documentElement.dir).toBe("ltr");
   });
 });
