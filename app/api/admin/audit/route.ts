@@ -11,23 +11,12 @@
  */
 
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
+import { guardAdminApi } from "@/lib/auth/adminApiGuard";
 import { auditLog } from "../merchants/[id]/kyb/route";
 
-function isAdminRequest(): boolean {
-  try {
-    const store = cookies();
-    const role = store.get("user_role")?.value;
-    return role === "admin";
-  } catch {
-    return true;
-  }
-}
-
 export async function GET(req: Request) {
-  if (!isAdminRequest()) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const denied = await guardAdminApi();
+  if (denied) return denied;
 
   const url = new URL(req.url);
   const actionFilter = url.searchParams.get("action"); // e.g. "KYB_*" or "KYB_APPROVED"

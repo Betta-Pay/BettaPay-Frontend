@@ -10,7 +10,7 @@
  */
 
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
+import { guardAdminApi } from "@/lib/auth/adminApiGuard";
 import type { HealthResponse } from "@/lib/types/health";
 import {
   checkHorizon,
@@ -21,24 +21,9 @@ import {
 
 export const runtime = "nodejs"; // ensure fetch is the Node fetch with AbortSignal.timeout
 
-// Lightweight admin guard — the middleware already protects /admin/* pages,
-// but we add a belt-and-braces check here too so the API cannot be hit
-// directly by unauthenticated callers.
-function isAdminRequest(): boolean {
-  try {
-    const store = cookies();
-    const role = store.get("user_role")?.value;
-    return role === "admin";
-  } catch {
-    // Running in an environment where cookies() is unavailable (e.g. tests)
-    return true;
-  }
-}
-
 export async function GET() {
-  if (!isAdminRequest()) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const denied = await guardAdminApi();
+  if (denied) return denied;
 
   // Run all probes concurrently — a single slow probe cannot block the others.
   const [horizon, soroban, sep24, postgres] = await Promise.all([

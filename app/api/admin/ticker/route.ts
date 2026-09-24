@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server';
+import { guardAdminApi } from '@/lib/auth/adminApiGuard';
 
 export async function GET() {
+  const denied = await guardAdminApi();
+  if (denied) return denied;
+
   const now = Date.now();
   // Compute subtle real-time dynamics based on live timestamp
   const baseVolume = 1452310.89;
