@@ -94,5 +94,63 @@
       "tooManyRequests": "Trop de tentatives. Veuillez attendre quelques minutes et réessayer.",
       "generic": "Une erreur s'est produite. Veuillez réessayer plus tard."
     }
+  },
+  "zod": {
+    "errors": {
+      "invalidType": "Entrée invalide : {{expected}} attendu, {{received}} reçu",
+      "invalidTypeNoReceived": "Entrée invalide : {{expected}} attendu",
+      "tooSmall": {
+        "string": "Doit contenir au moins {{minimum}} caractères",
+        "stringExclusive": "Doit contenir plus de {{minimum}} caractères",
+        "number": "Doit être supérieur ou égal à {{minimum}}",
+        "numberExclusive": "Doit être supérieur à {{minimum}}",
+        "array": "Doit contenir au moins {{minimum}} éléments",
+        "arrayExclusive": "Doit contenir plus de {{minimum}} éléments",
+        "default": "La valeur doit être au moins {{minimum}}",
+        "defaultExclusive": "La valeur doit être supérieure à {{minimum}}"
+      },
+      "tooBig": {
+        "string": "Doit contenir au plus {{maximum}} caractères",
+        "stringExclusive": "Doit contenir moins de {{maximum}} caractères",
+        "number": "Doit être inférieur ou égal à {{maximum}}",
+        "numberExclusive": "Doit être inférieur à {{maximum}}",
+        "array": "Doit contenir au plus {{maximum}} éléments",
+        "arrayExclusive": "Doit contenir moins de {{maximum}} éléments",
+        "default": "La valeur doit être au plus {{maximum}}",
+        "defaultExclusive": "La valeur doit être inférieure à {{maximum}}"
+      },
+      "invalidFormat": {
+        "email": "Adresse e-mail invalide",
+        "url": "URL invalide",
+        "regex": "Format invalide",
+        "default": "Format invalide"
+      },
+      "invalidValue": "Valeur invalide : une valeur parmi {{values}} est attendue",
+      "notMultipleOf": "La valeur doit être un multiple de {{divisor}}",
+      "unrecognizedKeys": "Clé(s) non reconnue(s) : {{keys}}",
+      "invalidUnion": "Entrée invalide",
+      "invalidKey": "Clé invalide",
+      "invalidElement": "Élément invalide",
+      "default": "Entrée invalide"
+    }
+  },
+  "validation": {
+    "paymentLink": {
+      "labelMin": "Le libellé doit contenir au moins 2 caractères",
+      "amountValid": "Le montant doit être un nombre valide avec jusqu'à 7 décimales",
+      "amountPositive": "Le montant doit être strictement positif",
+      "amountCurrencyRequired": "Le montant et la devise sont requis pour les liens à montant fixe"
+    },
+    "merchantProfile": {
+      "businessNameRequired": "Le nom de l'entreprise est requis",
+      "countryRequired": "Le pays est requis",
+      "industryRequired": "Le secteur d'activité est requis",
+      "websiteHttps": "L'URL du site web doit commencer par https://",
+      "emailInvalid": "Format d'e-mail invalide"
+    },
+    "editPaymentLink": {
+      "labelRequired": "Le libellé est requis",
+      "urlInvalid": "URL invalide"
+    }
   }
 }

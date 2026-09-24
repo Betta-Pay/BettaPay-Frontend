@@ -94,5 +94,63 @@
       "tooManyRequests": "Majaribio mengi sana. Tafadhali subiri dakika chache na ujaribu tena.",
       "generic": "Hitilafu fulani imetokea. Tafadhali jaribu tena baadaye."
     }
+  },
+  "zod": {
+    "errors": {
+      "invalidType": "Ingizo batili: ilitarajiwa {{expected}}, imepokelewa {{received}}",
+      "invalidTypeNoReceived": "Ingizo batili: ilitarajiwa {{expected}}",
+      "tooSmall": {
+        "string": "Lazima iwe na angalau herufi {{minimum}}",
+        "stringExclusive": "Lazima iwe na zaidi ya herufi {{minimum}}",
+        "number": "Lazima iwe kubwa au sawa na {{minimum}}",
+        "numberExclusive": "Lazima iwe kubwa kuliko {{minimum}}",
+        "array": "Lazima iwe na angalau vipengele {{minimum}}",
+        "arrayExclusive": "Lazima iwe na zaidi ya vipengele {{minimum}}",
+        "default": "Thamani lazima iwe angalau {{minimum}}",
+        "defaultExclusive": "Thamani lazima iwe kubwa kuliko {{minimum}}"
+      },
+      "tooBig": {
+        "string": "Lazima iwe na herufi nyingi zisizozidi {{maximum}}",
+        "stringExclusive": "Lazima iwe na herufi chini ya {{maximum}}",
+        "number": "Lazima iwe ndogo au sawa na {{maximum}}",
+        "numberExclusive": "Lazima iwe ndogo kuliko {{maximum}}",
+        "array": "Lazima iwe na vipengele visivyozidi {{maximum}}",
+        "arrayExclusive": "Lazima iwe na vipengele vichache kuliko {{maximum}}",
+        "default": "Thamani lazima iwe isiyozidi {{maximum}}",
+        "defaultExclusive": "Thamani lazima iwe ndogo kuliko {{maximum}}"
+      },
+      "invalidFormat": {
+        "email": "Anwani ya barua pepe batili",
+        "url": "URL batili",
+        "regex": "Muundo batili",
+        "default": "Muundo batili"
+      },
+      "invalidValue": "Thamani batili: ilitarajiwa mojawapo ya {{values}}",
+      "notMultipleOf": "Thamani lazima iwe kizidishi cha {{divisor}}",
+      "unrecognizedKeys": "Ufunguo/usemi ambao haujatambuliwa: {{keys}}",
+      "invalidUnion": "Ingizo batili",
+      "invalidKey": "Ufunguo batili",
+      "invalidElement": "Kipengele batili",
+      "default": "Ingizo batili"
+    }
+  },
+  "validation": {
+    "paymentLink": {
+      "labelMin": "Lebo lazima iwe na angalau herufi 2",
+      "amountValid": "Kiasi lazima kiwe namba halali yenye hadi sehemu 7 za desimali",
+      "amountPositive": "Kiasi lazima kiwe chanya kabisa",
+      "amountCurrencyRequired": "Kiasi na sarafu vinahitajika kwa viungo vya kiasi maalum"
+    },
+    "merchantProfile": {
+      "businessNameRequired": "Jina la biashara linahitajika",
+      "countryRequired": "Nchi inahitajika",
+      "industryRequired": "Sekta inahitajika",
+      "websiteHttps": "URL ya tovuti lazima ianze na https://",
+      "emailInvalid": "Muundo wa barua pepe batili"
+    },
+    "editPaymentLink": {
+      "labelRequired": "Lebo inahitajika",
+      "urlInvalid": "URL batili"
+    }
   }
 }
