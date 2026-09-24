@@ -1,0 +1,26 @@
+{
+  "extends": [
+    "stylelint-config-standard",
+    "stylelint-config-tailwindcss"
+  ],
+  "ignoreFiles": [
+    "node_modules/**",
+    "public/**",
+    ".next/**",
+    "coverage/**"
+  ],
+  "rules": {
+    "no-empty-source": null,
+    "no-descending-specificity": null,
+    "alpha-value-notation": null,
+    "color-function-notation": null,
+    "color-function-alias-notation": null,
+    "color-hex-length": null,
+    "custom-property-empty-line-before": null,
+    "rule-empty-line-before": null,
+    "comment-empty-line-before": null,
+    "at-rule-empty-line-before": null,
+    "at-rule-prelude-no-invalid": null,
+    "import-notation": null
+  }
+}
