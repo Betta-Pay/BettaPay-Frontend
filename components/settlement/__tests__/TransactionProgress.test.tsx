@@ -116,3 +116,22 @@ describe('TransactionProgress — custom step flows', () => {
     expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '4');
   });
 });
+
+describe('TransactionProgress — lifecycle (no polling)', () => {
+  afterEach(() => jest.restoreAllMocks());
+
+  it('schedules no timers while mounted, so unmount leaves no polling behind', () => {
+    const setIntervalSpy = jest.spyOn(window, 'setInterval');
+    const setTimeoutSpy = jest.spyOn(window, 'setTimeout');
+
+    const { unmount } = render(<TransactionProgress status="confirming" />);
+
+    expect(setIntervalSpy).not.toHaveBeenCalled();
+    expect(setTimeoutSpy).not.toHaveBeenCalled();
+
+    unmount();
+
+    expect(setIntervalSpy).not.toHaveBeenCalled();
+    expect(setTimeoutSpy).not.toHaveBeenCalled();
+  });
+});

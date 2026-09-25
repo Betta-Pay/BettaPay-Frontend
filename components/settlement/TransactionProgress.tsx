@@ -71,6 +71,14 @@ function deriveState<K extends string>(
   return { activeIndex, completedUntil: activeIndex - 1, failedIndex: null, isCompleted: false };
 }
 
+/**
+ * Renders settlement progress from props only.
+ *
+ * Intentionally has no `useEffect`, `setInterval`, or any other timer: polling
+ * and status transitions are owned by the caller (see `SettlementConfirmation`),
+ * so there is no interval to clear on unmount and no background work continues
+ * after the component is removed.
+ */
 export function TransactionProgress<K extends string = SettlementStepKey>({
   // Without `steps`, K falls back to SettlementStepKey, so the default matches.
   steps = SETTLEMENT_STEPS as unknown as ReadonlyArray<ProgressStep<K>>,
