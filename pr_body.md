@@ -1,10 +1,6 @@
-- closes #316
-- closes #328
-- closes #329
-- closes #334
+- closes #289
+- closes #317
 
 ### Changes Made:
-- **`FAQ` Component**: Added a search and filtering input on the pricing page FAQ.
-- **`retryWithBackoff`**: Distinguishes between retryable (5xx, network) and non-retryable (400, 401, 403) HTTP errors before retrying.
-- **`mock` documentation**: Added a clear `README.md` warning new contributors that files in `mock/` are not real API responses.
-- **`useOnlineStatus`**: Fixed SSR hydration mismatch by ensuring it correctly initializes based on `window` existence.
+- **`ProfileEditor`**: Implemented `onBlur` handlers for form fields to instantly validate input and display errors without waiting for a full form submission.
+- **`useCrossTabAuth`**: Added a missing cleanup function in the `useEffect` hook to properly unbind the `storage` event listener upon unmount, preventing memory leaks and duplicate triggers.
