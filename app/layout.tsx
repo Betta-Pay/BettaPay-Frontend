@@ -9,6 +9,8 @@ import { SITE_URL } from "@/lib/config";
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { I18nProvider } from '@/components/i18n/I18nProvider';
 import { TranslationCoveragePanel } from '@/components/i18n/TranslationCoveragePanel';
+import { cookies } from 'next/headers';
+import { isSupportedLocale } from '@/lib/i18n/locales';
 
 
 const fraunces = Fraunces({
@@ -50,6 +52,12 @@ export default async function RootLayout({
   // login page (app/auth/login/page.tsx) shows a disabled "Google login
   // unavailable" fallback with tooltip + dev console.warn in this state.
 
+  // Resolve the document lang attribute from the locale cookie set by the
+  // locale middleware. Falls back to "en" so SSR always produces valid HTML.
+  const cookieStore = await cookies();
+  const rawLocale = cookieStore.get('NEXT_LOCALE')?.value;
+  const htmlLang = rawLocale && isSupportedLocale(rawLocale) ? rawLocale : 'en';
+
   const inner = (
     <I18nProvider>
       <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
@@ -62,7 +70,7 @@ export default async function RootLayout({
   );
 
   return (
-    <html lang="en" suppressHydrationWarning className={cn("font-sans antialiased", fraunces.variable, dmSans.variable)}>
+    <html lang={htmlLang} suppressHydrationWarning className={cn("font-sans antialiased", fraunces.variable, dmSans.variable)}>
       <body className="min-h-screen bg-background text-foreground">
         <a
           href="#main-content"

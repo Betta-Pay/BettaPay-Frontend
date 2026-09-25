@@ -8,6 +8,7 @@ import sw from "./sw.json";
 import {
   defaultLocale,
   isSupportedLocale,
+  LOCALE_COOKIE,
   localeStorageKey,
   supportedLocales,
   type Locale,
@@ -79,9 +80,20 @@ export const resources = fallbackResources;
 
 export function detectPreferredLocale(): Locale {
   if (typeof window === "undefined") return defaultLocale;
+
+  // 1. Check the cookie set by the locale middleware (highest priority —
+  //    reflects the URL path prefix the user navigated to).
+  const cookieLocale = document.cookie
+    .split("; ")
+    .find((c) => c.startsWith(`${LOCALE_COOKIE}=`))
+    ?.split("=")[1];
+  if (cookieLocale && isSupportedLocale(cookieLocale)) return cookieLocale;
+
+  // 2. Check localStorage (user explicitly chose a language via the selector).
   const storedLocale = window.localStorage.getItem(localeStorageKey);
   if (isSupportedLocale(storedLocale)) return storedLocale;
 
+  // 3. Fall back to browser Accept-Language.
   for (const language of window.navigator.languages ?? [window.navigator.language]) {
     const locale = language.toLowerCase().split("-")[0];
     if (isSupportedLocale(locale)) return locale;
