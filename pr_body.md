@@ -1,10 +1,10 @@
-- closes #311
-- closes #312
-- closes #314
-- closes #315
+- closes #316
+- closes #328
+- closes #329
+- closes #334
 
 ### Changes Made:
-- **`ComparisonTable`**: Stripped out hardcoded elements and connected it to the live `usePricingData` hook.
-- **`VolumeCalculator`**: Discarded static values and implemented actual fee calculation logic based on volume input.
-- **`GuideProgress`**: Introduced `localStorage` persistence so user reading progress isn't wiped on reload.
-- **`GuideCard`**: Hooked the component up to the backend via `useGuideData` instead of using dummy strings.
+- **`FAQ` Component**: Added a search and filtering input on the pricing page FAQ.
+- **`retryWithBackoff`**: Distinguishes between retryable (5xx, network) and non-retryable (400, 401, 403) HTTP errors before retrying.
+- **`mock` documentation**: Added a clear `README.md` warning new contributors that files in `mock/` are not real API responses.
+- **`useOnlineStatus`**: Fixed SSR hydration mismatch by ensuring it correctly initializes based on `window` existence.
