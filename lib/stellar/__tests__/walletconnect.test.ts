@@ -315,6 +315,50 @@ describe('phase timeouts', () => {
     expect(err.phase).toBe('signing');
     expect(lastStatus(statuses)).toBe('error');
   });
+
+  // Issue #764: a silently severed relay (e.g. mobile device lock) must error
+  // the pending signature instead of hanging the UI forever.
+  it('errors a pending signature when the relay is severed mid-request', async () => {
+    const { client, statuses } = makeClient();
+    const uri = await client.connect();
+    const sock = latest();
+    sock.accept();
+
+    await drivePairing(client, sock, uri);
+    expect(statuses.some(([s]) => s === 'connected')).toBe(true);
+
+    const rejection = client.signTransaction('AAAAtx').catch((e) => e);
+    expect(lastStatus(statuses)).toBe('signing');
+
+    // The connection dies right after the request went out; the request
+    // itself is still bounded by the signing phase timeout.
+    sock.dropFromServer();
+    expect(statuses.some(([s]) => s === 'reconnecting')).toBe(true);
+
+    await jest.advanceTimersByTimeAsync(60_000 + 100); // SIGN_TIMEOUT_MS
+
+    const err = await rejection;
+    expect(err).toBeInstanceOf(WalletConnectTimeoutError);
+    expect(err.phase).toBe('signing');
+    expect(lastStatus(statuses)).toBe('error');
+  });
+
+  it('rejects a signature with a typed error when the socket is already severed', async () => {
+    const { client } = makeClient();
+    const uri = await client.connect();
+    const sock = latest();
+    sock.accept();
+
+    await drivePairing(client, sock, uri);
+
+    sock.dropFromServer();
+    const rejection = client.signTransaction('AAAAtx').catch((e) => e);
+    await drain(); // flush the publish attempt onto the dead socket
+
+    const err = await rejection;
+    expect(err).toBeInstanceOf(WalletConnectTimeoutError);
+    expect(err.phase).toBe('signing');
+  });
 });
 
 describe('session disconnect', () => {

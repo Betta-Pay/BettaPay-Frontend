@@ -1228,7 +1228,17 @@ export class WalletConnectClient {
         JSON.stringify(payload),
       ).catch((e) => {
         const pending = this.pendingRequests.get(id);
-        pending?.reject(e instanceof Error ? e : new Error(String(e)));
+        // A publish onto a silently severed socket must not leave the signer
+        // hanging on a raw transport error — surface the typed timeout so the
+        // UI recovers (issue #764).
+        pending?.reject(
+          e instanceof WalletConnectTimeoutError
+            ? e
+            : new WalletConnectTimeoutError(
+                'signing',
+                'Lost the connection to the wallet while waiting for the signature. Nothing was signed — please try again.',
+              ),
+        );
       });
     });
   }
