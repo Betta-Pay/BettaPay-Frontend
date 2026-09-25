@@ -12,14 +12,80 @@ if (!process.env.NEXT_PUBLIC_API_URL && process.env.NODE_ENV === "production") {
   );
 }
 
-// Next.js dev mode (React Refresh / webpack HMR) evaluates JavaScript at
-// runtime, which a CSP without 'unsafe-eval' blocks — that stops React from
-// hydrating and leaves the app non-interactive locally. Allow it in development
-// only; the production CSP stays strict.
+// ── Content Security Policy (issue #777) ─────────────────────────────────────
+// Every directive is an explicit allowlist; nothing falls back to a bare
+// `https:` wildcard. Network origins come from the same env vars the app uses
+// at runtime (lib/config.ts), so a deployment pointed at mainnet Horizon or a
+// custom Soroban RPC is allowed automatically.
 const isDev = process.env.NODE_ENV === "development";
-const scriptSrc = isDev
-  ? "script-src 'self' 'unsafe-inline' 'unsafe-eval' https:"
-  : "script-src 'self' 'unsafe-inline' https:";
+
+/** Origin of an absolute URL, or null when unset / not a valid URL. */
+function originOf(url) {
+  if (!url) return null;
+  try {
+    return new URL(url).origin;
+  } catch {
+    return null;
+  }
+}
+
+const unique = (values) => [...new Set(values.filter(Boolean))];
+
+// Google Identity Services (@react-oauth/google) loads its script and
+// stylesheet from accounts.google.com and renders the sign-in button in an
+// iframe from the same origin.
+const GOOGLE_ACCOUNTS = "https://accounts.google.com";
+
+const connectSrc = unique([
+  "'self'",
+  // Backend API — same fallback as lib/api/axios.ts DEFAULT_API_BASE_URL.
+  originOf(process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"),
+  // Horizon + Soroban RPCs: configured endpoints plus the public SDF defaults.
+  originOf(process.env.NEXT_PUBLIC_STELLAR_HORIZON_URL),
+  "https://horizon-testnet.stellar.org",
+  "https://horizon.stellar.org",
+  originOf(process.env.NEXT_PUBLIC_SOROBAN_RPC_URL),
+  "https://soroban-testnet.stellar.org",
+  // WalletConnect relay (lib/stellar/walletconnect.ts opens a WebSocket).
+  originOf(process.env.NEXT_PUBLIC_WALLETCONNECT_RELAY_URL) ||
+    "wss://relay.walletconnect.com",
+  GOOGLE_ACCOUNTS,
+  // Next.js dev server HMR websocket.
+  isDev && "ws://localhost:*",
+  isDev && "ws://127.0.0.1:*",
+]);
+
+const csp = {
+  "default-src": ["'self'"],
+  // Next.js App Router injects inline bootstrap scripts, so 'unsafe-inline'
+  // is required until nonce-based CSP is introduced. Dev mode (React Refresh /
+  // webpack HMR) also evaluates code at runtime and needs 'unsafe-eval' —
+  // without it React never hydrates locally. Production never gets it.
+  "script-src": unique([
+    "'self'",
+    "'unsafe-inline'",
+    isDev && "'unsafe-eval'",
+    GOOGLE_ACCOUNTS,
+  ]),
+  "style-src": ["'self'", "'unsafe-inline'", GOOGLE_ACCOUNTS],
+  // `data:` covers QR codes and KYB upload previews; ui-avatars serves the
+  // About page team avatars.
+  "img-src": ["'self'", "data:", "https://ui-avatars.com"],
+  "font-src": ["'self'", "data:"],
+  "connect-src": connectSrc,
+  "frame-src": [GOOGLE_ACCOUNTS],
+  "worker-src": ["'self'"],
+  "object-src": ["'none'"],
+  "base-uri": ["'self'"],
+  "form-action": ["'self'"],
+  // Nobody may frame the app — blocks clickjacking of payment/admin actions.
+  "frame-ancestors": ["'none'"],
+};
+
+const contentSecurityPolicy = [
+  ...Object.entries(csp).map(([directive, sources]) => `${directive} ${sources.join(" ")}`),
+  ...(isDev ? [] : ["upgrade-insecure-requests"]),
+].join("; ");
 
 const nextConfig = {
   reactStrictMode: true,
@@ -50,7 +116,7 @@ const nextConfig = {
           },
           {
             key: "Content-Security-Policy",
-            value: `default-src 'self'; ${scriptSrc}; style-src 'self' 'unsafe-inline' https:; img-src 'self' data:; connect-src 'self' https: wss:; font-src 'self' data:;`,
+            value: contentSecurityPolicy,
           },
         ],
       },

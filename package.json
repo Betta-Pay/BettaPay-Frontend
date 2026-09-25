@@ -8,6 +8,7 @@
     "analyze": "ANALYZE=true next build",
     "start": "next start",
     "lint": "next lint",
+    "lint:css": "stylelint \"app/**/*.css\" \"components/**/*.css\"",
     "typecheck": "tsc --noEmit",
     "typecheck:snippets": "tsc -p tsconfig.snippets.json",
     "test": "jest --passWithNoTests",
@@ -69,6 +70,9 @@
     "jest": "^30.4.2",
     "jest-environment-jsdom": "^30.4.1",
     "postcss": "^8",
+    "stylelint": "^17.15.0",
+    "stylelint-config-standard": "^40.0.0",
+    "stylelint-config-tailwindcss": "^1.0.1",
     "tailwindcss": "^3.4.1",
     "typescript": "^5"
   },

@@ -4,25 +4,15 @@
  * PATCH  /api/admin/anchors/[id]  – Partial update (toggle enabled, etc.)
  * DELETE /api/admin/anchors/[id]  – Remove anchor
  *
- * Admin-only with belt-and-braces cookie guard.
+ * Admin-only; role verified against the backend session (guardAdminApi).
  */
 
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
+import { guardAdminApi } from "@/lib/auth/adminApiGuard";
 import { anchorStore, mockAnchorStats } from "@/lib/mock/anchors";
 import type { Anchor, KycLevel } from "@/lib/types";
 
 export const runtime = "nodejs";
-
-function isAdminRequest(): boolean {
-  try {
-    const store = cookies();
-    const role = store.get("user_role")?.value;
-    return role === "admin";
-  } catch {
-    return true;
-  }
-}
 
 function findIndex(id: string): number {
   return anchorStore.findIndex((a) => a.id === id);
@@ -32,9 +22,8 @@ export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  if (!isAdminRequest()) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const denied = await guardAdminApi();
+  if (denied) return denied;
 
   const { id } = await params;
   const anchor = anchorStore.find((a) => a.id === id);
@@ -54,9 +43,8 @@ export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  if (!isAdminRequest()) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const denied = await guardAdminApi();
+  if (denied) return denied;
 
   const { id } = await params;
   const idx = findIndex(id);
@@ -127,9 +115,8 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  if (!isAdminRequest()) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const denied = await guardAdminApi();
+  if (denied) return denied;
 
   const { id } = await params;
   const idx = findIndex(id);
@@ -159,9 +146,8 @@ export async function DELETE(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  if (!isAdminRequest()) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const denied = await guardAdminApi();
+  if (denied) return denied;
 
   const { id } = await params;
   const idx = findIndex(id);

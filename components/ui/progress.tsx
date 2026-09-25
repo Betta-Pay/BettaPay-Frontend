@@ -27,8 +27,8 @@ function Progress({ value = 0, label, className, ...props }: ProgressProps) {
       {...props}
     >
       <div
-        className="h-full rounded-full bg-primary transition-[width] duration-300 ease-out"
-        style={{ width: `${pct}%` }}
+        className="h-full w-full flex-1 rounded-full bg-primary transition-transform duration-300 ease-out will-change-transform"
+        style={{ transform: `translateX(-${100 - pct}%)` }}
       />
     </div>
   )

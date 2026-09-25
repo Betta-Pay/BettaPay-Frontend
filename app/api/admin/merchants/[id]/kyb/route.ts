@@ -7,25 +7,13 @@
  *        and updates kybStatus. Reviewer identity is resolved server-side
  *        from the auth cookie — never from the request body.
  *
- * Role gate: admin only (belt-and-suspenders with middleware).
+ * Role gate: admin only, verified against the backend session (guardAdminApi).
  */
 
 import { NextResponse } from "next/server";
+import { guardAdminApi } from "@/lib/auth/adminApiGuard";
 import { cookies } from "next/headers";
 import { z } from "zod";
-
-// ─── Admin guard ──────────────────────────────────────────────────────────────
-
-function isAdminRequest(): boolean {
-  try {
-    const store = cookies();
-    const role = store.get("user_role")?.value;
-    return role === "admin";
-  } catch {
-    // In test environments cookies() may be unavailable
-    return true;
-  }
-}
 
 function getReviewerIdFromCookies(): string {
   try {
@@ -279,9 +267,8 @@ export async function GET(
   _req: Request,
   { params }: { params: { id: string } }
 ) {
-  if (!isAdminRequest()) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const denied = await guardAdminApi();
+  if (denied) return denied;
 
   const profile = merchantKybStore[params.id];
   if (!profile) {
@@ -308,9 +295,8 @@ export async function POST(
   req: Request,
   { params }: { params: { id: string } }
 ) {
-  if (!isAdminRequest()) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const denied = await guardAdminApi();
+  if (denied) return denied;
 
   const profile = merchantKybStore[params.id];
   if (!profile) {

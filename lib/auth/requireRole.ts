@@ -1,3 +1,4 @@
+import { cookies } from "next/headers";
 import type { NextRequest } from "next/server";
 import type { AppRole } from "./routeAccess";
 
@@ -30,7 +31,32 @@ export async function requireRole(
   req: NextRequest | Request,
   required: AppRole,
 ): Promise<RoleCheckResult> {
-  const cookieHeader = req.headers.get("cookie") ?? "";
+  return verifyRoleFromCookieHeader(req.headers.get("cookie") ?? "", required);
+}
+
+/**
+ * Same check as `requireRole`, reading the cookies of the current request via
+ * `next/headers`. Usable from route handlers that don't take a `Request`
+ * argument and from Server Components (e.g. the admin layout, issue #776).
+ * Fails closed when no request context is available.
+ */
+export async function requireRoleFromCookies(required: AppRole): Promise<RoleCheckResult> {
+  let cookieHeader: string;
+  try {
+    cookieHeader = cookies()
+      .getAll()
+      .map((c) => `${c.name}=${c.value}`)
+      .join("; ");
+  } catch {
+    return { ok: false, role: null, status: 403, reason: "role could not be verified" };
+  }
+  return verifyRoleFromCookieHeader(cookieHeader, required);
+}
+
+async function verifyRoleFromCookieHeader(
+  cookieHeader: string,
+  required: AppRole,
+): Promise<RoleCheckResult> {
   const authToken = cookieHeader.match(/(?:^|;\s*)auth_token=([^;]+)/)?.[1];
 
   if (!authToken) {
