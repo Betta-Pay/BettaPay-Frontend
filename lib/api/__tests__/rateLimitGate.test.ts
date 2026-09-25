@@ -1,6 +1,18 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
 import type { AxiosInstance } from 'axios';
 
+function createMemoryStorage(): Storage {
+  const store = new Map<string, string>();
+  return {
+    get length() { return store.size; },
+    clear() { store.clear(); },
+    getItem(key: string) { return store.get(key) ?? null; },
+    setItem(key: string, value: string) { store.set(key, value); },
+    removeItem(key: string) { store.delete(key); },
+    key(index: number) { return Array.from(store.keys())[index] ?? null; },
+  };
+}
+
 // Verifies that an open rate-limit window — including one broadcast from
 // another tab — holds requests back locally instead of firing them into a
 // limit the user is already waiting out.
@@ -8,10 +20,12 @@ describe('axios rate-limit gate', () => {
   let apiClient: AxiosInstance;
   let store: ReturnType<typeof import("../rateLimitStore").createRateLimitStore>;
   let dispatched: string[];
+  let memStorage: Storage;
 
   beforeEach(() => {
     jest.resetModules();
-    localStorage.clear();
+    memStorage = createMemoryStorage();
+    Object.defineProperty(globalThis, 'localStorage', { value: memStorage, writable: true });
     dispatched = [];
 
     const axios = require('axios');

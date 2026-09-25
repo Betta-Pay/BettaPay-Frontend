@@ -5,6 +5,7 @@ import { getWalletConnectClient, resetWalletConnectClient, WalletConnectSession 
 import { retryWithBackoff } from '../utils/retry';
 import { setWalletContextProvider } from '../errorReporting/context';
 import { captureException } from '../errorReporting';
+import { StellarNetwork, STELLAR_NETWORKS, normalizeNetwork } from '@/lib/stellar/config';
 
 type Connector = 'freighter' | 'walletconnect' | null;
 
@@ -29,15 +30,14 @@ function debouncePromise<T extends (...args: any[]) => Promise<void>>(
   }) as T;
 }
 
-const NETWORK_URLS: Record<string, string> = {
-  testnet: 'https://horizon-testnet.stellar.org',
-  public: 'https://horizon.stellar.org',
+const NETWORK_URLS: Record<StellarNetwork, string> = {
+  testnet: STELLAR_NETWORKS.testnet.horizonUrl,
+  public: STELLAR_NETWORKS.public.horizonUrl,
+  futurenet: STELLAR_NETWORKS.futurenet.horizonUrl,
 };
 
-function getNetwork(): 'testnet' | 'public' {
-  const val = (process.env.NEXT_PUBLIC_STELLAR_NETWORK || 'testnet').toLowerCase();
-  if (val === 'mainnet' || val === 'public') return 'public';
-  return 'testnet';
+function getNetwork(): StellarNetwork {
+  return normalizeNetwork(process.env.NEXT_PUBLIC_STELLAR_NETWORK);
 }
 
 const WALLET_SESSION_KEY = 'bettapay_wallet_session';
@@ -47,7 +47,7 @@ type PersistedWalletSession = {
   connector: Exclude<Connector, null>;
   address: string;
   stellarAccounts: string[];
-  network: 'testnet' | 'public';
+  network: StellarNetwork;
   walletConnectSession?: WalletConnectSession;
 };
 
@@ -64,7 +64,7 @@ function readPersistedWalletSession(): PersistedWalletSession | null {
       connector: parsed.connector,
       address: parsed.address,
       stellarAccounts: parsed.stellarAccounts?.length ? parsed.stellarAccounts : [parsed.address],
-      network: parsed.network === 'public' ? 'public' : 'testnet',
+      network: normalizeNetwork(parsed.network),
       walletConnectSession: parsed.walletConnectSession,
     };
   } catch {
@@ -130,7 +130,7 @@ export interface WalletState {
   stellarAccounts: string[];
   isConnected: boolean;
   connector: Connector;
-  network: 'testnet' | 'public';
+  network: StellarNetwork;
   balances: AssetBalance[];
   loading: boolean;
   isReconnecting: boolean;
@@ -158,7 +158,7 @@ export interface WalletState {
   selectAccount: (address: string) => void;
   disconnect: () => void;
   clearConnectError: () => void;
-  setNetwork: (network: 'testnet' | 'public') => void;
+  setNetwork: (network: StellarNetwork) => void;
   refreshBalances: () => Promise<void>;
   /** Sign a transaction XDR via whichever connector is active. */
   signTransaction: (xdr: string) => Promise<string>;
@@ -285,7 +285,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
       }
 
       const client = getWalletConnectClient(persisted.network);
-      await client.restoreSession(persisted.walletConnectSession);
+      await client.restoreSession(wcSession);
       set({
         address: persisted.address,
         stellarAccounts: persisted.stellarAccounts,
@@ -401,7 +401,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
     }
   },
 
-  setNetwork: (network: 'testnet' | 'public') => {
+  setNetwork: (network: StellarNetwork) => {
     const current = get().network;
     if (current === network) return;
     set({ network, balances: [], loading: true, error: null });
@@ -562,7 +562,7 @@ if (typeof window !== 'undefined') {
       if (parsed.connector !== 'freighter' && parsed.connector !== 'walletconnect') return;
 
       const newAddress = parsed.address;
-      const newNetwork = parsed.network === 'public' ? 'public' : 'testnet';
+      const newNetwork = normalizeNetwork(parsed.network);
       const newStellarAccounts = parsed.stellarAccounts?.length ? parsed.stellarAccounts : [newAddress];
 
       const state = useWalletStore.getState();
