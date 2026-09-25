@@ -1,8 +1,31 @@
 import { z } from 'zod';
 
+/**
+ * Largest amount a Stellar operation can carry: int64 max stroops / 10^7.
+ * Anything above this overflows the Stellar SDK transaction builder.
+ */
+export const MAX_STELLAR_AMOUNT = 922337203685.4775807;
+
+/**
+ * Strict numeric view of an amount (issue #778). `.finite()` rejects the
+ * `Infinity` / `NaN` a loose coercion would let through — e.g. a 400-digit
+ * string that `parseFloat` turns into `Infinity` and that would otherwise sail
+ * past a `> 0` check.
+ */
+export const finiteAmountNumberSchema = z.coerce
+  .number('Amount must be a valid number')
+  .finite('Amount must be a finite number')
+  .positive('Amount must be strictly positive')
+  .max(MAX_STELLAR_AMOUNT, 'Amount exceeds the maximum supported value');
+
 const amountSchema = z.string()
   .regex(/^\d+(\.\d{1,7})?$/, 'Amount must be a valid number with up to 7 decimal places')
-  .refine(val => parseFloat(val) > 0, 'Amount must be strictly positive');
+  .superRefine((val, ctx) => {
+    const result = finiteAmountNumberSchema.safeParse(val);
+    if (!result.success) {
+      ctx.addIssue({ code: 'custom', message: result.error.issues[0].message });
+    }
+  });
 
 export const paymentLinkSchema = z.object({
   label: z.string().min(2, 'Label must be at least 2 characters'),
