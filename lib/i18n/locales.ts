@@ -55,6 +55,35 @@ export function isSupportedLocale(value: string | null | undefined): value is Lo
 }
 
 /**
+ * Writing direction used by the `dir` attribute on `<html>` (issue #744).
+ * `ltr` covers every currently supported locale; RTL languages (e.g. Arabic,
+ * Hebrew) are resolved by their base ISO 639-1 code so the document direction
+ * flips automatically the moment such a locale is added to
+ * {@link supportedLocales}. Mirrors i18next's own RTL detection.
+ */
+export type Direction = "ltr" | "rtl";
+
+const RTL_LANGUAGE_CODES = new Set([
+  "ar", // Arabic
+  "ckb", // Central Kurdish
+  "dv", // Divehi
+  "fa", // Persian
+  "he", // Hebrew
+  "ku", // Kurdish
+  "ps", // Pashto
+  "sd", // Sindhi
+  "ug", // Uyghur
+  "ur", // Urdu
+  "yi", // Yiddish
+]);
+
+export function getLocaleDirection(locale: string | null | undefined): Direction {
+  if (!locale) return "ltr";
+  const base = locale.toLowerCase().split("-")[0];
+  return RTL_LANGUAGE_CODES.has(base) ? "rtl" : "ltr";
+}
+
+/**
  * Resolve an arbitrary language tag (e.g. `fr-FR`, `pt`, `de`) to a supported
  * app locale, falling back to {@link defaultLocale} when unsupported.
  */
