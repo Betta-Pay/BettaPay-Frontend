@@ -14,6 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { useAppTranslation } from '@/lib/i18n/useAppTranslation';
 import {
   Card,
   CardContent,
@@ -307,12 +308,54 @@ export function ProfileEditor({
               <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                 Country <span className="text-destructive">*</span>
               </Label>
-              <Input
-                {...register('country')}
-                aria-invalid={!!errors.country}
-                placeholder="e.g. Nigeria"
-                className="h-10 border-border rounded-xl bg-card text-sm"
-                disabled={isSubmitting}
+              {/* Localize country names using Intl.DisplayNames based on active locale */}
+              <Controller
+                name="country"
+                control={control}
+                render={({ field }) => {
+                  const { i18n } = useAppTranslation();
+                  const locale = i18n.language ?? 'en';
+                  // Minimal curated list of ISO 3166-1 alpha-2 country codes used in the app.
+                  const COUNTRY_CODES = [
+                    'NG', // Nigeria
+                    'GH', // Ghana
+                    'KE', // Kenya
+                    'ZA', // South Africa
+                    'US', // United States
+                    'GB', // United Kingdom
+                    'CA', // Canada
+                    'FR', // France
+                    'PT', // Portugal
+                    'SE', // Sweden
+                  ];
+
+                  let displayName: Intl.DisplayNames | null = null;
+                  try {
+                    displayName = new Intl.DisplayNames([locale], { type: 'region' });
+                  } catch (e) {
+                    // Fallback to English if locale unsupported
+                    displayName = new Intl.DisplayNames(['en'], { type: 'region' });
+                  }
+
+                  return (
+                    <Select
+                      value={field.value || null}
+                      onValueChange={(val) => field.onChange(val ?? '')}
+                      disabled={isSubmitting}
+                    >
+                      <SelectTrigger className="w-full h-10 border-border rounded-xl bg-card text-sm" aria-invalid={!!errors.country}>
+                        <SelectValue placeholder="Select your country" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {COUNTRY_CODES.map((code) => (
+                          <SelectItem key={code} value={code}>
+                            {displayName?.of(code) ?? code}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  );
+                }}
               />
               {errors.country && (
                 <p className="text-xs text-destructive mt-1">
