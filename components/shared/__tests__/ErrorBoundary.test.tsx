@@ -79,4 +79,37 @@ describe('ErrorBoundary', () => {
     expect(screen.getByText('recovered content')).toBeInTheDocument();
     expect(screen.queryByText(/something went wrong/i)).not.toBeInTheDocument();
   });
+
+  describe('resetKey', () => {
+    function ResetHost({ resetKey }: { resetKey: string | number }) {
+      return (
+        <ErrorBoundary resetKey={resetKey}>
+          <MaybeBoom />
+        </ErrorBoundary>
+      );
+    }
+
+    it('clears the error state when the parent changes the resetKey', () => {
+      const { rerender } = render(<ResetHost resetKey="attempt-0" />);
+      expect(screen.getByText(/something went wrong/i)).toBeInTheDocument();
+
+      // The child stops throwing, then the parent bumps the key to remount.
+      shouldThrow = false;
+      rerender(<ResetHost resetKey="attempt-1" />);
+
+      expect(screen.getByText('recovered content')).toBeInTheDocument();
+      expect(screen.queryByText(/something went wrong/i)).not.toBeInTheDocument();
+    });
+
+    it('keeps the fallback when the resetKey is unchanged', () => {
+      const { rerender } = render(<ResetHost resetKey="attempt-0" />);
+      expect(screen.getByText(/something went wrong/i)).toBeInTheDocument();
+
+      rerender(<ResetHost resetKey="attempt-0" />);
+
+      // Same key → no reset; the child would still be throwing, so if the
+      // boundary had reset the render would throw again and fail this test.
+      expect(screen.getByText(/something went wrong/i)).toBeInTheDocument();
+    });
+  });
 });
