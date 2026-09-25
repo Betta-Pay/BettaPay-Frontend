@@ -19,6 +19,7 @@ import { KYB_STATUS_META } from '@/lib/kyc/status';
 import { KYB_DOC_TYPES, REQUIRED_KYB_DOC_TYPES } from '@/lib/kyc/types';
 import { KybDocumentRow } from './KybDocumentRow';
 import { KybStatusBadge } from './KybStatusBadge';
+import { ErrorBoundary } from '@/components/shared/ErrorBoundary';
 import { AlertTriangle, ShieldCheck } from 'lucide-react';
 
 interface Props {
@@ -28,7 +29,7 @@ interface Props {
   allowSimulatedReview?: boolean;
 }
 
-export function KybDocumentsPanel({
+function KybDocumentsPanelContent({
   merchantId,
   variant = 'settings',
   allowSimulatedReview = false,
@@ -128,5 +129,40 @@ export function KybDocumentsPanel({
       </CardHeader>
       <CardContent>{body}</CardContent>
     </Card>
+  );
+}
+
+export function KybDocumentsPanel(props: Props) {
+  // Keep this observer outside the boundary so Retry can re-attempt the same
+  // document-status query before asking the boundary to remount its content.
+  const { refetch } = useMerchantKyb(props.merchantId);
+
+  return (
+    <ErrorBoundary
+      fallback={(reset) => (
+        <div className="rounded-lg border border-destructive/30 bg-card p-6" role="alert">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="font-semibold text-foreground">Unable to load KYB documents</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                The document status could not be loaded. Try again to retry the request.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                refetch();
+                reset();
+              }}
+              className="inline-flex h-10 shrink-0 items-center justify-center rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      )}
+    >
+      <KybDocumentsPanelContent {...props} />
+    </ErrorBoundary>
   );
 }
