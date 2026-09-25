@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { User } from "../types";
 import { BP_SESSION_KEY } from "@/lib/auth/session";
+import { ROUTES } from "@/lib/navigation/routes";
 
 interface AuthState {
   user: User | null;
@@ -181,7 +182,7 @@ if (typeof window !== "undefined") {
           useAuthStore.persist.clearStorage();
         } catch {}
         resetAllUserState();
-        window.location.href = "/auth/login";
+        window.location.href = ROUTES.LOGIN;
       }
     };
   } catch {}

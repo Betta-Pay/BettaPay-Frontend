@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useAuthStore } from "@/lib/store/authStore";
 import { getDefaultRoute } from "@/lib/utils";
+import { ROUTES } from "@/lib/navigation/routes";
 import { MerchantSidebar } from "@/components/layout/MerchantSidebar";
 import { AdminSidebar } from "@/components/layout/AdminSidebar";
 import { Topbar } from "@/components/layout/Topbar";
@@ -85,7 +86,7 @@ export default function NotFound() {
     <div className="min-h-screen bg-background flex flex-col">
       {/* Minimal header */}
       <header className="border-b border-border px-6 py-4">
-        <Link href={isAuthenticated ? "/dashboard" : "/"} className="inline-flex items-center gap-2">
+        <Link href={isAuthenticated ? ROUTES.DASHBOARD : ROUTES.HOME} className="inline-flex items-center gap-2">
           <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center p-1">
             <Image src="/logo.png" alt="BettaPay Logo" width={24} height={24} className="w-full h-full object-contain" />
           </div>
@@ -113,7 +114,7 @@ export default function NotFound() {
           <div className="flex flex-col sm:flex-row items-center gap-3">
             {isAuthenticated ? (
               <>
-                <Link href="/dashboard">
+                <Link href={ROUTES.DASHBOARD}>
                   <Button className="shadow-button">
                     <Home className="w-4 h-4 mr-2" />
                     Back to Dashboard
@@ -128,13 +129,13 @@ export default function NotFound() {
               </>
             ) : (
               <>
-                <Link href="/">
+                <Link href={ROUTES.HOME}>
                   <Button className="shadow-button">
                     <ArrowLeft className="w-4 h-4 mr-2" />
                     Go Home
                   </Button>
                 </Link>
-                <Link href="/auth/login">
+                <Link href={ROUTES.LOGIN}>
                   <Button variant="outline">
                     <LifeBuoy className="w-4 h-4 mr-2" />
                     Contact Support

@@ -8,9 +8,10 @@ import {
   Settings,
 } from "lucide-react";
 import type { NavItem } from "./types";
+import { ROUTES } from "./routes";
 
 export const adminNavItems: NavItem[] = [
-  { href: "/overview", label: "Overview", icon: BarChart3 },
+  { href: ROUTES.OVERVIEW, label: "Overview", icon: BarChart3 },
   { href: "/merchants", label: "Merchants", icon: Users },
   { href: "/admin/transactions", label: "Transactions", icon: ListOrdered },
   { href: "/anchors", label: "Anchors", icon: Anchor },

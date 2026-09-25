@@ -7,6 +7,7 @@ import { Button } from "@/components/ui";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui";
 import { getDefaultRoute } from "@/lib/utils";
 import { useNotify } from "@/lib/hooks/useNotify";
+import { ROUTES } from "@/lib/navigation/routes";
 import { useAuthStore } from "@/lib/store/authStore";
 import { apiClient } from "@/lib/api/axios";
 import { Stepper } from "@/components/onboarding/Stepper";
@@ -288,7 +289,7 @@ export default function OnboardingPage() {
   };
 
   const submit = async () => {
-    if (!user) { router.push("/auth/login"); return; }
+    if (!user) { router.push(ROUTES.LOGIN); return; }
     setIsSubmitting(true);
     try {
       await apiClient.patch(`/api/merchants/${user.id}`, {

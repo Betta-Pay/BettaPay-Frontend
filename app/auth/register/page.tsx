@@ -8,6 +8,7 @@ import { Loader2 } from 'lucide-react';
 import { Button, Input } from '@/components/ui';
 import { useNotify } from '@/lib/hooks/useNotify';
 import { announce } from '@/lib/utils/announce';
+import { ROUTES } from '@/lib/navigation/routes';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -108,7 +109,7 @@ export default function RegisterPage() {
 
       if (res.ok) {
         notify.success('Account created successfully');
-        router.push('/dashboard');
+        router.push(ROUTES.DASHBOARD);
       } else {
         notify.error('Could not complete registration. Please try again.');
       }
@@ -266,7 +267,7 @@ export default function RegisterPage() {
       <div className="mt-6 text-center">
         <span className="text-xs text-muted-foreground">Already have an account? </span>
         <Link
-          href="/auth/login"
+          href={ROUTES.LOGIN}
           className="text-xs font-semibold text-primary hover:underline inline-flex items-center gap-1"
         >
           Sign in

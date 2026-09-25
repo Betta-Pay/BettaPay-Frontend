@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { ROUTES } from "@/lib/navigation/routes";
 import {
   BarChart3,
   Users,
@@ -29,7 +30,7 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { href: "/overview", label: "Overview", icon: BarChart3 },
+  { href: ROUTES.OVERVIEW, label: "Overview", icon: BarChart3 },
   { href: "/merchants", label: "Merchants", icon: Users },
   { href: "/admin/transactions", label: "Transactions", icon: ListOrdered },
   { href: "/anchors", label: "Anchors", icon: Anchor },
@@ -104,7 +105,7 @@ export const AdminSidebar = () => {
         style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}
       >
         <Link
-          href="/overview"
+          href={ROUTES.OVERVIEW}
           className={cn("flex items-center gap-2.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 rounded-lg min-w-0", collapsed && "justify-center")}
           aria-label="BettaPay Admin — go to overview"
         >
