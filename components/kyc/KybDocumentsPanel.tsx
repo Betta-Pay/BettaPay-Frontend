@@ -7,16 +7,24 @@
  *
  * `variant="onboarding"` trims the chrome (no card wrapper) so it sits inside
  * the wizard; `variant="settings"` renders a standalone card.
+ *
+ * The panel body is wrapped in the shared `ErrorBoundary` (#756): a bad API
+ * payload (e.g. an unknown `kybStatus` or a non-array `documents` field) used
+ * to throw during render and take down the whole page. The boundary now
+ * contains the failure to this panel and offers a Retry action that
+ * invalidates the cached query and remounts the body.
  */
 
 import { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui';
 import { Skeleton } from '@/components/ui';
 import { cn } from '@/lib/utils';
-import { useMerchantKyb } from '@/lib/kyc/api';
+import { kybQueryKeys, useMerchantKyb } from '@/lib/kyc/api';
 import { KYB_STATUS_META } from '@/lib/kyc/status';
 import { KYB_DOC_TYPES, REQUIRED_KYB_DOC_TYPES } from '@/lib/kyc/types';
+import { ErrorBoundary, ErrorDisplay } from '@/components/shared';
 import { KybDocumentRow } from './KybDocumentRow';
 import { KybStatusBadge } from './KybStatusBadge';
 import { AlertTriangle, ShieldCheck } from 'lucide-react';
@@ -28,11 +36,18 @@ interface Props {
   allowSimulatedReview?: boolean;
 }
 
-export function KybDocumentsPanel({
+/**
+ * The data-dependent body. Deliberately extracted from `KybDocumentsPanel` so
+ * an error boundary around it can catch a render throw — a boundary cannot
+ * catch errors thrown by its own render output.
+ */
+function KybDocumentsPanelBody({
   merchantId,
-  variant = 'settings',
-  allowSimulatedReview = false,
-}: Props) {
+  allowSimulatedReview,
+}: {
+  merchantId: string;
+  allowSimulatedReview: boolean;
+}) {
   const { data: kyb, isLoading, error } = useMerchantKyb(merchantId);
   const [simulateReject, setSimulateReject] = useState(false);
 
@@ -40,7 +55,7 @@ export function KybDocumentsPanel({
   const requiredUploaded = REQUIRED_KYB_DOC_TYPES.filter((t) => byType.has(t)).length;
   const statusMeta = KYB_STATUS_META[kyb.kybStatus];
 
-  const body = (
+  return (
     <div className="space-y-4">
       {/* Status summary */}
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -110,6 +125,45 @@ export function KybDocumentsPanel({
         </div>
       )}
     </div>
+  );
+}
+
+export function KybDocumentsPanel({
+  merchantId,
+  variant = 'settings',
+  allowSimulatedReview = false,
+}: Props) {
+  const queryClient = useQueryClient();
+  const [retryAttempt, setRetryAttempt] = useState(0);
+
+  const handleRetry = () => {
+    // Two-part recovery: drop the (possibly malformed) cached KYB payload so
+    // the remounted body refetches instead of replaying stale data, then
+    // remount the boundary children via resetKey.
+    void queryClient.invalidateQueries({
+      queryKey: kybQueryKeys.profile(merchantId),
+    });
+    setRetryAttempt((n) => n + 1);
+  };
+
+  const body = (
+    <ErrorBoundary
+      resetKey={retryAttempt}
+      fallback={
+        // The settings variant's card chrome sits outside the boundary, so
+        // this in-place fallback fills the same slot for both variants.
+        <ErrorDisplay
+          message="We couldn't load your verification documents."
+          onRetry={handleRetry}
+          retryLabel="Retry"
+        />
+      }
+    >
+      <KybDocumentsPanelBody
+        merchantId={merchantId}
+        allowSimulatedReview={allowSimulatedReview}
+      />
+    </ErrorBoundary>
   );
 
   if (variant === 'onboarding') {

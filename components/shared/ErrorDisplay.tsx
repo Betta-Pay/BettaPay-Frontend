@@ -6,6 +6,8 @@ interface ErrorDisplayProps {
   errors?: Record<string, string>;
   onRetry?: () => void;
   className?: string;
+  /** Overrides the retry button label ("Try Again" by default). */
+  retryLabel?: string;
 }
 
 export function ErrorDisplay({
@@ -13,6 +15,7 @@ export function ErrorDisplay({
   errors,
   onRetry,
   className = "",
+  retryLabel = "Try Again",
 }: ErrorDisplayProps) {
   const hasFieldErrors = errors && Object.keys(errors).length > 0;
 
@@ -42,7 +45,7 @@ export function ErrorDisplay({
           onClick={onRetry}
         >
           <RotateCcw className="w-3.5 h-3.5" aria-hidden="true" />
-          Try Again
+          {retryLabel}
         </Button>
       )}
     </div>
