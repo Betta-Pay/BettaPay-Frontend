@@ -9,6 +9,11 @@ import { SITE_URL } from "@/lib/config";
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { I18nProvider } from '@/components/i18n/I18nProvider';
 import { TranslationCoveragePanel } from '@/components/i18n/TranslationCoveragePanel';
+import {
+  DEFAULT_DESCRIPTION,
+  DEFAULT_OG_IMAGE,
+  DEFAULT_TITLE,
+} from "@/lib/metadata";
 
 
 const fraunces = Fraunces({
@@ -25,12 +30,28 @@ const dmSans = DM_Sans({
 });
 
 
-export const metadata: Metadata = {
-  // Resolves relative canonical/openGraph URLs declared by individual pages.
-  metadataBase: new URL(SITE_URL),
-  title: "BettaPay | Non-custodial Merchant Platform",
-  description: "Accept USDC and stablecoins easily across Africa",
-};
+export function generateMetadata(): Metadata {
+  return {
+    metadataBase: new URL(SITE_URL),
+    applicationName: "BettaPay",
+    title: DEFAULT_TITLE,
+    description: DEFAULT_DESCRIPTION,
+    openGraph: {
+      type: "website",
+      locale: "en_US",
+      siteName: "BettaPay",
+      title: DEFAULT_TITLE,
+      description: DEFAULT_DESCRIPTION,
+      images: [DEFAULT_OG_IMAGE],
+    },
+    twitter: {
+      card: "summary",
+      title: DEFAULT_TITLE,
+      description: DEFAULT_DESCRIPTION,
+      images: [DEFAULT_OG_IMAGE.url],
+    },
+  };
+}
 
 
 export default async function RootLayout({
