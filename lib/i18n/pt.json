@@ -16,7 +16,18 @@
     "company": "Empresa",
     "login": "Entrar",
     "getStarted": "Começar",
-    "dashboard": "Painel"
+    "dashboard": "Painel",
+    "overview": "Visão geral",
+    "payments": "Pagamentos",
+    "transactions": "Transações",
+    "history": "Histórico",
+    "settlement": "Liquidação",
+    "wallet": "Carteira",
+    "fxRates": "Taxas de câmbio",
+    "settings": "Configurações",
+    "more": "Mais",
+    "moreOptions": "Mais opções de navegação",
+    "mobileNavAriaLabel": "Navegação principal móvel"
   },
   "landing": {
     "badge": "Disponível na testnet Soroban",
