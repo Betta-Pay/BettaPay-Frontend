@@ -39,7 +39,7 @@ export default function NotFound() {
     const isMerchant = user?.role !== "admin";
 
     return (
-      <div className="flex h-screen overflow-hidden bg-background">
+      <div className="flex h-screen h-dvh overflow-hidden bg-background">
         {isMerchant ? <MerchantSidebar /> : <AdminSidebar />}
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
           <Topbar />

@@ -68,7 +68,7 @@ export default function MerchantLayout({
   ), []);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
+    <div className="flex h-screen h-dvh overflow-hidden bg-background">
       <ThemePreferenceSync />
       <MerchantSidebar />
 
