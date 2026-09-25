@@ -1,160 +1,97 @@
-"use client";
-
-import Link from "next/link";
-import { useAuthStore } from "@/lib/store/authStore";
-import { getDefaultRoute } from "@/lib/utils";
-import { MerchantSidebar } from "@/components/layout/MerchantSidebar";
-import { AdminSidebar } from "@/components/layout/AdminSidebar";
-import { Topbar } from "@/components/layout/Topbar";
-import { Button } from "@/components/ui";
-import { Home, ArrowLeft, LifeBuoy, Frown } from "lucide-react";
+import { cookies } from "next/headers";
 import Image from "next/image";
-import { useEffect } from "react";
-import { usePathname } from "next/navigation";
+import Link from "next/link";
+import { buttonVariants } from "@/components/ui/button";
+import { getSessionFromCookies } from "@/lib/auth/session";
+import { getDefaultRoute } from "@/lib/utils";
+import { ArrowLeft, Frown, Home, LifeBuoy } from "lucide-react";
 
-/**
- * Standalone 404 page.
- *
- * Renders a simple, self-contained "Page not found" screen for both
- * authenticated and unauthenticated users. Instead of duplicating
- * the merchant layout (MerchantSidebar + Topbar), the page adapts
- * its CTA buttons based on auth state so the user is always directed
- * to the most useful destination.
- *
- * In Next.js App Router, the root `not-found.tsx` is rendered inside
- * the root `layout.tsx`. Because the (merchant) group layout is only
- * applied to routes within that group, re-importing its sidebar/topbar
- * here would duplicate the layout structure without the actual layout
- * context. A standalone design avoids that duplication.
- */
 export default function NotFound() {
-  const { isAuthenticated, user } = useAuthStore();
-  const pathname = usePathname();
-
-  useEffect(() => {
-    console.warn(`404: Page not found at ${pathname}`);
-  }, [pathname]);
-
-  if (isAuthenticated) {
-    const isMerchant = user?.role !== "admin";
-
-    return (
-      <div className="flex h-screen overflow-hidden bg-background">
-        {isMerchant ? <MerchantSidebar /> : <AdminSidebar />}
-        <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-          <Topbar />
-          <main id="main-content" tabIndex={-1} className="flex-1 overflow-y-auto bg-background/50 pb-20 md:pb-0">
-            <div className="mx-auto max-w-7xl px-3 sm:px-6 py-4 sm:py-8">
-              <div className="flex flex-col items-center justify-center py-20 text-center">
-                <div className="w-20 h-20 rounded-2xl bg-primary/10 dark:bg-primary/10 border border-primary/30 dark:border-primary/30 flex items-center justify-center mb-6">
-                  <Frown className="w-10 h-10 text-primary" />
-                </div>
-                <h1 className="text-4xl sm:text-5xl font-bold text-foreground tracking-tight mb-3">
-                  404
-                </h1>
-                <p className="text-xl font-semibold text-foreground mb-2">
-                  Page not found
-                </p>
-                <p className="text-sm text-muted-foreground max-w-md mb-8">
-                  The page you&apos;re looking for doesn&apos;t exist or has been moved.
-                  Check the URL or navigate back to your dashboard.
-                </p>
-                <div className="flex flex-col sm:flex-row items-center gap-3">
-                  <Link href={getDefaultRoute(user?.role)}>
-                    <Button className="shadow-button">
-                      <Home className="w-4 h-4 mr-2" />
-                      Back to Dashboard
-                    </Button>
-                  </Link>
-                  <Link href="/settings">
-                    <Button variant="outline">
-                      <LifeBuoy className="w-4 h-4 mr-2" />
-                      Contact Support
-                    </Button>
-                  </Link>
-                </div>
-              </div>
-            </div>
-          </main>
-        </div>
-      </div>
-    );
-  }
+  const { isAuthenticated, role } = getSessionFromCookies(cookies());
+  const primaryHref = isAuthenticated ? getDefaultRoute(role) : "/";
+  const primaryLabel = isAuthenticated ? "Return to Dashboard" : "Return to Home";
+  const PrimaryIcon = isAuthenticated ? Home : ArrowLeft;
+  const description = isAuthenticated
+    ? "The page you’re looking for doesn’t exist or has moved. Return to your dashboard to continue where you left off."
+    : "Sorry, we couldn’t find the page you were looking for. It might have been removed or the URL may be incorrect.";
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      {/* Minimal header */}
+    <div className="flex min-h-screen flex-col bg-background">
       <header className="border-b border-border px-6 py-4">
-        <Link href={isAuthenticated ? "/dashboard" : "/"} className="inline-flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center p-1">
-            <Image src="/logo.png" alt="BettaPay Logo" width={24} height={24} className="w-full h-full object-contain" />
+        <Link href="/" className="inline-flex items-center gap-2">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 p-1">
+            <Image
+              src="/logo.png"
+              alt="BettaPay Logo"
+              width={24}
+              height={24}
+              className="h-full w-full object-contain"
+            />
           </div>
           <span className="font-semibold text-foreground">BettaPay</span>
         </Link>
       </header>
 
-      {/* Content */}
-      <main id="main-content" tabIndex={-1} className="flex-1 flex items-center justify-center px-4">
-        <div className="flex flex-col items-center text-center max-w-md">
-          <div className="w-20 h-20 rounded-2xl bg-primary/10 border border-primary/30 flex items-center justify-center mb-6">
-            <Frown className="w-10 h-10 text-primary" />
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className="flex flex-1 items-center justify-center px-4"
+      >
+        <div className="flex max-w-md flex-col items-center text-center">
+          <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-2xl border border-primary/30 bg-primary/10">
+            <Frown aria-hidden="true" className="h-10 w-10 text-primary" />
           </div>
-          <h1 className="text-4xl sm:text-5xl font-bold text-foreground tracking-tight mb-3">
-            404
-          </h1>
-          <p className="text-xl font-semibold text-foreground mb-2">
+          <p className="mb-3 text-sm font-semibold uppercase tracking-widest text-primary">
+            Error 404
+          </p>
+          <h1 className="mb-3 text-4xl font-bold tracking-tight text-foreground sm:text-5xl">
             Page not found
+          </h1>
+          <p className="mb-8 max-w-md text-sm text-muted-foreground">
+            {description}
           </p>
-          <p className="text-sm text-muted-foreground max-w-md mb-8">
-            {isAuthenticated
-              ? "The page you\u2019re looking for doesn\u2019t exist or has been moved. Check the URL or navigate back to your dashboard."
-              : "Sorry, we couldn\u2019t find the page you were looking for. It might have been removed or the URL may be incorrect."}
-          </p>
-          <div className="flex flex-col sm:flex-row items-center gap-3">
-            {isAuthenticated ? (
-              <>
-                <Link href="/dashboard">
-                  <Button className="shadow-button">
-                    <Home className="w-4 h-4 mr-2" />
-                    Back to Dashboard
-                  </Button>
-                </Link>
-                <Link href="/settings">
-                  <Button variant="outline">
-                    <LifeBuoy className="w-4 h-4 mr-2" />
-                    Contact Support
-                  </Button>
-                </Link>
-              </>
-            ) : (
-              <>
-                <Link href="/">
-                  <Button className="shadow-button">
-                    <ArrowLeft className="w-4 h-4 mr-2" />
-                    Go Home
-                  </Button>
-                </Link>
-                <Link href="/auth/login">
-                  <Button variant="outline">
-                    <LifeBuoy className="w-4 h-4 mr-2" />
-                    Contact Support
-                  </Button>
-                </Link>
-              </>
-            )}
+          <div className="flex w-full flex-col items-center gap-3 sm:w-auto sm:flex-row">
+            <Link
+              href={primaryHref}
+              className={buttonVariants({
+                size: "lg",
+                className: "w-full shadow-button sm:w-auto",
+              })}
+            >
+              <PrimaryIcon aria-hidden="true" className="h-4 w-4" />
+              {primaryLabel}
+            </Link>
+            <Link
+              href="/contact"
+              className={buttonVariants({
+                variant: "outline",
+                size: "lg",
+                className: "w-full sm:w-auto",
+              })}
+            >
+              <LifeBuoy aria-hidden="true" className="h-4 w-4" />
+              Contact Support
+            </Link>
           </div>
         </div>
       </main>
 
-      {/* Minimal footer */}
       <footer className="border-t border-border py-6 text-center text-xs text-muted-foreground">
-        <div className="flex items-center justify-center gap-2 mb-2">
-          <div className="w-5 h-5 rounded-lg bg-primary/10 flex items-center justify-center p-0.5">
-            <Image src="/logo.png" alt="BettaPay Logo" width={16} height={16} className="w-full h-full object-contain" />
+        <div className="mb-2 flex items-center justify-center gap-2">
+          <div className="flex h-5 w-5 items-center justify-center rounded-lg bg-primary/10 p-0.5">
+            <Image
+              src="/logo.png"
+              alt="BettaPay Logo"
+              width={16}
+              height={16}
+              className="h-full w-full object-contain"
+            />
           </div>
           <span className="font-semibold text-foreground">BettaPay</span>
         </div>
-        <p>&copy; 2026 BettaPay Inc. Built on Stellar &middot; Non-custodial payments</p>
+        <p>
+          &copy; 2026 BettaPay Inc. Built on Stellar &middot; Non-custodial payments
+        </p>
       </footer>
     </div>
   );
