@@ -16,7 +16,18 @@
     "company": "Company",
     "login": "Log in",
     "getStarted": "Get started",
-    "dashboard": "Dashboard"
+    "dashboard": "Dashboard",
+    "overview": "Overview",
+    "payments": "Payments",
+    "transactions": "Transactions",
+    "history": "History",
+    "settlement": "Settlement",
+    "wallet": "Wallet",
+    "fxRates": "FX Rates",
+    "settings": "Settings",
+    "more": "More",
+    "moreOptions": "More navigation options",
+    "mobileNavAriaLabel": "Mobile primary navigation"
   },
   "landing": {
     "badge": "Now live on Soroban Testnet",

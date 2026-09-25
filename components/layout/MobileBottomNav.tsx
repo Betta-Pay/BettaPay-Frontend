@@ -3,6 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import { merchantNavItems } from '@/lib/navigation/merchantNav';
 import { Menu } from 'lucide-react';
@@ -11,7 +12,11 @@ const MOBILE_HREFS = ['/dashboard', '/payments', '/transactions', '/wallet'] as 
 
 const mobileNavItems = MOBILE_HREFS.map((href) => {
   const item = merchantNavItems.find((n) => n.href === href)!;
-  return { ...item, label: item.shortLabel || item.label };
+  return {
+    ...item,
+    labelKey: item.shortLabelKey || item.labelKey,
+    label: item.shortLabel || item.label,
+  };
 });
 
 // Routes where the payment-focused bottom bar should NOT appear.
@@ -40,6 +45,7 @@ interface MobileBottomNavProps {
 }
 
 export const MobileBottomNav = ({ onMoreClick }: MobileBottomNavProps) => {
+  const { t } = useTranslation();
   const pathname = usePathname();
 
   // Route-based visibility - hide outside intended interactive surface
@@ -49,7 +55,7 @@ export const MobileBottomNav = ({ onMoreClick }: MobileBottomNavProps) => {
 
   return (
     <nav
-      aria-label="Mobile primary navigation"
+      aria-label={t('navigation.mobileNavAriaLabel', { defaultValue: 'Mobile primary navigation' })}
       className="fixed bottom-0 md:hidden left-0 right-0 z-40 bg-card border-t border-border px-2 pt-2 flex items-center justify-around shadow-nav-bottom"
       // iOS safe-area: ensure content not clipped behind home indicator. Use env(safe-area-inset-bottom).
       style={{ paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom))' }}
@@ -57,13 +63,14 @@ export const MobileBottomNav = ({ onMoreClick }: MobileBottomNavProps) => {
       {mobileNavItems.map((item) => {
         const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
         const Icon = item.icon as unknown as React.ComponentType<{ className?: string }>;
+        const label = item.labelKey ? t(item.labelKey, { defaultValue: item.label }) : item.label;
 
         return (
           <Link
             key={item.href}
             href={item.href}
             aria-current={isActive ? 'page' : undefined}
-            aria-label={item.label}
+            aria-label={label}
             aria-controls="main-content"
             className={cn(
               // transition-colors: only animate color/background, not layout properties.
@@ -76,7 +83,7 @@ export const MobileBottomNav = ({ onMoreClick }: MobileBottomNavProps) => {
             )}
           >
             <Icon className={cn("w-5 h-5", isActive ? "text-primary" : "text-muted-foreground")} aria-hidden="true" />
-            <span className="text-[10px] font-medium tracking-tight">{item.label}</span>
+            <span className="text-[10px] font-medium tracking-tight">{label}</span>
           </Link>
         );
       })}
@@ -84,7 +91,7 @@ export const MobileBottomNav = ({ onMoreClick }: MobileBottomNavProps) => {
       <button
         type="button"
         onClick={onMoreClick}
-        aria-label="More navigation options"
+        aria-label={t('navigation.moreOptions', { defaultValue: 'More navigation options' })}
         aria-expanded={false}
         aria-controls="mobile-nav"
         className={cn(
@@ -92,7 +99,9 @@ export const MobileBottomNav = ({ onMoreClick }: MobileBottomNavProps) => {
         )}
       >
         <Menu className="w-5 h-5 text-muted-foreground" aria-hidden="true" />
-        <span className="text-[10px] font-medium tracking-tight">More</span>
+        <span className="text-[10px] font-medium tracking-tight">
+          {t('navigation.more', { defaultValue: 'More' })}
+        </span>
       </button>
     </nav>
   );

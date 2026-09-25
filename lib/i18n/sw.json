@@ -16,7 +16,18 @@
     "company": "Kampuni",
     "login": "Ingia",
     "getStarted": "Anza",
-    "dashboard": "Dashibodi"
+    "dashboard": "Dashibodi",
+    "overview": "Muhtasari",
+    "payments": "Malipo",
+    "transactions": "Miamala",
+    "history": "Historia",
+    "settlement": "Suluhu",
+    "wallet": "Pochi",
+    "fxRates": "Viwango vya kubadilisha fedha",
+    "settings": "Mipangilio",
+    "more": "Zaidi",
+    "moreOptions": "Chaguo zaidi za urambazaji",
+    "mobileNavAriaLabel": "Urambazaji mkuu wa simu"
   },
   "landing": {
     "badge": "Sasa inapatikana kwenye Soroban Testnet",
