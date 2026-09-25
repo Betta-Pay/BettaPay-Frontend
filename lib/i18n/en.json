@@ -1,6 +1,7 @@
 {
   "common": {
     "brand": "BettaPay",
+    "close": "Close",
     "language": "Language",
     "skipToContent": "Skip to main content"
   },
