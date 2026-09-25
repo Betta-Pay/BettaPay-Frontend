@@ -3,7 +3,10 @@
 import { useCallback, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { AlertTriangle } from "lucide-react";
-import { MerchantSidebar, MobileNavDrawer, Topbar, MobileBottomNav } from "@/components/layout";
+import { MerchantSidebar } from "@/components/layout/MerchantSidebar";
+import { MobileNavDrawer } from "@/components/layout/MobileNavDrawer";
+import { Topbar } from "@/components/layout/Topbar";
+import { MobileBottomNav } from "@/components/layout/MobileBottomNav";
 import { ThemePreferenceSync } from "@/components/layout/ThemePreferenceSync";
 import { merchantNavItems } from "@/lib/navigation/merchantNav";
 import { PageTransition, ErrorBoundary } from "@/components/shared";
