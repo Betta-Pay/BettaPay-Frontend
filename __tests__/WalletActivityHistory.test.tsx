@@ -1,7 +1,17 @@
 import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { WalletActivityHistory } from '@/components/wallet/WalletActivityHistory';
 import { useWalletStore } from '@/lib/store/walletStore';
+
+function createWrapper() {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+  });
+  return function Wrapper({ children }: { children: React.ReactNode }) {
+    return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
+  };
+}
 
 // Mock tanstack virtual
 jest.mock('@tanstack/react-virtual', () => ({
@@ -33,7 +43,7 @@ describe('WalletActivityHistory (Issue #570)', () => {
   });
 
   it('renders "Wallet not connected" empty state when no address is present', () => {
-    render(<WalletActivityHistory />);
+    render(<WalletActivityHistory />, { wrapper: createWrapper() });
 
     expect(screen.getByText('Wallet not connected')).toBeInTheDocument();
     expect(
@@ -63,7 +73,8 @@ describe('WalletActivityHistory (Issue #570)', () => {
     } as Response);
 
     render(
-      <WalletActivityHistory address="GB22222222222222222222222222222222222222222222222222222222" />
+      <WalletActivityHistory address="GB22222222222222222222222222222222222222222222222222222222" />,
+      { wrapper: createWrapper() },
     );
 
     await waitFor(() => {
@@ -86,7 +97,8 @@ describe('WalletActivityHistory (Issue #570)', () => {
     } as Response);
 
     render(
-      <WalletActivityHistory address="GB22222222222222222222222222222222222222222222222222222222" />
+      <WalletActivityHistory address="GB22222222222222222222222222222222222222222222222222222222" />,
+      { wrapper: createWrapper() },
     );
 
     await waitFor(() => {
@@ -102,7 +114,8 @@ describe('WalletActivityHistory (Issue #570)', () => {
     } as Response);
 
     render(
-      <WalletActivityHistory address="GB22222222222222222222222222222222222222222222222222222222" />
+      <WalletActivityHistory address="GB22222222222222222222222222222222222222222222222222222222" />,
+      { wrapper: createWrapper() },
     );
 
     await waitFor(() => {
