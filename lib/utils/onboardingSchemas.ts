@@ -43,9 +43,35 @@ export const bankDetailsSchema = z.object({
 
 export type BankDetails = z.infer<typeof bankDetailsSchema>;
 
+// `error` (not `errorMap`) is the zod v4 spelling — the old key was silently
+// ignored and left this call with no matching overload.
 export const businessTypeSchema = z.enum(["individual", "business"], {
-  errorMap: () => ({ message: "Business type must be either 'individual' or 'business'" })
+  error: () => ({ message: "Business type must be either 'individual' or 'business'" })
 });
+
+/**
+ * Business info step schema (issue #754).
+ *
+ * The onboarding wizard runs on React Hook Form, so this schema is wired up
+ * with `zodResolver` and the country `Select` is registered through
+ * `Controller` — that is what makes the shadcn dropdown validate like every
+ * other field instead of relying on a hand-rolled check in the page.
+ *
+ * The messages are copied verbatim from the inline checks this replaces so no
+ * user-facing copy changes. Only the business info step is covered here: the
+ * remaining steps keep their existing per-step checks in the page until they
+ * are migrated deliberately.
+ */
+export const businessInfoSchema = z.object({
+  businessName: z
+    .string()
+    .trim()
+    .min(2, { message: "Enter a business name with at least 2 characters." }),
+  businessType: businessTypeSchema,
+  country: z.string().trim().min(1, { message: "Select your country." }),
+});
+
+export type BusinessInfoValues = z.infer<typeof businessInfoSchema>;
 
 export const webhookUrlSchema = z
   .string()
