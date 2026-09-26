@@ -9,22 +9,12 @@
  */
 
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
+import { guardAdminApi } from "@/lib/auth/adminApiGuard";
 import { anchorStore, mockAnchorStats } from "@/lib/mock/anchors";
 import { checkSep24Anchor } from "@/lib/health/checkers";
 import type { AnchorHealth } from "@/lib/types";
 
 export const runtime = "nodejs";
-
-function isAdminRequest(): boolean {
-  try {
-    const store = cookies();
-    const role = store.get("user_role")?.value;
-    return role === "admin";
-  } catch {
-    return true;
-  }
-}
 
 /** Well-known SEP-24 anchor URLs keyed by anchor code. */
 const ANCHOR_ENDPOINTS: Record<string, string> = {
@@ -37,9 +27,8 @@ const ANCHOR_ENDPOINTS: Record<string, string> = {
 };
 
 export async function GET() {
-  if (!isAdminRequest()) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const denied = await guardAdminApi();
+  if (denied) return denied;
 
   const probes: Promise<AnchorHealth>[] = anchorStore.map((anchor) => {
     if (!anchor.enabled) {

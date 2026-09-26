@@ -1,8 +1,13 @@
 "use client";
 
-import { memo, useCallback } from 'react';
+import { memo, useCallback, useMemo } from 'react';
 
 import { useWalletStore } from '@/lib/store/walletStore';
+import {
+  isValidStellarAddress,
+  shortenStellarAddress,
+  toDisplaySafeStellarAddress,
+} from '@/lib/stellar/utils';
 import { Check, Wallet } from 'lucide-react';
 
 interface AccountPickerProps {
@@ -18,7 +23,9 @@ interface AccountItemProps {
 }
 
 const AccountItem = memo(function AccountItem({ acc, index, isSelected, onSelect }: AccountItemProps) {
-  const shortAcc = `${acc.substring(0, 8)}...${acc.slice(-6)}`;
+  // Never render the raw value — only its base32-filtered form.
+  const safeAcc = toDisplaySafeStellarAddress(acc);
+  const shortAcc = shortenStellarAddress(acc);
   return (
     <button
       type="button"
@@ -29,7 +36,7 @@ const AccountItem = memo(function AccountItem({ acc, index, isSelected, onSelect
           ? 'border-primary bg-primary/10 text-foreground font-semibold shadow-sm'
           : 'border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground'
       }`}
-      aria-label={`Select account ${acc}`}
+      aria-label={`Select account ${safeAcc}`}
       aria-selected={isSelected}
     >
       <div className="flex items-center gap-2 overflow-hidden">
@@ -48,16 +55,23 @@ export function AccountPicker({ onAccountSelected, className = '' }: AccountPick
   const stellarAccounts = useWalletStore((s) => s.stellarAccounts);
   const selectAccount = useWalletStore((s) => s.selectAccount);
 
-  if (!stellarAccounts || stellarAccounts.length <= 1) {
-    return null;
-  }
-
   const handleSelect = useCallback((account: string) => {
     selectAccount(account);
     if (onAccountSelected) {
       onAccountSelected(account);
     }
   }, [selectAccount, onAccountSelected]);
+
+  // Defense in depth: only offer well-formed G... public keys, whatever the
+  // wallet session handed us.
+  const accounts = useMemo(
+    () => (stellarAccounts ?? []).filter(isValidStellarAddress),
+    [stellarAccounts],
+  );
+
+  if (accounts.length <= 1) {
+    return null;
+  }
 
   return (
     <div className={`p-4 bg-muted/40 border border-border rounded-xl space-y-3 ${className}`}>
@@ -67,7 +81,7 @@ export function AccountPicker({ onAccountSelected, className = '' }: AccountPick
           <h3 className="text-sm font-semibold text-foreground">Select Active Account</h3>
         </div>
         <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">
-          {stellarAccounts.length} Accounts Presented
+          {accounts.length} Accounts Presented
         </span>
       </div>
 
@@ -76,7 +90,7 @@ export function AccountPicker({ onAccountSelected, className = '' }: AccountPick
       </p>
 
       <div className="space-y-2" role="listbox" aria-label="Available accounts">
-        {stellarAccounts.map((acc, index) => (
+        {accounts.map((acc, index) => (
           <AccountItem
             key={acc}
             acc={acc}
