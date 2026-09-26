@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useCallback } from "react";
 import { Menu, LogOut, Settings, KeyRound, Repeat, Search } from "lucide-react";
 import { openCommandPalette } from "@/lib/command/open";
 import { Button } from "@/components/ui";
@@ -9,6 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -37,7 +38,6 @@ interface TopbarProps {
 }
 
 export const Topbar = ({ onMenuClick, isMenuOpen, title, unreadNotificationCount = 0 }: TopbarProps) => {
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const { user, logout } = useAuthStore();
   const notify = useNotify();
   const router = useRouter();
@@ -142,14 +142,14 @@ export const Topbar = ({ onMenuClick, isMenuOpen, title, unreadNotificationCount
 
         <ThemeToggle />
 
-        {/* User menu */}
-        <DropdownMenu open={isDropdownOpen} onOpenChange={setIsDropdownOpen}>
+        {/* User menu — open state is mirrored to the URL (?menu=open) so a
+            refresh keeps the menu open for deep links (issue #759). */}
+        <DropdownMenu urlParam="menu">
           <DropdownMenuTrigger
             render={
               <Button
                 variant="ghost"
                 className="relative min-h-[44px] min-w-[44px] rounded-xl p-0 hover:bg-muted"
-                aria-expanded={isDropdownOpen}
                 aria-label="User menu"
               >
                 <Avatar className="h-8 w-8 border border-border">
@@ -167,36 +167,40 @@ export const Topbar = ({ onMenuClick, isMenuOpen, title, unreadNotificationCount
             className="w-56 border-border shadow-dropdown rounded-xl mt-1"
             align="end"
           >
-            <DropdownMenuLabel className="font-normal">
-              <div className="flex flex-col space-y-1 py-1">
-                <p className="text-sm font-semibold text-foreground leading-none">
-                  {user?.name ?? "Merchant User"}
-                </p>
-                <p className="text-xs leading-none text-muted-foreground mt-1">
-                  {user?.email ?? "merchant@example.com"}
-                </p>
-              </div>
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator className="bg-muted" />
-            <DropdownMenuItem
-              className="flex items-center gap-2 text-muted-foreground cursor-pointer rounded-lg"
-              onClick={() => router.push("/settings")}
-            >
-              <Settings className="w-4 h-4" /> Profile Settings
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              className="flex items-center gap-2 text-muted-foreground cursor-pointer rounded-lg"
-              onClick={() => router.push("/developers")}
-            >
-              <KeyRound className="w-4 h-4" /> API Keys
-            </DropdownMenuItem>
-            <DropdownMenuSeparator className="bg-muted" />
-            <DropdownMenuItem
-              className="flex items-center gap-2 text-destructive focus:text-destructive focus:bg-destructive/10 cursor-pointer rounded-lg"
-              onClick={handleLogout}
-            >
-              <LogOut className="w-4 h-4" /> Log out
-            </DropdownMenuItem>
+            {/* `DropdownMenuLabel` (Menu.GroupLabel) requires a Menu.Group
+                ancestor, so the whole menu body is wrapped in a group. */}
+            <DropdownMenuGroup>
+              <DropdownMenuLabel className="font-normal">
+                <div className="flex flex-col space-y-1 py-1">
+                  <p className="text-sm font-semibold text-foreground leading-none">
+                    {user?.name ?? "Merchant User"}
+                  </p>
+                  <p className="text-xs leading-none text-muted-foreground mt-1">
+                    {user?.email ?? "merchant@example.com"}
+                  </p>
+                </div>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator className="bg-muted" />
+              <DropdownMenuItem
+                className="flex items-center gap-2 text-muted-foreground cursor-pointer rounded-lg"
+                onClick={() => router.push("/settings")}
+              >
+                <Settings className="w-4 h-4" /> Profile Settings
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="flex items-center gap-2 text-muted-foreground cursor-pointer rounded-lg"
+                onClick={() => router.push("/developers")}
+              >
+                <KeyRound className="w-4 h-4" /> API Keys
+              </DropdownMenuItem>
+              <DropdownMenuSeparator className="bg-muted" />
+              <DropdownMenuItem
+                className="flex items-center gap-2 text-destructive focus:text-destructive focus:bg-destructive/10 cursor-pointer rounded-lg"
+                onClick={handleLogout}
+              >
+                <LogOut className="w-4 h-4" /> Log out
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
