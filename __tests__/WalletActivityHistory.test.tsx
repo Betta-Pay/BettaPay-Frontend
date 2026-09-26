@@ -1,7 +1,8 @@
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import { WalletActivityHistory } from '@/components/wallet/WalletActivityHistory';
 import { useWalletStore } from '@/lib/store/walletStore';
+import { useAuthStore } from '@/lib/store/authStore';
 
 // Mock tanstack virtual
 jest.mock('@tanstack/react-virtual', () => ({
@@ -20,19 +21,26 @@ jest.mock('@tanstack/react-virtual', () => ({
 describe('WalletActivityHistory (Issue #570)', () => {
   const originalFetch = global.fetch;
 
+  const ACTIVE_ACCOUNT = 'GB22222222222222222222222222222222222222222222222222222222';
+  const SECOND_ACCOUNT = `GA${'A'.repeat(54)}`;
+
   beforeEach(() => {
     jest.clearAllMocks();
+    // The component reads the active account from the store (issue #761).
     useWalletStore.setState({
-      address: null,
+      address: ACTIVE_ACCOUNT,
       network: 'testnet',
     });
+    useAuthStore.setState({ user: null });
   });
 
   afterEach(() => {
     global.fetch = originalFetch;
   });
 
-  it('renders "Wallet not connected" empty state when no address is present', () => {
+  it('renders "Wallet not connected" empty state when the store has no address', () => {
+    useWalletStore.setState({ address: null });
+
     render(<WalletActivityHistory />);
 
     expect(screen.getByText('Wallet not connected')).toBeInTheDocument();
@@ -62,9 +70,7 @@ describe('WalletActivityHistory (Issue #570)', () => {
       }),
     } as Response);
 
-    render(
-      <WalletActivityHistory address="GB22222222222222222222222222222222222222222222222222222222" />
-    );
+    render(<WalletActivityHistory />);
 
     await waitFor(() => {
       expect(screen.getByText(/Payment from GA11...1111/i)).toBeInTheDocument();
@@ -77,6 +83,25 @@ describe('WalletActivityHistory (Issue #570)', () => {
     );
   });
 
+  it('follows the store when another account is selected (no prop drilling)', async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ _embedded: { records: [] } }),
+    } as Response);
+
+    render(<WalletActivityHistory />);
+    await waitFor(() => expect(global.fetch).toHaveBeenCalled());
+
+    act(() => {
+      useWalletStore.setState({ address: SECOND_ACCOUNT });
+    });
+
+    await waitFor(() => {
+      const urls = (global.fetch as jest.Mock).mock.calls.map((call) => String(call[0]));
+      expect(urls.some((url) => url.includes(SECOND_ACCOUNT))).toBe(true);
+    });
+  });
+
   it('renders "No wallet activity yet" when account has no on-chain payments', async () => {
     global.fetch = jest.fn().mockResolvedValueOnce({
       ok: true,
@@ -85,9 +110,7 @@ describe('WalletActivityHistory (Issue #570)', () => {
       }),
     } as Response);
 
-    render(
-      <WalletActivityHistory address="GB22222222222222222222222222222222222222222222222222222222" />
-    );
+    render(<WalletActivityHistory />);
 
     await waitFor(() => {
       expect(screen.getByText('No wallet activity yet')).toBeInTheDocument();
@@ -101,9 +124,7 @@ describe('WalletActivityHistory (Issue #570)', () => {
       statusText: 'Internal Server Error',
     } as Response);
 
-    render(
-      <WalletActivityHistory address="GB22222222222222222222222222222222222222222222222222222222" />
-    );
+    render(<WalletActivityHistory />);
 
     await waitFor(() => {
       expect(screen.getByText(/Horizon error: 500 Internal Server Error/i)).toBeInTheDocument();

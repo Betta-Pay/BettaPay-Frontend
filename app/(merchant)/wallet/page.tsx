@@ -386,8 +386,8 @@ export default function WalletPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Transaction history */}
-      <WalletActivityHistory address={address} />
+      {/* Transaction history — reads the active address from the wallet store */}
+      <WalletActivityHistory />
     </div>
   );
 }

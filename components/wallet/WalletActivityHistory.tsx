@@ -9,6 +9,7 @@ import { ArrowUpRight, ArrowDownLeft, Inbox, RefreshCcw, ExternalLink, Loader2, 
 import { getStellarExplorerTxUrl } from '@/lib/utils/explorer';
 import { useTransactionHistory, type StellarPayment } from '@/lib/hooks/useTransactionHistory';
 import { useWalletStore } from '@/lib/store/walletStore';
+import { useAuthStore } from '@/lib/store/authStore';
 
 export type WalletTx = StellarPayment;
 
@@ -48,9 +49,14 @@ const WalletActivityItem = memo(function WalletActivityItem({ tx }: { tx: Wallet
   );
 });
 
-export function WalletActivityHistory({ address: explicitAddress }: { address?: string | null }) {
+export function WalletActivityHistory() {
+  // Single source of truth: the wallet store. The address is no longer drilled
+  // in from the page (issue #761). Mock/preview sessions are keyed by the
+  // merchant's own Stellar public key, so it stays as the fallback used when no
+  // wallet is connected.
   const storeAddress = useWalletStore((s) => s.address);
-  const activeAddress = explicitAddress || storeAddress;
+  const userId = useAuthStore((s) => s.user?.id ?? null);
+  const activeAddress = storeAddress || userId || null;
   const {
     transactions,
     loading,
