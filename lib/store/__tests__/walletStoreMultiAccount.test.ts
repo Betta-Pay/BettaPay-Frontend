@@ -1,5 +1,6 @@
 import { useWalletStore } from '../walletStore';
 import type { WalletConnectSession } from '@/lib/stellar/walletconnect';
+import { createMockFreighterStore } from '../__mocks__/freighterProvider';
 
 const mockWalletConnectClient = {
   restoreSession: jest.fn().mockResolvedValue(undefined),
@@ -14,15 +15,7 @@ jest.mock('@/lib/stellar/walletconnect', () => ({
 describe('useWalletStore - Multi Account Support (#503)', () => {
   beforeEach(() => {
     useWalletStore.setState({
-      address: null,
-      stellarAccounts: [],
-      isConnected: false,
-      connector: null,
-      balances: [],
-      loading: false,
-      isReconnecting: false,
-      error: null,
-      connectError: null,
+      ...createMockFreighterStore(),
       walletConnectPending: false,
       walletConnectSession: null,
       walletModalOpen: false,
