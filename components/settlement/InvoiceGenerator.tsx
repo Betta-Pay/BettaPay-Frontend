@@ -5,6 +5,7 @@ import { Button } from '@/components/ui';
 import { FileDown, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuthStore } from '@/lib/store/authStore';
+import { getActiveLocale, toIntlLocale } from '@/lib/utils/format';
 import type { ApiSettlement } from '@/lib/api/hooks';
 import {
   downloadPdf,
@@ -27,6 +28,21 @@ async function downloadInvoice(data: InvoiceData) {
   const pdf = await generateInvoice(data);
   if (pdf) downloadPdf(pdf);
 }
+
+async function triggerDownload(type: 'SINGLE' | 'BATCH', payload: any) {
+  const intlLocale = toIntlLocale(getActiveLocale());
+  const result = await generatePdfViaWorker(type, { ...payload, intlLocale });
+  if (!result) return;
+  const url = URL.createObjectURL(result.blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = result.filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 
 interface InvoiceDownloadButtonProps {
   settlement: ApiSettlement;
