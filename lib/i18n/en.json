@@ -94,5 +94,36 @@
       "tooManyRequests": "Too many attempts. Please wait a few minutes and try again.",
       "generic": "Something went wrong. Please try again later."
     }
+  },
+  "onboarding": {
+    "gettingStarted": "Getting Started",
+    "stepProgress": "Step {{current}} of {{total}}",
+    "dismissAriaLabel": "Dismiss onboarding",
+    "skip": "Skip",
+    "skipAll": "Skip all",
+    "connected": "Connected",
+    "goToStep": "Go to step {{number}}",
+    "steps": {
+      "connectWallet": {
+        "title": "Connect your Freighter wallet",
+        "description": "Link your Stellar wallet to start accepting USDC payments on the Stellar network.",
+        "cta": "Connect Wallet"
+      },
+      "createPaymentLink": {
+        "title": "Create your first payment link",
+        "description": "Generate a reusable payment link or QR code to share with your customers.",
+        "cta": "Create Payment Link"
+      },
+      "setupBankAccount": {
+        "title": "Set up your bank account",
+        "description": "Add your Nigerian bank account details to enable USDC → NGN settlements.",
+        "cta": "Configure Settlements"
+      },
+      "testPayment": {
+        "title": "Test a payment",
+        "description": "Try the sandbox environment to verify your integration before going live.",
+        "cta": "Open Sandbox"
+      }
+    }
   }
 }

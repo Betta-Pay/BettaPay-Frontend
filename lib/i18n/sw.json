@@ -94,5 +94,36 @@
       "tooManyRequests": "Majaribio mengi sana. Tafadhali subiri dakika chache na ujaribu tena.",
       "generic": "Hitilafu fulani imetokea. Tafadhali jaribu tena baadaye."
     }
+  },
+  "onboarding": {
+    "gettingStarted": "Kuanza",
+    "stepProgress": "Hatua {{current}} kati ya {{total}}",
+    "dismissAriaLabel": "Funga maelekezo ya kuanza",
+    "skip": "Ruka",
+    "skipAll": "Ruka yote",
+    "connected": "Imeunganishwa",
+    "goToStep": "Nenda kwenye hatua {{number}}",
+    "steps": {
+      "connectWallet": {
+        "title": "Unganisha pochi yako ya Freighter",
+        "description": "Unganisha pochi yako ya Stellar kuanza kupokea malipo ya USDC kwenye mtandao wa Stellar.",
+        "cta": "Unganisha pochi"
+      },
+      "createPaymentLink": {
+        "title": "Unda kiungo chako cha kwanza cha malipo",
+        "description": "Tengeneza kiungo cha malipo kinachotumika mara kwa mara au msimbo wa QR kushiriki na wateja wako.",
+        "cta": "Unda kiungo cha malipo"
+      },
+      "setupBankAccount": {
+        "title": "Weka akaunti yako ya benki",
+        "description": "Ongeza maelezo ya akaunti yako ya benki ya Nigeria kuwezesha malipo ya USDC → NGN.",
+        "cta": "Sanzisha malipo"
+      },
+      "testPayment": {
+        "title": "Jaribu malipo",
+        "description": "Jaribu mazingira ya sandbox kuthibitisha muunganisho wako kabla ya kwenda moja kwa moja.",
+        "cta": "Fungua sandbox"
+      }
+    }
   }
 }

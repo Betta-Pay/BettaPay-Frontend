@@ -46,8 +46,8 @@ export function formatNgn(amount: number): string {
   return `NGN ${amount.toLocaleString('en-NG', { maximumFractionDigits: 0 })}`;
 }
 
-function formatInvoiceDate(dateString: string): string {
-  return new Intl.DateTimeFormat('en-US', {
+function formatInvoiceDate(dateString: string, intlLocale: string = 'en-US'): string {
+  return new Intl.DateTimeFormat(intlLocale, {
     month: 'long',
     day: 'numeric',
     year: 'numeric',
@@ -88,7 +88,8 @@ function renderInvoicePage(
   doc: jsPDF,
   settlement: ApiSettlement,
   merchant: InvoiceMerchant,
-  logo: string | null
+  logo: string | null,
+  intlLocale: string = 'en-US'
 ): void {
   const pageWidth = doc.internal.pageSize.getWidth();
   const right = pageWidth - PAGE_MARGIN;
@@ -125,7 +126,7 @@ function renderInvoicePage(
   doc.setFontSize(9);
   doc.setTextColor(...TEXT_MUTED);
   doc.text(buildInvoiceNumber(settlement.id), right, 22, { align: 'right' });
-  doc.text(formatInvoiceDate(settlement.createdAt), right, 27, { align: 'right' });
+  doc.text(formatInvoiceDate(settlement.createdAt, intlLocale), right, 27, { align: 'right' });
 
   // Merchant info
   let y = 42;
@@ -172,7 +173,7 @@ function renderInvoicePage(
     head: [['Settlement Details', '']],
     body: [
       ['Settlement ID', settlement.id],
-      ['Date Initiated', formatInvoiceDate(settlement.createdAt)],
+      ['Date Initiated', formatInvoiceDate(settlement.createdAt, intlLocale)],
       ['Bank', settlement.bankName ?? '—'],
       ['Account Number', settlement.accountNumber ?? '—'],
       ['Exchange Rate', rate ? `NGN ${rate.toLocaleString('en-NG', { maximumFractionDigits: 2 })} / USDC` : '—'],
@@ -253,7 +254,7 @@ function renderInvoicePage(
     PAGE_MARGIN,
     pageHeight - 13.5
   );
-  doc.text(`Generated ${formatInvoiceDate(new Date().toISOString())}`, right, pageHeight - 18, {
+  doc.text(`Generated ${formatInvoiceDate(new Date().toISOString(), intlLocale)}`, right, pageHeight - 18, {
     align: 'right',
   });
 }
@@ -263,20 +264,22 @@ function renderInvoicePage(
 /** Build a single-settlement invoice PDF document. */
 export async function generateSettlementInvoice(
   settlement: ApiSettlement,
-  merchant: InvoiceMerchant
+  merchant: InvoiceMerchant,
+  intlLocale: string = 'en-US'
 ): Promise<jsPDF> {
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
   const logo = await loadLogo();
-  renderInvoicePage(doc, settlement, merchant, logo);
+  renderInvoicePage(doc, settlement, merchant, logo, intlLocale);
   return doc;
 }
 
 /** Generate a Blob for an invoice for one settlement. */
 export async function generateSettlementInvoiceBlob(
   settlement: ApiSettlement,
-  merchant: InvoiceMerchant
+  merchant: InvoiceMerchant,
+  intlLocale: string = 'en-US'
 ): Promise<{ blob: Blob; filename: string }> {
-  const doc = await generateSettlementInvoice(settlement, merchant);
+  const doc = await generateSettlementInvoice(settlement, merchant, intlLocale);
   const now = new Date();
   const date = now.toISOString().slice(0, 10);
   const time = `${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}`;
@@ -287,14 +290,15 @@ export async function generateSettlementInvoiceBlob(
 /** Generate one combined PDF Blob (one invoice per page) for multiple settlements. */
 export async function generateSettlementInvoicesBatchBlob(
   settlements: ApiSettlement[],
-  merchant: InvoiceMerchant
+  merchant: InvoiceMerchant,
+  intlLocale: string = 'en-US'
 ): Promise<{ blob: Blob; filename: string } | null> {
   if (settlements.length === 0) return null;
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
   const logo = await loadLogo();
   settlements.forEach((settlement, index) => {
     if (index > 0) doc.addPage();
-    renderInvoicePage(doc, settlement, merchant, logo);
+    renderInvoicePage(doc, settlement, merchant, logo, intlLocale);
   });
 
   const dates = settlements
