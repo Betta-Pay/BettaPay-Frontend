@@ -57,7 +57,7 @@ export function CopyButton({ value, label = 'Copy', className }: CopyButtonProps
       onClick={handleCopy}
       aria-label={copied ? 'Copied' : label}
       className={cn(
-        'inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:opacity-100',
+        'relative inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:opacity-100',
         className,
       )}
     >
@@ -66,6 +66,14 @@ export function CopyButton({ value, label = 'Copy', className }: CopyButtonProps
       ) : (
         <Copy className="h-3.5 w-3.5" aria-hidden="true" />
       )}
+      {copied ? (
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute right-[calc(100%+0.375rem)] top-1/2 z-20 -translate-y-1/2 whitespace-nowrap rounded-md border border-border bg-popover px-2 py-1 text-[11px] font-medium text-foreground shadow-dropdown"
+        >
+          Copied!
+        </span>
+      ) : null}
     </button>
   );
 }

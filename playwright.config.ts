@@ -1,19 +1,31 @@
 import { defineConfig, devices } from '@playwright/test';
 
 /**
- * The critical user-flow specs run on all three engines (Chromium, Firefox,
- * WebKit). The broader page specs (smoke, docs) that use Chromium-only
- * capabilities (e.g. clipboard permission grants) run on Chromium only.
+ * Cross-browser Playwright configuration.
+ *
+ * All specs run on every engine to catch browser-specific regressions in:
+ *   - CSS animations and transitions (WebKit/Safari)
+ *   - WalletConnect modal behaviour (Firefox)
+ *   - Clipboard, focus management, and keyboard navigation (all engines)
+ *
+ * Projects:
+ *   chromium    – Desktop Chrome  (full suite)
+ *   firefox     – Desktop Firefox (full suite)
+ *   webkit      – Desktop Safari  (full suite)
+ *   mobile-safari – iPhone 14 viewport (full suite, critical for responsive specs)
+ *
+ * CI strategy: each browser runs as a separate matrix job so all four execute
+ * in parallel, keeping total wall-clock time close to a single-browser run.
  */
-const CRITICAL_FLOWS =
-  /(auth|payments|settlement|settings|navigation|transactions|responsive|accessibility)\.spec\.ts$/;
 
 export default defineConfig({
   testDir: './e2e',
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  /* In CI each browser is isolated to its own matrix job, so we can safely
+   * use multiple workers inside that job for spec-level parallelism. */
+  workers: process.env.CI ? 4 : undefined,
   reporter: [
     ['list'],
     ['html', { open: 'never' }],
@@ -26,21 +38,23 @@ export default defineConfig({
     video: 'retain-on-failure',
   },
   projects: [
-    // Chromium runs the entire suite (including smoke/docs).
+    // ── Desktop browsers (full suite) ─────────────────────────────────────
     {
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
     },
-    // Firefox and WebKit validate the critical flows cross-browser.
     {
       name: 'firefox',
       use: { ...devices['Desktop Firefox'] },
-      testMatch: CRITICAL_FLOWS,
     },
     {
       name: 'webkit',
       use: { ...devices['Desktop Safari'] },
-      testMatch: CRITICAL_FLOWS,
+    },
+    // ── Mobile viewport (full suite, Safari engine) ───────────────────────
+    {
+      name: 'mobile-safari',
+      use: { ...devices['iPhone 14'] },
     },
   ],
   webServer: {
@@ -55,3 +69,4 @@ export default defineConfig({
     },
   },
 });
+

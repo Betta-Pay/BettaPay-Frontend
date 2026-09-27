@@ -13,13 +13,9 @@ jest.mock('next/server', () => ({
   },
 }));
 
-jest.mock('next/headers', () => ({
-  cookies: jest.fn(() => ({
-    get: (name: string) => {
-      if (name === 'user_role') return { value: 'admin' };
-      return undefined;
-    },
-  })),
+const mockGuardAdminApi = jest.fn();
+jest.mock('@/lib/auth/adminApiGuard', () => ({
+  guardAdminApi: () => mockGuardAdminApi(),
 }));
 
 import { GET } from '../route';
@@ -67,6 +63,15 @@ function seedTestData() {
 describe('GET /api/admin/performance', () => {
   beforeEach(() => {
     clearEvents();
+    mockGuardAdminApi.mockResolvedValue(null);
+  });
+
+  it('returns the guard response and no data for non-admin callers', async () => {
+    seedTestData();
+    const forbidden = { status: 403, body: JSON.stringify({ error: 'Forbidden' }) };
+    mockGuardAdminApi.mockResolvedValue(forbidden);
+    const res = await GET(makeAdminRequest());
+    expect(res).toBe(forbidden);
   });
 
   it('returns empty data when no events exist', async () => {

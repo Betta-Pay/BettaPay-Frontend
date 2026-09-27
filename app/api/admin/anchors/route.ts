@@ -3,30 +3,19 @@
  * POST /api/admin/anchors  – Create a new anchor
  *
  * Admin-only. The middleware protects /anchors as an admin route and this
- * route adds a belt-and-braces cookie check.
+ * route re-verifies the role against the backend session (guardAdminApi).
  */
 
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
+import { guardAdminApi } from "@/lib/auth/adminApiGuard";
 import { anchorStore } from "@/lib/mock/anchors";
 import type { Anchor, KycLevel } from "@/lib/types";
 
 export const runtime = "nodejs";
 
-function isAdminRequest(): boolean {
-  try {
-    const store = cookies();
-    const role = store.get("user_role")?.value;
-    return role === "admin";
-  } catch {
-    return true;
-  }
-}
-
 export async function GET() {
-  if (!isAdminRequest()) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const denied = await guardAdminApi();
+  if (denied) return denied;
 
   return NextResponse.json(
     { data: anchorStore },
@@ -35,9 +24,8 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  if (!isAdminRequest()) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const denied = await guardAdminApi();
+  if (denied) return denied;
 
   let body: unknown;
   try {

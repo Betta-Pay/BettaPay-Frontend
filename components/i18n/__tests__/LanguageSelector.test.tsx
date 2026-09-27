@@ -1,5 +1,10 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 
+jest.mock("next/navigation", () => ({
+  useRouter: () => ({ push: jest.fn() }),
+  usePathname: () => "/en/dashboard",
+}));
+
 import { I18nProvider } from "../I18nProvider";
 import { LanguageSelector } from "../LanguageSelector";
 import { localeStorageKey } from "@/lib/i18n/config";
@@ -16,5 +21,6 @@ describe("LanguageSelector", () => {
     await waitFor(() => expect(screen.getByRole("combobox", { name: "Langue" })).toHaveValue("fr"));
     expect(window.localStorage.getItem(localeStorageKey)).toBe("fr");
     expect(document.documentElement.lang).toBe("fr");
+    expect(document.documentElement.dir).toBe("ltr");
   });
 });

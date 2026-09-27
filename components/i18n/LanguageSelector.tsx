@@ -3,11 +3,15 @@
 import { Languages } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useRouter, usePathname } from "next/navigation";
 
 import { isSupportedLocale, localeStorageKey, supportedLocales } from "@/lib/i18n/config";
+import { getLocaleDirection } from "@/lib/i18n/locales";
 
 export function LanguageSelector() {
   const { i18n, t } = useTranslation();
+  const router = useRouter();
+  const pathname = usePathname();
   const [mounted, setMounted] = useState(false);
   const [currentLocale, setCurrentLocale] = useState("en");
 
@@ -31,11 +35,18 @@ export function LanguageSelector() {
     try {
       window.localStorage.setItem(localeStorageKey, locale);
       document.documentElement.lang = locale;
+      document.documentElement.dir = getLocaleDirection(locale);
     } catch {
       // localStorage access may fail in private mode; still change language in memory
     }
     setCurrentLocale(locale);
     void i18n.changeLanguage(locale);
+
+    // Navigate to the locale-prefixed URL so the path always reflects the
+    // active language (important for SEO and bookmarkability).
+    const basePath = stripLocalePrefix(pathname);
+    const newPath = `/${locale}${basePath === "/" ? "" : basePath}`;
+    router.push(newPath);
   };
 
   // Prevent hydration mismatch: don't render until mounted in browser

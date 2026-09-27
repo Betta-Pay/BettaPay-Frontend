@@ -1,5 +1,9 @@
-import i18n from '@/lib/i18n/config';
-import { paymentLinkSchema } from '@/lib/utils/validation';
+import {
+  paymentLinkSchema,
+  editPaymentLinkSchema,
+  finiteAmountNumberSchema,
+  MAX_STELLAR_AMOUNT,
+} from '@/lib/utils/validation';
 
 describe('utils/validation', () => {
   afterEach(async () => {
@@ -67,37 +71,41 @@ describe('utils/validation', () => {
     });
   });
 
-  describe('localized messages (issue #747)', () => {
-    it('resolves domain messages in the active language', async () => {
-      await i18n.changeLanguage('fr');
+  describe('amount finiteness (issue #778)', () => {
+    const fixed = (amount: string) =>
+      paymentLinkSchema.safeParse({ label: 'Fixed Link', type: 'fixed', amount, currency: 'USDC' });
 
-      const result = paymentLinkSchema.safeParse({ label: 'x', type: 'open' });
-
-      expect(result.success).toBe(false);
-      if (!result.success) {
-        expect(result.error.issues[0]?.message).toBe(
-          'Le libellé doit contenir au moins 2 caractères',
-        );
-      }
+    it.each(['Infinity', '-Infinity', 'NaN', '1e400', 'abc'])('rejects %s', (amount) => {
+      expect(fixed(amount).success).toBe(false);
+      expect(editPaymentLinkSchema.safeParse({ label: 'Link', amount }).success).toBe(false);
     });
 
-    it('resolves cross-field refinement messages in the active language', async () => {
-      await i18n.changeLanguage('pt');
+    it('rejects digit strings that parseFloat overflows to Infinity', () => {
+      const huge = '9'.repeat(400);
+      expect(Number.isFinite(parseFloat(huge))).toBe(false);
+      expect(fixed(huge).success).toBe(false);
+    });
 
-      const result = paymentLinkSchema.safeParse({
-        label: 'Fixo',
-        type: 'fixed',
-        amount: '10',
-      });
+    it('rejects amounts above the Stellar int64 limit', () => {
+      expect(fixed('922337203686').success).toBe(false);
+    });
 
-      expect(result.success).toBe(false);
-      if (!result.success) {
-        expect(
-          result.error.issues.some(
-            (i) => i.message === 'Valor e moeda são obrigatórios para links de valor fixo',
-          ),
-        ).toBe(true);
-      }
+    it('rejects zero', () => {
+      expect(fixed('0').success).toBe(false);
+      expect(fixed('0.0000000').success).toBe(false);
+    });
+
+    it('accepts ordinary decimal amounts up to 7 places', () => {
+      expect(fixed('12.5').success).toBe(true);
+      expect(fixed('0.0000001').success).toBe(true);
+      expect(fixed('922337203685').success).toBe(true);
+    });
+
+    it('finiteAmountNumberSchema blocks non-finite numbers directly', () => {
+      expect(finiteAmountNumberSchema.safeParse(Infinity).success).toBe(false);
+      expect(finiteAmountNumberSchema.safeParse(NaN).success).toBe(false);
+      expect(finiteAmountNumberSchema.safeParse(MAX_STELLAR_AMOUNT + 1).success).toBe(false);
+      expect(finiteAmountNumberSchema.safeParse('42.1234567').success).toBe(true);
     });
   });
 });

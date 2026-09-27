@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useInfiniteQuery } from '@tanstack/react-query';
 import { useWalletStore } from '@/lib/store/walletStore';
 import { formatRelativeTime, formatDate } from '@/lib/utils/format';
 import { STELLAR_NETWORK } from '@/lib/config';
@@ -33,6 +33,12 @@ export interface UseTransactionHistoryOptions {
   order?: TransactionHistoryOrder;
   /** Explicit Stellar account; falls back to the connected wallet address. */
   address?: string | null;
+}
+
+interface TransactionHistoryPage {
+  payments: StellarPayment[];
+  nextCursor: string | null;
+  hasNext: boolean;
 }
 
 interface HorizonPaymentRecord {
@@ -115,12 +121,6 @@ export function useTransactionHistory(
   explicitAddress?: string | null,
 ) {
   const opts = resolveOptions(limitOrOptions, explicitAddress);
-  const [transactions, setTransactions] = useState<StellarPayment[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [isFetchingNextPage, setIsFetchingNextPage] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [nextCursor, setNextCursor] = useState<string | null>(null);
-  const [hasNextPage, setHasNextPage] = useState(false);
 
   const storeAddress = useWalletStore((s) => s.address);
   const network = useWalletStore((s) => s.network);
@@ -129,28 +129,13 @@ export function useTransactionHistory(
   const pageSize = opts.pageSize;
   const order = opts.order;
 
-  // Keep latest pagination cursor available to loadMore without stale closures.
-  const nextCursorRef = useRef<string | null>(null);
-  useEffect(() => {
-    nextCursorRef.current = nextCursor;
-  }, [nextCursor]);
-
-  const parsePage = useCallback(
-    (data: HorizonPaymentsPage, account: string) => {
-      const records = data._embedded?.records || [];
-      const payments = records.map((record) => mapRecord(record, account));
-      const lastToken = payments.length > 0 ? payments[payments.length - 1].pagingToken : null;
-      // Prefer Horizon's next link when present; otherwise advance via last paging token.
-      const hasNext = Boolean(data._links?.next?.href) && payments.length >= pageSize;
-      return { payments, nextCursor: hasNext ? lastToken : null, hasNext };
-    },
-    [pageSize],
-  );
-
-  const fetchPage = useCallback(
-    async (cursor: string | null) => {
+  const query = useInfiniteQuery({
+    queryKey: ['transactionHistory', network, address, pageSize, order],
+    enabled: Boolean(address),
+    initialPageParam: null as string | null,
+    queryFn: async ({ pageParam }): Promise<TransactionHistoryPage> => {
       if (!address) {
-        return { payments: [] as StellarPayment[], nextCursor: null, hasNext: false };
+        return { payments: [], nextCursor: null, hasNext: false };
       }
 
       const horizonUrl = NETWORK_URLS[network] || NETWORK_URLS[getNetwork()];
@@ -158,7 +143,7 @@ export function useTransactionHistory(
         limit: String(pageSize),
         order,
       });
-      if (cursor) params.set('cursor', cursor);
+      if (pageParam) params.set('cursor', pageParam);
 
       const response = await fetch(
         `${horizonUrl}/accounts/${address}/payments?${params.toString()}`,
@@ -169,77 +154,30 @@ export function useTransactionHistory(
       }
 
       const data = (await response.json()) as HorizonPaymentsPage;
-      return parsePage(data, address);
+      const records = data._embedded?.records || [];
+      const payments = records.map((record) => mapRecord(record, address));
+      const lastToken = payments.length > 0 ? payments[payments.length - 1].pagingToken : null;
+      const hasNext = Boolean(data._links?.next?.href) && payments.length >= pageSize;
+
+      return { payments, nextCursor: hasNext ? lastToken : null, hasNext };
     },
-    [address, network, pageSize, order, parsePage],
-  );
+    getNextPageParam: (lastPage) => lastPage.hasNext ? lastPage.nextCursor : undefined,
+  });
 
-  const fetchTransactions = useCallback(async () => {
-    if (!address) {
-      setTransactions([]);
-      setNextCursor(null);
-      setHasNextPage(false);
-      setLoading(false);
-      setError(null);
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-
-    try {
-      const page = await fetchPage(null);
-      setTransactions(page.payments);
-      setNextCursor(page.nextCursor);
-      setHasNextPage(page.hasNext);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch transactions');
-      setTransactions([]);
-      setNextCursor(null);
-      setHasNextPage(false);
-    } finally {
-      setLoading(false);
-    }
-  }, [address, fetchPage]);
-
-  const loadMore = useCallback(async () => {
-    if (!address || !hasNextPage || isFetchingNextPage || loading) return;
-    const cursor = nextCursorRef.current;
-    if (!cursor) return;
-
-    setIsFetchingNextPage(true);
-    setError(null);
-
-    try {
-      const page = await fetchPage(cursor);
-      setTransactions((prev) => {
-        const seen = new Set(prev.map((tx) => tx.id));
-        const appended = page.payments.filter((tx) => !seen.has(tx.id));
-        return [...prev, ...appended];
-      });
-      setNextCursor(page.nextCursor);
-      setHasNextPage(page.hasNext);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load more transactions');
-    } finally {
-      setIsFetchingNextPage(false);
-    }
-  }, [address, hasNextPage, isFetchingNextPage, loading, fetchPage]);
-
-  useEffect(() => {
-    void fetchTransactions();
-  }, [fetchTransactions]);
+  const pages = query.data?.pages ?? [];
+  const transactions = pages.flatMap((page) => page.payments);
+  const lastPage = pages[pages.length - 1];
 
   return {
     transactions,
-    loading,
-    error,
-    refetch: fetchTransactions,
-    loadMore,
-    hasNextPage,
-    isFetchingNextPage,
+    loading: query.isLoading,
+    error: query.error instanceof Error ? query.error.message : null,
+    refetch: () => { void query.refetch(); },
+    loadMore: () => query.fetchNextPage(),
+    hasNextPage: query.hasNextPage,
+    isFetchingNextPage: query.isFetchingNextPage,
     pageSize,
     order,
-    nextCursor,
+    nextCursor: lastPage?.nextCursor ?? null,
   };
 }
