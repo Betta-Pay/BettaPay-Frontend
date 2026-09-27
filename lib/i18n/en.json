@@ -1,6 +1,7 @@
 {
   "common": {
     "brand": "BettaPay",
+    "close": "Close",
     "language": "Language",
     "skipToContent": "Skip to main content"
   },
@@ -16,7 +17,18 @@
     "company": "Company",
     "login": "Log in",
     "getStarted": "Get started",
-    "dashboard": "Dashboard"
+    "dashboard": "Dashboard",
+    "overview": "Overview",
+    "payments": "Payments",
+    "transactions": "Transactions",
+    "history": "History",
+    "settlement": "Settlement",
+    "wallet": "Wallet",
+    "fxRates": "FX Rates",
+    "settings": "Settings",
+    "more": "More",
+    "moreOptions": "More navigation options",
+    "mobileNavAriaLabel": "Mobile primary navigation"
   },
   "landing": {
     "badge": "Now live on Soroban Testnet",
@@ -95,33 +107,35 @@
       "generic": "Something went wrong. Please try again later."
     }
   },
-  "walletConnect": {
-    "title": "Connect with WalletConnect",
-    "description": "Scan the QR code with your Stellar mobile wallet to connect.",
-    "qrAriaLabel": "WalletConnect QR code",
-    "scanPrompt": "Scan with your Stellar mobile wallet (Lobstr, Solar, or any WalletConnect v2 compatible wallet).",
-    "copyUri": "Copy URI",
-    "copied": "Copied",
-    "copyAriaLabel": "Copy WalletConnect URI to clipboard",
-    "tryAgain": "Try again",
-    "notConfigured": {
-      "title": "WalletConnect is not configured",
-      "description": "Mobile wallet pairing isn't available on this deployment yet. Connect with Freighter instead, or contact the site operator.",
-      "developerHintPrefix": "Developers: set",
-      "developerHintSuffix": "in .env.local (see README) and restart the dev server."
-    },
-    "errors": {
-      "unknown": "Unknown error",
-      "startFailed": "Failed to start WalletConnect"
-    },
-    "status": {
-      "connecting": "Waiting for wallet to scan…",
-      "reconnecting": "Reconnecting to the relay…",
-      "approving": "Approving session…",
-      "connected": "Wallet connected",
-      "signing": "Waiting for signature in wallet…",
-      "disconnected": "Disconnected",
-      "error": "Connection failed"
+  "onboarding": {
+    "gettingStarted": "Getting Started",
+    "stepProgress": "Step {{current}} of {{total}}",
+    "dismissAriaLabel": "Dismiss onboarding",
+    "skip": "Skip",
+    "skipAll": "Skip all",
+    "connected": "Connected",
+    "goToStep": "Go to step {{number}}",
+    "steps": {
+      "connectWallet": {
+        "title": "Connect your Freighter wallet",
+        "description": "Link your Stellar wallet to start accepting USDC payments on the Stellar network.",
+        "cta": "Connect Wallet"
+      },
+      "createPaymentLink": {
+        "title": "Create your first payment link",
+        "description": "Generate a reusable payment link or QR code to share with your customers.",
+        "cta": "Create Payment Link"
+      },
+      "setupBankAccount": {
+        "title": "Set up your bank account",
+        "description": "Add your Nigerian bank account details to enable USDC → NGN settlements.",
+        "cta": "Configure Settlements"
+      },
+      "testPayment": {
+        "title": "Test a payment",
+        "description": "Try the sandbox environment to verify your integration before going live.",
+        "cta": "Open Sandbox"
+      }
     }
   }
 }

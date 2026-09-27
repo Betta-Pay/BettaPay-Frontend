@@ -3,7 +3,7 @@
  *
  * Admin-only endpoint providing aggregated RUM performance data.
  *
- * - Requires admin authorization (belt-and-suspenders with middleware)
+ * - Requires a backend-verified admin session (see guardAdminApi)
  * - Provides route-level LCP/CLS trends, percentiles, distributions
  * - Never returns PII
  * - Handles empty datasets gracefully
@@ -11,7 +11,7 @@
  */
 
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
+import { guardAdminApi } from "@/lib/auth/adminApiGuard";
 import { z } from "zod";
 import {
   queryEvents,
@@ -24,17 +24,6 @@ import {
   computeDistribution,
 } from "@/lib/rum/aggregate";
 import type { RumMetricName } from "@/lib/rum/types";
-
-// Admin authorization check (belt-and-suspenders with middleware)
-function isAdminRequest(): boolean {
-  try {
-    const store = cookies();
-    const role = store.get("user_role")?.value;
-    return role === "admin";
-  } catch {
-    return true; // Tests or unavailable cookies context
-  }
-}
 
 // Query parameter schema
 const querySchema = z
@@ -60,9 +49,8 @@ const querySchema = z
   .strict();
 
 export async function GET(req: Request) {
-  if (!isAdminRequest()) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const denied = await guardAdminApi();
+  if (denied) return denied;
 
   try {
     const url = new URL(req.url);

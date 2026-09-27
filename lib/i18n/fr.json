@@ -16,7 +16,18 @@
     "company": "Entreprise",
     "login": "Se connecter",
     "getStarted": "Commencer",
-    "dashboard": "Tableau de bord"
+    "dashboard": "Tableau de bord",
+    "overview": "Aperçu",
+    "payments": "Paiements",
+    "transactions": "Transactions",
+    "history": "Historique",
+    "settlement": "Règlement",
+    "wallet": "Portefeuille",
+    "fxRates": "Taux de change",
+    "settings": "Paramètres",
+    "more": "Plus",
+    "moreOptions": "Plus d'options de navigation",
+    "mobileNavAriaLabel": "Navigation principale mobile"
   },
   "landing": {
     "badge": "Disponible sur le testnet Soroban",
@@ -95,33 +106,35 @@
       "generic": "Une erreur s'est produite. Veuillez réessayer plus tard."
     }
   },
-  "walletConnect": {
-    "title": "Se connecter avec WalletConnect",
-    "description": "Scannez le code QR avec votre portefeuille mobile Stellar pour vous connecter.",
-    "qrAriaLabel": "Code QR WalletConnect",
-    "scanPrompt": "Scannez avec votre portefeuille mobile Stellar (Lobstr, Solar ou tout portefeuille compatible WalletConnect v2).",
-    "copyUri": "Copier l'URI",
-    "copied": "Copié",
-    "copyAriaLabel": "Copier l'URI WalletConnect dans le presse-papiers",
-    "tryAgain": "Réessayer",
-    "notConfigured": {
-      "title": "WalletConnect n'est pas configuré",
-      "description": "L'appairage de portefeuille mobile n'est pas encore disponible sur ce déploiement. Connectez-vous avec Freighter ou contactez l'opérateur du site.",
-      "developerHintPrefix": "Développeurs : définissez",
-      "developerHintSuffix": "dans .env.local (voir le README) et redémarrez le serveur de développement."
-    },
-    "errors": {
-      "unknown": "Erreur inconnue",
-      "startFailed": "Échec du démarrage de WalletConnect"
-    },
-    "status": {
-      "connecting": "En attente du scan par le portefeuille…",
-      "reconnecting": "Reconnexion au relais…",
-      "approving": "Approbation de la session…",
-      "connected": "Portefeuille connecté",
-      "signing": "En attente de la signature dans le portefeuille…",
-      "disconnected": "Déconnecté",
-      "error": "Échec de la connexion"
+  "onboarding": {
+    "gettingStarted": "Pour commencer",
+    "stepProgress": "Étape {{current}} sur {{total}}",
+    "dismissAriaLabel": "Fermer l'assistant de démarrage",
+    "skip": "Passer",
+    "skipAll": "Tout passer",
+    "connected": "Connecté",
+    "goToStep": "Aller à l'étape {{number}}",
+    "steps": {
+      "connectWallet": {
+        "title": "Connectez votre portefeuille Freighter",
+        "description": "Liez votre portefeuille Stellar pour commencer à accepter les paiements USDC sur le réseau Stellar.",
+        "cta": "Connecter le portefeuille"
+      },
+      "createPaymentLink": {
+        "title": "Créez votre premier lien de paiement",
+        "description": "Générez un lien de paiement réutilisable ou un code QR à partager avec vos clients.",
+        "cta": "Créer un lien de paiement"
+      },
+      "setupBankAccount": {
+        "title": "Configurez votre compte bancaire",
+        "description": "Ajoutez les coordonnées de votre compte bancaire nigérian pour activer les règlements USDC → NGN.",
+        "cta": "Configurer les règlements"
+      },
+      "testPayment": {
+        "title": "Testez un paiement",
+        "description": "Essayez l'environnement sandbox pour vérifier votre intégration avant de passer en production.",
+        "cta": "Ouvrir le sandbox"
+      }
     }
   }
 }

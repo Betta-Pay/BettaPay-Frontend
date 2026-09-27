@@ -30,6 +30,7 @@ describe("I18nProvider — browser language detection", () => {
 
     await waitFor(() => expect(screen.getByTestId("resolved-locale")).toHaveTextContent("fr"));
     expect(document.documentElement.lang).toBe("fr");
+    expect(document.documentElement.dir).toBe("ltr");
   });
 
   it("falls back to English when the browser language is unsupported", async () => {

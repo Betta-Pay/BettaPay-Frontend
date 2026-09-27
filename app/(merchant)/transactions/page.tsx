@@ -19,6 +19,7 @@ import { sanitizeSearchQuery } from '@/lib/utils/sanitize';
 import { ArrowDown, ArrowUp, ArrowUpDown, Search, SearchX, ExternalLink } from 'lucide-react';
 import { getStellarExplorerTxUrl } from '@/lib/utils/explorer';
 import { useWalletStore } from '@/lib/store/walletStore';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { TransactionDrawer } from '@/components/transactions/TransactionDrawer';
 import { useOfflineStore } from '@/lib/store/offlineStore';
@@ -184,16 +185,51 @@ function SortIcon({ direction }: { direction: false | 'asc' | 'desc' }) {
 export default function TransactionsPage() {
   const { data: payments = [], isLoading, error: fetchError, refetch, isFetching } = usePayments();
 
-  const [searchTerm, setSearchTerm] = useState('');
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  const [searchTerm, setSearchTerm] = useState(() => searchParams.get('q') ?? '');
   const sanitizedOnChange = useCallback(
     (value: string) => setSearchTerm(sanitizeSearchQuery(value)),
     [],
   );
   const [debouncedSearch] = useDebounceValue(searchTerm, 300);
+  const [statusFilter, setStatusFilter] = useState(() => searchParams.get('status') ?? 'all');
+  const [assetFilter, setAssetFilter] = useState(() => searchParams.get('asset') ?? 'all');
+  const [dateRangeFilter, setDateRangeFilter] = useState(() => searchParams.get('date') ?? 'all');
+  const [page, setPage] = useState<number>(() => {
+    const p = searchParams.get('page');
+    const n = p ? parseInt(p, 10) : NaN;
+    return Number.isFinite(n) ? n : 1;
+  });
 
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [assetFilter, setAssetFilter] = useState('all');
-  const [dateRangeFilter, setDateRangeFilter] = useState('all');
+  // Keep local state in sync when URL search params change externally
+  useEffect(() => {
+    setSearchTerm(searchParams.get('q') ?? '');
+    setStatusFilter(searchParams.get('status') ?? 'all');
+    setAssetFilter(searchParams.get('asset') ?? 'all');
+    setDateRangeFilter(searchParams.get('date') ?? 'all');
+    const p = searchParams.get('page');
+    const n = p ? parseInt(p, 10) : NaN;
+    setPage(Number.isFinite(n) ? n : 1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams.toString()]);
+
+  const pushParams = useCallback((updates: Record<string, string | number | null | undefined>) => {
+    const params = new URLSearchParams(searchParams as unknown as string);
+    Object.entries(updates).forEach(([k, v]) => {
+      if (v === null || v === undefined || v === 'all' || (typeof v === 'string' && v === '')) {
+        params.delete(k);
+      } else {
+        params.set(k, String(v));
+      }
+    });
+    const qs = params.toString();
+    const href = qs ? `${pathname}?${qs}` : pathname;
+    // use push so user can navigate back, replace could be used to avoid history pollution
+    router.push(href);
+  }, [router, pathname, searchParams]);
 
   // Selection is stored by stable id so background refetches cannot drop it.
   const [selectedTxId, setSelectedTxId] = useState<string | null>(null);
@@ -306,6 +342,22 @@ export default function TransactionsPage() {
   const handleSelectTx = useCallback((tx: Transaction) => {
     setSelectedTxId(tx.id);
   }, []);
+
+  // Sync debounced search -> URL (reset to page 1 on new search)
+  useEffect(() => {
+    pushParams({ q: debouncedSearch || null, page: 1 });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedSearch]);
+
+  // Sync filter values and page -> URL
+  useEffect(() => {
+    pushParams({
+      status: statusFilter !== 'all' ? statusFilter : null,
+      asset: assetFilter !== 'all' ? assetFilter : null,
+      date: dateRangeFilter !== 'all' ? dateRangeFilter : null,
+      page: page && page > 1 ? page : null,
+    });
+  }, [statusFilter, assetFilter, dateRangeFilter, page, pushParams]);
 
   // Resolve selection from the latest payments array so drawer content stays fresh
   // after refetch without losing which row was open.

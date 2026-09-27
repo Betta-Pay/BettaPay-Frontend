@@ -12,15 +12,23 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # ── Cross-browser critical flows ───────────────────────────────────────────
+  # ── Cross-browser E2E (all engines, parallel matrix) ───────────────────────
   e2e:
-    name: e2e (${{ matrix.browser }})
+    name: e2e (${{ matrix.project }})
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
-        browser: [chromium, firefox, webkit]
+        include:
+          - project: chromium
+            browser: chromium
+          - project: firefox
+            browser: firefox
+          - project: webkit
+            browser: webkit
+          - project: mobile-safari
+            browser: webkit
     env:
       CI: 'true'
       NEXT_PUBLIC_API_URL: 'http://localhost:3000'
@@ -38,14 +46,14 @@ jobs:
       - name: Install Playwright browser (${{ matrix.browser }})
         run: npx playwright install --with-deps ${{ matrix.browser }}
 
-      - name: Run Playwright tests
-        run: npx playwright test --project=${{ matrix.browser }}
+      - name: Run Playwright tests (${{ matrix.project }})
+        run: npx playwright test --project=${{ matrix.project }}
 
       - name: Upload Playwright report
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-report-${{ matrix.browser }}
+          name: playwright-report-${{ matrix.project }}
           path: playwright-report/
           retention-days: 14
 
@@ -53,9 +61,10 @@ jobs:
         if: ${{ failure() }}
         uses: actions/upload-artifact@v4
         with:
-          name: test-results-${{ matrix.browser }}
+          name: test-results-${{ matrix.project }}
           path: test-results/
           retention-days: 14
+
 
   # ── Coverage report (Chromium V8 coverage) ─────────────────────────────────
   coverage:

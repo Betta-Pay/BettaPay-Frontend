@@ -416,6 +416,12 @@ export function useMerchantProfile(
   const query = useQuery<MerchantProfile | null, Error>({
     queryKey: queryKeys.merchant(merchantId),
     enabled: Boolean(merchantId),
+    // The profile is shared context referenced by every merchant sub-route.
+    // Without a stale window each consumer mount re-fires the request even
+    // though the cached identity data cannot have changed underneath us
+    // (issue #737); 5 minutes keeps navigation fetch-free while still letting
+    // explicit refetches (e.g. after saving in settings) go through.
+    staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       const res = await apiClient.get<ItemEnvelope<MerchantProfile> | MerchantProfile>(
         `/api/merchants/${merchantId}`,
