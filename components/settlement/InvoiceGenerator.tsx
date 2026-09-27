@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { Button } from '@/components/ui';
-import { FileDown, Loader2 } from 'lucide-react';
+import { FileDown } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuthStore } from '@/lib/store/authStore';
 import type { ApiSettlement } from '@/lib/api/hooks';
@@ -12,6 +12,7 @@ import {
   type InvoiceData,
   type InvoiceMerchant,
 } from '@/lib/services/pdfGenerator';
+import { InvoicePreviewModal, type InvoicePreviewData } from './InvoicePreviewModal';
 
 function useInvoiceMerchant(): InvoiceMerchant {
   const user = useAuthStore((s) => s.user);
@@ -32,8 +33,9 @@ interface InvoiceDownloadButtonProps {
   settlement: ApiSettlement;
 }
 
-/** Icon button that downloads a PDF invoice for a single completed settlement. */
+/** Icon button that opens an invoice preview before downloading a PDF for a completed settlement (issue #790). */
 export function InvoiceDownloadButton({ settlement }: InvoiceDownloadButtonProps) {
+  const [previewOpen, setPreviewOpen] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const merchant = useInvoiceMerchant();
 
@@ -42,6 +44,7 @@ export function InvoiceDownloadButton({ settlement }: InvoiceDownloadButtonProps
     try {
       await downloadInvoice({ kind: 'single', settlement, merchant });
       toast.success('Invoice downloaded');
+      setPreviewOpen(false);
     } catch {
       toast.error('Failed to generate invoice');
     } finally {
@@ -50,21 +53,26 @@ export function InvoiceDownloadButton({ settlement }: InvoiceDownloadButtonProps
   };
 
   return (
-    <Button
-      variant="ghost"
-      size="icon"
-      className="min-h-[44px] min-w-[44px] rounded-lg"
-      onClick={handleDownload}
-      disabled={isGenerating}
-      aria-label="Download invoice"
-      title="Download invoice"
-    >
-      {isGenerating ? (
-        <Loader2 className="w-3.5 h-3.5 text-muted-foreground animate-spin" />
-      ) : (
+    <>
+      <Button
+        variant="ghost"
+        size="icon"
+        className="min-h-[44px] min-w-[44px] rounded-lg"
+        onClick={() => setPreviewOpen(true)}
+        aria-label="Preview invoice"
+        title="Preview invoice"
+      >
         <FileDown className="w-3.5 h-3.5 text-muted-foreground" />
-      )}
-    </Button>
+      </Button>
+      <InvoicePreviewModal
+        open={previewOpen}
+        onOpenChange={setPreviewOpen}
+        data={{ kind: 'single', settlement } satisfies InvoicePreviewData}
+        merchant={merchant}
+        isDownloading={isGenerating}
+        onDownload={handleDownload}
+      />
+    </>
   );
 }
 
@@ -73,8 +81,9 @@ interface BatchInvoiceDownloadProps {
   disabled?: boolean;
 }
 
-/** Downloads a single PDF containing one invoice per completed settlement. */
+/** Opens an invoice preview, then downloads a single PDF with one invoice per completed settlement (issue #790). */
 export function BatchInvoiceDownload({ settlements, disabled }: BatchInvoiceDownloadProps) {
+  const [previewOpen, setPreviewOpen] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const merchant = useInvoiceMerchant();
 
@@ -85,6 +94,7 @@ export function BatchInvoiceDownload({ settlements, disabled }: BatchInvoiceDown
     try {
       await downloadInvoice({ kind: 'batch', settlements: completed, merchant });
       toast.success(`Downloaded ${completed.length} invoice${completed.length === 1 ? '' : 's'}`);
+      setPreviewOpen(false);
     } catch {
       toast.error('Failed to generate invoices');
     } finally {
@@ -93,19 +103,25 @@ export function BatchInvoiceDownload({ settlements, disabled }: BatchInvoiceDown
   };
 
   return (
-    <Button
-      variant="outline"
-      disabled={disabled || isGenerating || completed.length === 0}
-      aria-disabled={disabled || isGenerating || completed.length === 0}
-      onClick={handleDownload}
-      className="border-border text-muted-foreground rounded-xl text-xs h-8 px-3"
-    >
-      {isGenerating ? (
-        <Loader2 className="w-3 h-3 mr-1.5 animate-spin" />
-      ) : (
+    <>
+      <Button
+        variant="outline"
+        disabled={disabled || completed.length === 0}
+        aria-disabled={disabled || completed.length === 0}
+        onClick={() => setPreviewOpen(true)}
+        className="border-border text-muted-foreground rounded-xl text-xs h-8 px-3"
+      >
         <FileDown className="w-3 h-3 mr-1.5" />
-      )}
-      Download Invoices
-    </Button>
+        Download Invoices
+      </Button>
+      <InvoicePreviewModal
+        open={previewOpen}
+        onOpenChange={setPreviewOpen}
+        data={{ kind: 'batch', settlements: completed } satisfies InvoicePreviewData}
+        merchant={merchant}
+        isDownloading={isGenerating}
+        onDownload={handleDownload}
+      />
+    </>
   );
 }

@@ -315,6 +315,50 @@ describe('phase timeouts', () => {
     expect(err.phase).toBe('signing');
     expect(lastStatus(statuses)).toBe('error');
   });
+
+  // Issue #764: a silently severed relay (e.g. mobile device lock) must error
+  // the pending signature instead of hanging the UI forever.
+  it('errors a pending signature when the relay is severed mid-request', async () => {
+    const { client, statuses } = makeClient();
+    const uri = await client.connect();
+    const sock = latest();
+    sock.accept();
+
+    await drivePairing(client, sock, uri);
+    expect(statuses.some(([s]) => s === 'connected')).toBe(true);
+
+    const rejection = client.signTransaction('AAAAtx').catch((e) => e);
+    expect(lastStatus(statuses)).toBe('signing');
+
+    // The connection dies right after the request went out; the request
+    // itself is still bounded by the signing phase timeout.
+    sock.dropFromServer();
+    expect(statuses.some(([s]) => s === 'reconnecting')).toBe(true);
+
+    await jest.advanceTimersByTimeAsync(60_000 + 100); // SIGN_TIMEOUT_MS
+
+    const err = await rejection;
+    expect(err).toBeInstanceOf(WalletConnectTimeoutError);
+    expect(err.phase).toBe('signing');
+    expect(lastStatus(statuses)).toBe('error');
+  });
+
+  it('rejects a signature with a typed error when the socket is already severed', async () => {
+    const { client } = makeClient();
+    const uri = await client.connect();
+    const sock = latest();
+    sock.accept();
+
+    await drivePairing(client, sock, uri);
+
+    sock.dropFromServer();
+    const rejection = client.signTransaction('AAAAtx').catch((e) => e);
+    await drain(); // flush the publish attempt onto the dead socket
+
+    const err = await rejection;
+    expect(err).toBeInstanceOf(WalletConnectTimeoutError);
+    expect(err.phase).toBe('signing');
+  });
 });
 
 describe('session disconnect', () => {
@@ -340,6 +384,82 @@ describe('session disconnect', () => {
       relaySub(
         sessionTopic,
         await seal(JSON.stringify({ id: 99, jsonrpc: '2.0', method: 'wc_sessionDelete', params: {} }), sessionKey, sessionTopic),
+      ),
+    );
+    await drain();
+
+    expect(lastStatus(statuses)).toBe('disconnected');
+  });
+});
+
+describe('session restore vitality (#792)', () => {
+  function baseSession(sessionKeyHex: string) {
+    return {
+      topic: 'session-topic',
+      peerMetadata: { name: 'Test Wallet', description: '', url: '', icons: [] },
+      stellarAccounts: [`G${'A'.repeat(55)}`],
+      address: `G${'A'.repeat(55)}`,
+      sessionKey: sessionKeyHex,
+      expiry: Math.floor(Date.now() / 1000) + 3600,
+    };
+  }
+
+  it('stays connected when the peer answers the restore liveness ping', async () => {
+    const { client, statuses } = makeClient();
+    const sessionKeyHex = 'aa'.repeat(32);
+    const sessionKey = await importAesKey(sessionKeyHex);
+
+    await client.restoreSession(baseSession(sessionKeyHex));
+    const sock = latest();
+    sock.accept();
+    await drain();
+
+    await answerRestoreVitalityPing(sock, sessionKey, 'session-topic');
+
+    // The ping resolved before its timeout budget — the session must not
+    // have been torn down.
+    await jest.advanceTimersByTimeAsync(15_000 + 100); // SESSION_RESTORE_PING_TIMEOUT_MS
+    expect(lastStatus(statuses)).toBe('connected');
+    expect(client.getResourceStats().topics).toBe(1);
+  });
+
+  it('silently disconnects a restored session whose peer never answers the ping', async () => {
+    const { client, statuses } = makeClient();
+    const sessionKeyHex = 'bb'.repeat(32);
+
+    await client.restoreSession(baseSession(sessionKeyHex));
+    const sock = latest();
+    sock.accept();
+    await drain();
+
+    // Never answer the ping — let it time out.
+    await jest.advanceTimersByTimeAsync(15_000 + 100); // SESSION_RESTORE_PING_TIMEOUT_MS
+
+    expect(lastStatus(statuses)).toBe('disconnected');
+    expect(client.getResourceStats()).toEqual({
+      topics: 0, subscriptions: 0, pendingSubscribes: 0, pendingRequests: 0, ivTopics: 0, ivEntries: 0,
+    });
+  });
+
+  it('disconnects a restored session when the peer rejects the liveness ping', async () => {
+    const { client, statuses } = makeClient();
+    const sessionKeyHex = 'cc'.repeat(32);
+    const sessionKey = await importAesKey(sessionKeyHex);
+
+    await client.restoreSession(baseSession(sessionKeyHex));
+    const sock = latest();
+    sock.accept();
+    await drain();
+
+    const pingId = await findPublishedRpcId(sock, sessionKey, 'session-topic', 'wc_sessionPing');
+    sock.deliver(
+      relaySub(
+        'session-topic',
+        await seal(
+          JSON.stringify({ id: pingId, jsonrpc: '2.0', error: { code: -1, message: 'no session' } }),
+          sessionKey,
+          'session-topic',
+        ),
       ),
     );
     await drain();
@@ -625,11 +745,19 @@ describe('resource cleanup', () => {
     const sock = latest();
     sock.accept();
 
+    // Restoring triggers a background liveness ping (issue #792); answer it
+    // so it doesn't time out and disconnect the client partway through this
+    // test's multi-minute timeline.
+    await drain();
+    await answerRestoreVitalityPing(sock, sessionKey, 'session-topic');
+
     for (let i = 0; i < 20; i += 1) {
       sock.deliver(relaySub('session-topic', await seal(JSON.stringify({ id: 1000 + i, jsonrpc: '2.0', method: 'wc_sessionPing', params: {} }), sessionKey, 'session-topic')));
     }
     await drain();
-    expect(client.getResourceStats().ivEntries).toBe(20);
+    // 20 inbound pings plus the one IV recorded when we answered the restore
+    // vitality ping above.
+    expect(client.getResourceStats().ivEntries).toBe(21);
 
     // Answer every heartbeat so the socket stays up while the window elapses.
     for (let t = 0; t < 13; t += 1) {
@@ -717,6 +845,41 @@ async function open(envelopeMessage: string, key: CryptoKey, topic: string): Pro
     asBuf(fromB64url(env.message)),
   );
   return new TextDecoder().decode(buf);
+}
+
+/** Finds the rpc id of the first published (encrypted) app message matching `method` on `topic`. */
+async function findPublishedRpcId(
+  sock: MockRelaySocket,
+  sessionKey: CryptoKey,
+  topic: string,
+  method: string,
+): Promise<number> {
+  for (const sent of sock.parsedSent()) {
+    if (sent.method !== 'irn_publish') continue;
+    const envelopeMessage = (sent.params as { message: string }).message;
+    let plaintext: Record<string, unknown>;
+    try {
+      plaintext = JSON.parse(await open(envelopeMessage, sessionKey, topic));
+    } catch {
+      continue; // not decryptable with this key/topic
+    }
+    if (plaintext.method === method) return plaintext.id as number;
+  }
+  throw new Error(`Expected a ${method} to have been published on ${topic}`);
+}
+
+/**
+ * Finds the `wc_sessionPing` the client sends automatically right after
+ * `restoreSession()` reopens the socket (issue #792) and delivers a matching
+ * `{ result: true }` response, so tests that don't care about the vitality
+ * check don't have it time out mid-test and disconnect the client.
+ */
+async function answerRestoreVitalityPing(sock: MockRelaySocket, sessionKey: CryptoKey, topic: string) {
+  const pingId = await findPublishedRpcId(sock, sessionKey, topic, 'wc_sessionPing');
+  sock.deliver(
+    relaySub(topic, await seal(JSON.stringify({ id: pingId, jsonrpc: '2.0', result: true }), sessionKey, topic)),
+  );
+  await drain();
 }
 
 function relaySub(topic: string, envelope: unknown) {

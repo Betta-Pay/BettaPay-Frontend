@@ -8,6 +8,7 @@ import { useWalletStore } from "@/lib/store/walletStore";
 import { useSessionCheck } from "@/lib/hooks/useSessionCheck";
 import { useCrossTabAuth } from "@/lib/hooks/useCrossTabAuth";
 import { useCrossTabRateLimit } from "@/lib/hooks/useCrossTabRateLimit";
+import { useSyncOnlineStatus } from "@/lib/hooks/useSyncOnlineStatus";
 import { setAppRouter } from "@/lib/navigation/appRouter";
 import { OfflineBanner } from "@/components/ui/offline-banner";
 import { initRum } from "@/lib/rum";
@@ -108,6 +109,10 @@ export function AppProviders({ children }: { children: ReactNode }) {
 
   useRouteChange();
   useHydrationCapture();
+  // Sync the offline store with the real browser online status once, after
+  // hydration.  The store defaults to `true` so SSR and initial client render
+  // agree; this effect reconciles with `navigator.onLine` on mount.
+  useSyncOnlineStatus();
   const { isVerifying } = useSessionCheck();
   useCrossTabAuth();
   const pathname = usePathname();

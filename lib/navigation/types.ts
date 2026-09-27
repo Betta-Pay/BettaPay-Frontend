@@ -5,4 +5,6 @@ export interface NavItem {
   badge?: string | number;
   description?: string;
   shortLabel?: string;
+  labelKey?: string;
+  shortLabelKey?: string;
 }

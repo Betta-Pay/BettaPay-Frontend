@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { Avatar as AvatarPrimitive } from "@base-ui/react/avatar"
+import Image from "next/image"
 
 import { cn } from "@/lib/utils"
 
@@ -29,6 +30,14 @@ function AvatarImage({ className, ...props }: AvatarPrimitive.Image.Props) {
   return (
     <AvatarPrimitive.Image
       data-slot="avatar-image"
+      render={
+        <Image
+          fill
+          sizes="40px"
+          src={props.src}
+          alt={props.alt ?? ""}
+        />
+      }
       className={cn(
         "aspect-square size-full rounded-full object-cover",
         className

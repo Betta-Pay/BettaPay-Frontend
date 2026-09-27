@@ -1,8 +1,18 @@
 import React from 'react';
-import { act, render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { WalletActivityHistory } from '@/components/wallet/WalletActivityHistory';
 import { useWalletStore } from '@/lib/store/walletStore';
 import { useAuthStore } from '@/lib/store/authStore';
+
+function createWrapper() {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+  });
+  return function Wrapper({ children }: { children: React.ReactNode }) {
+    return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
+  };
+}
 
 // Mock tanstack virtual
 jest.mock('@tanstack/react-virtual', () => ({
@@ -38,10 +48,8 @@ describe('WalletActivityHistory (Issue #570)', () => {
     global.fetch = originalFetch;
   });
 
-  it('renders "Wallet not connected" empty state when the store has no address', () => {
-    useWalletStore.setState({ address: null });
-
-    render(<WalletActivityHistory />);
+  it('renders "Wallet not connected" empty state when no address is present', () => {
+    render(<WalletActivityHistory />, { wrapper: createWrapper() });
 
     expect(screen.getByText('Wallet not connected')).toBeInTheDocument();
     expect(
@@ -70,7 +78,10 @@ describe('WalletActivityHistory (Issue #570)', () => {
       }),
     } as Response);
 
-    render(<WalletActivityHistory />);
+    render(
+      <WalletActivityHistory address="GB22222222222222222222222222222222222222222222222222222222" />,
+      { wrapper: createWrapper() },
+    );
 
     await waitFor(() => {
       expect(screen.getByText(/Payment from GA11...1111/i)).toBeInTheDocument();
@@ -110,7 +121,10 @@ describe('WalletActivityHistory (Issue #570)', () => {
       }),
     } as Response);
 
-    render(<WalletActivityHistory />);
+    render(
+      <WalletActivityHistory address="GB22222222222222222222222222222222222222222222222222222222" />,
+      { wrapper: createWrapper() },
+    );
 
     await waitFor(() => {
       expect(screen.getByText('No wallet activity yet')).toBeInTheDocument();
@@ -124,7 +138,10 @@ describe('WalletActivityHistory (Issue #570)', () => {
       statusText: 'Internal Server Error',
     } as Response);
 
-    render(<WalletActivityHistory />);
+    render(
+      <WalletActivityHistory address="GB22222222222222222222222222222222222222222222222222222222" />,
+      { wrapper: createWrapper() },
+    );
 
     await waitFor(() => {
       expect(screen.getByText(/Horizon error: 500 Internal Server Error/i)).toBeInTheDocument();

@@ -40,6 +40,13 @@ export const defaultLocale: Locale = resolveDefaultLocale();
 export const localeStorageKey = "bettapay-language";
 
 /**
+ * Cookie set by the locale middleware so the server and client can both
+ * resolve the active locale without relying solely on localStorage (which
+ * is unavailable during SSR).
+ */
+export const LOCALE_COOKIE = "NEXT_LOCALE";
+
+/**
  * Map each supported app locale to a BCP-47 tag for `Intl` number/date
  * formatting. `en` maps to `en-US` so existing formatting output is unchanged.
  */
@@ -52,6 +59,35 @@ export const intlLocales: Record<Locale, string> = {
 
 export function isSupportedLocale(value: string | null | undefined): value is Locale {
   return supportedLocales.includes(value as Locale);
+}
+
+/**
+ * Writing direction used by the `dir` attribute on `<html>` (issue #744).
+ * `ltr` covers every currently supported locale; RTL languages (e.g. Arabic,
+ * Hebrew) are resolved by their base ISO 639-1 code so the document direction
+ * flips automatically the moment such a locale is added to
+ * {@link supportedLocales}. Mirrors i18next's own RTL detection.
+ */
+export type Direction = "ltr" | "rtl";
+
+const RTL_LANGUAGE_CODES = new Set([
+  "ar", // Arabic
+  "ckb", // Central Kurdish
+  "dv", // Divehi
+  "fa", // Persian
+  "he", // Hebrew
+  "ku", // Kurdish
+  "ps", // Pashto
+  "sd", // Sindhi
+  "ug", // Uyghur
+  "ur", // Urdu
+  "yi", // Yiddish
+]);
+
+export function getLocaleDirection(locale: string | null | undefined): Direction {
+  if (!locale) return "ltr";
+  const base = locale.toLowerCase().split("-")[0];
+  return RTL_LANGUAGE_CODES.has(base) ? "rtl" : "ltr";
 }
 
 /**
