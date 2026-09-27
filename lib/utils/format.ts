@@ -141,6 +141,78 @@ export const formatCurrency = (
   return `${sign}USDC ${value}`;
 };
 
+/** ISO 4217 alphabetic codes are exactly three letters — the only shape `Intl` accepts. */
+const ISO_CURRENCY_CODE = /^[A-Za-z]{3}$/;
+
+/** Formatters are immutable, so one per (locale, currency) pair is reused. */
+const fiatFormatterCache = new Map<string, Intl.NumberFormat>();
+
+/** Currencies whose CLDR minor unit is the major unit, so cents are noise. */
+const ZERO_DECIMAL_FIAT = new Set(['JPY', 'KRW', 'VND', 'CLP', 'ISK', 'XAF', 'XOF', 'XPF']);
+
+/**
+ * Whether a value is usable as an ISO 4217 currency code. Guards against
+ * `Intl.NumberFormat` throwing a `RangeError` on untrusted API payloads.
+ */
+export const isSupportedFiatCurrency = (currency: unknown): currency is string => {
+  if (typeof currency !== 'string') return false;
+  const code = currency.trim();
+  if (!ISO_CURRENCY_CODE.test(code)) return false;
+  try {
+    new Intl.NumberFormat('en', { style: 'currency', currency: code }).format(0);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * Format a fiat amount with the active locale's native symbol placement via
+ * `Intl.NumberFormat({ style: 'currency' })`, so the symbol is correct for
+ * *any* ISO 4217 currency (€, ₦, $, £, …) instead of a hardcoded one.
+ *
+ * Unlike {@link formatCurrency}, the currency is never assumed to be NGN or
+ * USDC, so any fiat representation should go through this helper rather than
+ * concatenating a symbol by hand. Falls back to `NGN` when the supplied code is
+ * missing or malformed so a bad payload degrades instead of throwing.
+ */
+export const formatFiat = (
+  amount: number,
+  currency: string = 'NGN',
+  locale?: string,
+): string => {
+  // Normalize floating-point residuals that would otherwise render as -0.
+  const safeAmount = Math.abs(amount) < 0.005 ? 0 : amount;
+  const code = isSupportedFiatCurrency(currency) ? currency.trim().toUpperCase() : 'NGN';
+
+  const base = locale ? resolveLocale(locale) : getActiveLocale();
+  let intlLocale = intlLocales[base];
+  // `en-US` has no Naira symbol (it renders "NGN 1,234.56"), so use the
+  // regional tag for NGN. Other currencies resolve natively in every locale.
+  if (code === 'NGN' && base === 'en') intlLocale = 'en-NG';
+
+  const cacheKey = `${intlLocale}|${code}`;
+  let formatter = fiatFormatterCache.get(cacheKey);
+  if (!formatter) {
+    const zeroDecimal = ZERO_DECIMAL_FIAT.has(code);
+    const options: Intl.NumberFormatOptions = {
+      style: 'currency',
+      currency: code,
+      // Cap at the currency's real precision; CLDR supplies the matching minimum,
+      // so EUR/USD keep both cents ("€1,120.50") instead of "€1,120.5".
+      maximumFractionDigits: zeroDecimal ? 0 : 2,
+    };
+    // NGN is BettaPay's settlement currency and its amounts are whole-naira
+    // approximations — matching `formatCurrency` keeps "₦0" rather than "₦0.00".
+    if (code === 'NGN') options.minimumFractionDigits = 0;
+
+    formatter = new Intl.NumberFormat(intlLocale, options);
+    fiatFormatterCache.set(cacheKey, formatter);
+  }
+
+  return formatter.format(safeAmount);
+};
+
 /**
  * Locale-aware fiat approximation (e.g. `≈ $0.00` / `≈ ₦0`) used when a
  * conversion rounds to nothing.

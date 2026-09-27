@@ -8,6 +8,14 @@ export interface Transaction {
   merchantAddress: string;
   amountUsdc: number;
   amountNgn: number;
+  /**
+   * ISO 4217 code the settlement is denominated in. Defaults to `NGN`, which
+   * pairs with `amountNgn`; transactions settled in another fiat (e.g. `EUR`)
+   * must supply the matching `fiatAmount` so the symbol and the number cannot
+   * drift apart.
+   */
+  fiatCurrency?: string;
+  fiatAmount?: number | null;
   fxRate: number;
   status: PaymentStatus;
   source: 'QR Code' | 'Payment Link' | 'API';
