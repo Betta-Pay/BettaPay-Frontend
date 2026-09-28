@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import { Fraunces, DM_Sans } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import { Toaster } from "@/components/ui";
@@ -6,7 +7,7 @@ import { ConditionalAppProviders } from "@/components/providers/ConditionalAppPr
 import "./globals.css";
 import { cn } from "@/lib/utils";
 import { SITE_URL } from "@/lib/config";
-import { defaultLocale, getLocaleDirection } from "@/lib/i18n/locales";
+import { defaultLocale, getLocaleDirection, isSupportedLocale } from "@/lib/i18n/locales";
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { I18nProvider } from '@/components/i18n/I18nProvider';
 import { TranslationCoveragePanel } from '@/components/i18n/TranslationCoveragePanel';
@@ -95,7 +96,7 @@ export default async function RootLayout({
   );
 
   return (
-    <html lang="en" dir={documentDirection} suppressHydrationWarning className={cn("font-sans antialiased", fraunces.variable, dmSans.variable)}>
+    <html lang={htmlLang} dir={documentDirection} suppressHydrationWarning className={cn("font-sans antialiased", fraunces.variable, dmSans.variable)}>
       <body className="min-h-screen bg-background text-foreground">
         <a
           href="#main-content"

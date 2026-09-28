@@ -47,7 +47,10 @@ describe("useAppTranslation", () => {
     "t('%s') returns real translated text, not the raw key",
     (key) => {
       const { result } = renderHook(() => useAppTranslation());
-      const text = result.current.t(key as Parameters<typeof result.current.t>[0]);
+      // `key` comes from a plain string array, so go through the untyped
+      // surface — this assertion is about the returned value, not the key type.
+      const translate = result.current.t as (k: string) => string;
+      const text = translate(key);
       // The translation must not equal the raw key string.
       expect(text).not.toBe(key);
       // The translation must be a non-empty string.

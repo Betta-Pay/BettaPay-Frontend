@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAppTranslation } from '@/lib/i18n/useAppTranslation';
+import { ROUTES } from '@/lib/navigation/routes';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -101,7 +102,7 @@ export default function ForgotPasswordPage() {
 
           {/* Back link */}
           <Link
-            href="/auth/login"
+            href={ROUTES.LOGIN}
             className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mt-2"
           >
             <ArrowLeft className="w-3.5 h-3.5" aria-hidden="true" />
@@ -186,7 +187,7 @@ export default function ForgotPasswordPage() {
       {/* Back to login */}
       <div className="mt-6 text-center">
         <Link
-          href="/auth/login"
+          href={ROUTES.LOGIN}
           className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
         >
           <ArrowLeft className="w-3.5 h-3.5" aria-hidden="true" />

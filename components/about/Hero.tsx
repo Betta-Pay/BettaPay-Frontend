@@ -4,6 +4,7 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { ArrowRight, BookOpen, TrendingUp, Users, Globe, Zap, Sparkles } from "lucide-react";
 import { Button } from '@/components/ui/button';
+import { ROUTES } from '@/lib/navigation/routes';
 
 const metrics = [
   {
@@ -90,7 +91,7 @@ export function Hero() {
             transition={{ duration: 0.5, delay: 0.3 }}
             className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-2"
           >
-            <Link href="/auth/register" className="w-full sm:w-auto">
+            <Link href={ROUTES.REGISTER} className="w-full sm:w-auto">
               <Button size="lg" className="w-full sm:w-auto bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-button px-8 gap-2 group">
                 Get Started
                 <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />

@@ -714,6 +714,20 @@ describe('resource cleanup', () => {
       sock.deliver({ id: sub.id, jsonrpc: '2.0', result: `sub-${i}` });
 
       await drivePairing(client, sock, uri);
+
+      // The settle is decrypted asynchronously, so the pairing topic stays
+      // registered for a few event-loop turns after `drivePairing` returns.
+      // Real WebCrypto work can need more of them than a single `drain()`
+      // provides on a loaded runner, so wait (in 1 ms timer steps) until the
+      // pairing topic has actually been released.
+      for (
+        let turn = 0;
+        turn < 25 && client.getResourceStats().topics !== 1;
+        turn += 1
+      ) {
+        await drain();
+      }
+
       const live = client.getResourceStats();
       expect(live.topics).toBe(1); // only the session topic
       expect(live.ivEntries).toBeLessThanOrEqual(2);
@@ -728,7 +742,9 @@ describe('resource cleanup', () => {
 
     expect(sockets.size).toBe(25);
     expect(client.getResourceStats()).toEqual(zero);
-  });
+    // 25 full pair/disconnect cycles with real WebCrypto work overflow the
+    // 5s default budget on slower runners.
+  }, 30_000);
 
   it('prunes IV history older than the freshness window on long sessions', async () => {
     const { client } = makeClient();

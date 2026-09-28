@@ -33,6 +33,7 @@
     "framer-motion": "12.42.2",
     "i18next": "26.3.6",
     "i18next-http-backend": "4.0.1",
+    "isomorphic-dompurify": "4.4.0",
     "jspdf": "4.2.1",
     "jspdf-autotable": "5.0.8",
     "lucide-react": "1.25.0",

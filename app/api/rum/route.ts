@@ -63,7 +63,9 @@ const batchSchema = z
   .strict();
 
 function noContent() {
-  return NextResponse.json(null, { status: 204 });
+  // 204 responses must not carry a body; `NextResponse.json` would throw
+  // `Response constructor: Invalid response status code 204`.
+  return new NextResponse(null, { status: 204 });
 }
 
 export async function POST(req: Request) {

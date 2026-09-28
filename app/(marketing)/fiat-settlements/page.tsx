@@ -3,6 +3,7 @@ import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import Link from 'next/link';
 import { Button } from '@/components/ui';
+import { ROUTES } from '@/lib/navigation/routes';
 import {
   Banknote,
   Zap,
@@ -75,7 +76,7 @@ export default function FiatSettlementsPage() {
             Accept USDC payments globally and let BettaPay automatically route funds through licensed SEP-24 anchors directly to your local bank account.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Link href="/auth/login">
+            <Link href={ROUTES.LOGIN}>
               <Button size="lg" className="w-full sm:w-auto font-semibold px-8 rounded-xl h-12 text-base shadow-lg shadow-primary/20">
                 Configure in Dashboard
                 <ArrowRight className="w-4 h-4 ml-2" />
@@ -239,7 +240,7 @@ export default function FiatSettlementsPage() {
         <div className="max-w-4xl mx-auto text-center space-y-6">
           <h2 className="text-3xl md:text-4xl font-extrabold text-foreground">Ready to automate your merchant fiat settlements?</h2>
           <p className="text-muted-foreground text-sm md:text-base">Configure your settlement bank account in the BettaPay dashboard in under 3 minutes.</p>
-          <Link href="/auth/login" className="inline-block">
+          <Link href={ROUTES.LOGIN} className="inline-block">
             <Button size="lg" className="font-semibold px-8 rounded-xl h-12 text-base">
               Configure in Dashboard
               <ArrowRight className="w-4 h-4 ml-2" />

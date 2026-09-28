@@ -27,7 +27,7 @@ function buildInvokeContractEnvelope(): { envelopeXdr: string; contractId: strin
     function: 'transfer',
     args: [
       nativeToScVal(recipient, { type: 'address' }),
-      nativeToScVal(1000n, { type: 'i128' }),
+      nativeToScVal(BigInt(1000), { type: 'i128' }),
     ],
   });
 
@@ -66,7 +66,7 @@ describe('decodeSorobanInvocation', () => {
     expect(decoded?.functionName).toBe('transfer');
     expect(decoded?.args).toHaveLength(2);
     expect(decoded?.args[0]).toBe(recipient);
-    expect(decoded?.args[1]).toBe(1000n);
+    expect(decoded?.args[1]).toBe(BigInt(1000));
   });
 
   it('returns null for an ordinary (non-Soroban) payment transaction', () => {

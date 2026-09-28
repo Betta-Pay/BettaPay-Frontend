@@ -1,4 +1,4 @@
-import { envSchema, validateEnv, getRawEnv, SITE_URL, STELLAR_NETWORK, WALLETCONNECT_PROJECT_ID } from '../config';
+import { validateEnv, getRawEnv, SITE_URL, STELLAR_NETWORK, WALLETCONNECT_PROJECT_ID } from '../config';
 
 describe('lib/config environment variable validation', () => {
   const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});

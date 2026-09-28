@@ -18,7 +18,7 @@ const SAMPLES: HighlightedSample[] = [
     html: '<pre><code>curl https://api.bettapay.com/v1/payments</code></pre>',
   },
   {
-    language: 'node',
+    language: 'node-axios',
     label: 'Node',
     grammar: 'typescript',
     code: 'await bettapay.payments.list({ limit: 3 });',

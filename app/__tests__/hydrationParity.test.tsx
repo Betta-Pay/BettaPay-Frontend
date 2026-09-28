@@ -27,6 +27,14 @@ jest.mock('next/link', () => {
   return ({ children, href }: React.PropsWithChildren<{ href?: string }>) => <a href={href}>{children}</a>;
 });
 
+// next/navigation — the app router is not mounted in unit tests, but several
+// client components (e.g. the language selector) read the current route.
+jest.mock('next/navigation', () => ({
+  usePathname: () => '/',
+  useRouter: () => ({ push: jest.fn(), replace: jest.fn() }),
+  useSearchParams: () => new URLSearchParams(),
+}));
+
 // next/image — lightweight stub (no real image loading in tests)
 jest.mock('next/image', () => {
   return function NextImage({ src, alt, ...rest }: any) {

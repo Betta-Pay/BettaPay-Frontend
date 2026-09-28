@@ -26,12 +26,16 @@ const mockLoadLanguage = jest.fn();
 const mockCodeToHtml = jest.fn();
 const mockGetSingletonHighlighterCore = jest.fn();
 
+/** The mocks only need an id/alias surface, not a full grammar definition. */
+const grammar = (reg: { name: string; aliases?: string[] }) =>
+  reg as unknown as LanguageRegistration;
+
 /** The grammar arrays the mocked `@shikijs/langs/*` modules default-export. */
 const grammars: Record<'js' | 'py' | 'php' | 'go', LanguageRegistration[]> = {
-  js: [{ name: 'javascript', aliases: ['js'] }],
-  py: [{ name: 'python', aliases: ['py'] }],
-  php: [{ name: 'css' }, { name: 'php' }],
-  go: [{ name: 'go' }],
+  js: [grammar({ name: 'javascript', aliases: ['js'] })],
+  py: [grammar({ name: 'python', aliases: ['py'] })],
+  php: [grammar({ name: 'css' }), grammar({ name: 'php' })],
+  go: [grammar({ name: 'go' })],
 };
 
 // `virtual: true` lets the suite mock these subpath modules without needing
@@ -42,6 +46,15 @@ jest.mock(
     __esModule: true,
     getSingletonHighlighterCore: (...args: unknown[]) =>
       mockGetSingletonHighlighterCore(...args),
+  }),
+  { virtual: true },
+);
+
+// The regex engine is its own module in current Shiki versions.
+jest.mock(
+  'shiki/engine/javascript',
+  () => ({
+    __esModule: true,
     createJavaScriptRegexEngine: () => ({}),
   }),
   { virtual: true },

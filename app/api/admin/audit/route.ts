@@ -12,7 +12,7 @@
 
 import { NextResponse } from "next/server";
 import { guardAdminApi } from "@/lib/auth/adminApiGuard";
-import { auditLog } from "../merchants/[id]/kyb/route";
+import { auditLog } from "@/lib/api/fixtures/kybStore";
 
 export async function GET(req: Request) {
   const denied = await guardAdminApi();

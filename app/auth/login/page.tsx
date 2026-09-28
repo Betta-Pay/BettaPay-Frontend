@@ -13,6 +13,7 @@ import { useAppTranslation } from '@/lib/i18n/useAppTranslation';
 import { useLogin } from '@/lib/hooks/useLogin';
 import { EmailLoginForm } from '@/components/auth/EmailLoginForm';
 import { MagicLinkForm } from '@/components/auth/MagicLinkForm';
+import { ROUTES } from '@/lib/navigation/routes';
 
 import { shouldWarnMissingGoogleClientId } from '@/lib/utils/googleWarn';
 
@@ -129,7 +130,7 @@ export default function LoginPage() {
         <div className="text-center pt-2">
           <span className="text-xs text-muted-foreground">Don&apos;t have an account? </span>
           <Link
-            href="/auth/register"
+            href={ROUTES.REGISTER}
             className="text-xs font-semibold text-primary hover:underline"
           >
             Create an account
@@ -154,7 +155,7 @@ export default function LoginPage() {
         </div>
 
         <a
-          href="/"
+          href={ROUTES.HOME}
           className="mt-6 inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
         >
           {t('login.learnMore')}

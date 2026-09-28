@@ -1,7 +1,7 @@
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { render, screen } from '@testing-library/react';
 import { KybDocumentRow } from '../KybDocumentRow';
+import { useUploadKybDocument } from '@/lib/kyc/api';
 
 jest.mock('@/lib/kyc/api', () => ({
   useUploadKybDocument: jest.fn(() => ({
@@ -26,7 +26,7 @@ jest.mock('../KybStatusBadge', () => ({
 }));
 
 const defaultMeta = {
-  type: 'certificate' as const,
+  type: 'certificate_of_incorporation' as const,
   label: 'Certificate of Incorporation',
   hint: 'Upload your certificate',
   required: true,
@@ -46,8 +46,7 @@ describe('KybDocumentRow', () => {
 
   it('shows server error when upload fails', async () => {
     const mockUpload = jest.fn().mockRejectedValue(new Error('Payload Too Large'));
-    const { useUploadKybDocument } = require('@/lib/kyc/api');
-    useUploadKybDocument.mockReturnValue({
+    (useUploadKybDocument as jest.Mock).mockReturnValue({
       upload: mockUpload,
       isUploading: false,
       progress: 0,
@@ -66,8 +65,7 @@ describe('KybDocumentRow', () => {
   });
 
   it('shows upload progress when uploading', () => {
-    const { useUploadKybDocument } = require('@/lib/kyc/api');
-    useUploadKybDocument.mockReturnValue({
+    (useUploadKybDocument as jest.Mock).mockReturnValue({
       upload: jest.fn(),
       isUploading: true,
       progress: 50,

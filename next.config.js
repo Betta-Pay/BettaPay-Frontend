@@ -89,6 +89,16 @@ const contentSecurityPolicy = [
 
 const nextConfig = {
   reactStrictMode: true,
+  experimental: {
+    // `isomorphic-dompurify` (used by components/shared/SafeHtmlRenderer.tsx)
+    // falls back to jsdom on the server, and jsdom reads its own files off
+    // disk at runtime (`browser/default-stylesheet.css`). Bundling it makes
+    // those paths relative to `.next/server`, so page-data collection fails
+    // with ENOENT. Requiring it from node_modules at runtime instead keeps the
+    // package's own directory layout intact. The client build is unaffected:
+    // it resolves the package's `browser` entry, which never touches jsdom.
+    serverComponentsExternalPackages: ["isomorphic-dompurify", "jsdom"],
+  },
   images: {
     remotePatterns: [
       {

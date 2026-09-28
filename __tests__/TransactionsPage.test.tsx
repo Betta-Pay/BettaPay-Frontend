@@ -117,7 +117,8 @@ jest.mock("@/components/ui/network-tooltip", () => ({
 // ── next/navigation (not used in page but required by deps) ──────────────────
 jest.mock("next/navigation", () => ({
   usePathname: () => "/transactions",
-  useRouter: () => ({ push: jest.fn() }),
+  useRouter: () => ({ push: jest.fn(), replace: jest.fn() }),
+  useSearchParams: () => new URLSearchParams(),
 }));
 
 // ── lucide-react icons ────────────────────────────────────────────────────────

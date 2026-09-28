@@ -77,7 +77,7 @@ function getPrefilledSubject(param: string | null): typeof SUBJECT_OPTIONS[numbe
 
 export default function ContactForm() {
   const searchParams = useSearchParams();
-  const subjectParam = searchParams.get("subject");
+  const subjectParam = searchParams?.get("subject");
   const [recaptchaLoaded, setRecaptchaLoaded] = useState(false);
   const loadedAtRef = useRef<number>(Date.now());
   const lastSubmitRef = useRef<number>(0);
@@ -96,7 +96,7 @@ export default function ContactForm() {
       name: "",
       email: "",
       company: "",
-      subject: getPrefilledSubject(subjectParam),
+      subject: getPrefilledSubject(subjectParam ?? null),
       message: "",
       website: "",
     },

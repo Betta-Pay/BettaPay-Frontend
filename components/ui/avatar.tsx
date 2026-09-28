@@ -34,7 +34,7 @@ function AvatarImage({ className, ...props }: AvatarPrimitive.Image.Props) {
         <Image
           fill
           sizes="40px"
-          src={props.src}
+          src={props.src ?? ""}
           alt={props.alt ?? ""}
         />
       }

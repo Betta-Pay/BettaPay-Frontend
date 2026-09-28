@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore, resetAllUserState } from "@/lib/store/authStore";
+import { ROUTES } from "@/lib/navigation/routes";
 import type { User } from "@/lib/types";
 
 const AUTH_STORAGE_KEY = "bp-session";
@@ -59,7 +60,7 @@ export function useCrossTabAuth() {
       clearLocalSession();
       if (!redirectInFlight) {
         redirectInFlight = true;
-        router.push("/auth/login");
+        router.push(ROUTES.LOGIN);
         // Allow another redirect once this navigation settles.
         setTimeout(() => {
           redirectInFlight = false;

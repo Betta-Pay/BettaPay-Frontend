@@ -27,7 +27,7 @@ export function VolumeCalculator() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  const initialVolume = clampVolume(Number(searchParams.get('volume')) || DEFAULT_VOLUME);
+  const initialVolume = clampVolume(Number(searchParams?.get('volume')) || DEFAULT_VOLUME);
   const [volume, setVolume] = useState(initialVolume);
   const [avgTransaction, setAvgTransaction] = useState(DEFAULT_AVG_TRANSACTION);
 
@@ -35,7 +35,7 @@ export function VolumeCalculator() {
   const urlTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => {
     urlTimer.current = setTimeout(() => {
-      const params = new URLSearchParams(searchParams.toString());
+      const params = new URLSearchParams(searchParams?.toString());
       params.set('volume', String(volume));
       router.replace(`${pathname}?${params.toString()}`, { scroll: false });
     }, 400);

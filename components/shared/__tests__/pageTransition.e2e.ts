@@ -1,3 +1,14 @@
+/**
+ * Cypress-style scroll-preservation spec. The repo's e2e runner is Playwright,
+ * so this suite is inert: it skips itself whenever the Cypress `browser`
+ * global is missing. This declaration only keeps the file type-checking.
+ */
+declare const browser: {
+  url: (path: string) => Promise<void>;
+  execute: <T>(fn: () => T) => Promise<T>;
+  $: (selector: string) => Promise<{ click: () => Promise<void> }>;
+  back: () => Promise<void>;
+};
 
 describe('Stellar Wave Merchant Page Scroll Preservation E2E Suite', () => {
   const isE2E = typeof browser !== 'undefined';

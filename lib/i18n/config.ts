@@ -10,6 +10,7 @@ import {
   isSupportedLocale,
   LOCALE_COOKIE,
   localeStorageKey,
+  stripLocalePrefix,
   supportedLocales,
   type Locale,
 } from "./locales";
@@ -17,7 +18,7 @@ import {
 // Re-export the shared locale constants so existing importers that reference
 // them from "@/lib/i18n/config" keep working. New code may import directly
 // from "@/lib/i18n/locales" to avoid pulling in the i18next runtime.
-export { defaultLocale, isSupportedLocale, localeStorageKey, supportedLocales };
+export { defaultLocale, isSupportedLocale, localeStorageKey, stripLocalePrefix, supportedLocales };
 export type { Locale };
 
 /**

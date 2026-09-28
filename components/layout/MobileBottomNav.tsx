@@ -49,7 +49,7 @@ export const MobileBottomNav = ({ onMoreClick }: MobileBottomNavProps) => {
   const pathname = usePathname();
 
   // Route-based visibility - hide outside intended interactive surface
-  if (!shouldShowBottomNav(pathname)) {
+  if (!shouldShowBottomNav(pathname ?? '')) {
     return null;
   }
 
@@ -61,9 +61,12 @@ export const MobileBottomNav = ({ onMoreClick }: MobileBottomNavProps) => {
       style={{ paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom))' }}
     >
       {mobileNavItems.map((item) => {
-        const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
+        const isActive = pathname === item.href || (pathname ?? '').startsWith(item.href + '/');
         const Icon = item.icon as unknown as React.ComponentType<{ className?: string }>;
-        const label = item.labelKey ? t(item.labelKey, { defaultValue: item.label }) : item.label;
+        // `NavItem.labelKey` is a plain string, so it needs the translation-key cast.
+        const label = item.labelKey
+          ? (t(item.labelKey as Parameters<typeof t>[0], { defaultValue: item.label }) as string)
+          : item.label;
 
         return (
           <Link

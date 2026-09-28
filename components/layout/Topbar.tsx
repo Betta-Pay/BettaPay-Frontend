@@ -15,6 +15,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useAuthStore } from "@/lib/store/authStore";
+import { ROUTES } from "@/lib/navigation/routes";
 import { useWalletStore } from "@/lib/store/walletStore";
 import { useRouter } from "next/navigation";
 import { useNotify } from "@/lib/hooks/useNotify";
@@ -45,7 +46,7 @@ export const Topbar = ({ onMenuClick, isMenuOpen, title, unreadNotificationCount
   const handleLogout = useCallback(() => {
     logout();
     notify.success("Logged out successfully");
-    router.push("/auth/login");
+    router.push(ROUTES.LOGIN);
   }, [logout, notify, router]);
 
   const initials = user?.name

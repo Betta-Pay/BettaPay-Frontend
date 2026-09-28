@@ -20,7 +20,7 @@ export interface UseKybDocumentUploadOptions {
 
 export interface UseKybDocumentUploadResult {
   /** Attach to the hidden `<input type="file">`. */
-  inputRef: React.RefObject<HTMLInputElement | null>;
+  inputRef: React.RefObject<HTMLInputElement>;
   /** Open the file picker. */
   pick: () => void;
   /** `onChange` handler for the file input. */

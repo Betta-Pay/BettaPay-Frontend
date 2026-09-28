@@ -119,18 +119,25 @@ export function createRateLimitStore(
       }),
       {
         name: RATE_LIMIT_STORAGE_KEY,
-        storage: storage ? {
-          getItem: async (name: string) => {
-            const val = await storage.getItem(name);
-            return val ? JSON.parse(val) : null;
-          },
-          setItem: async (name: string, value: unknown) => {
-            await storage.setItem(name, JSON.stringify(value));
-          },
-          removeItem: async (name: string) => {
-            await storage.removeItem(name);
-          },
-        } : undefined,
+        // Only override the default `localStorage`-backed storage when the
+        // caller supplied one: an explicit `storage: undefined` makes zustand
+        // report the storage as unavailable and silently stops persisting.
+        ...(storage
+          ? {
+              storage: {
+                getItem: async (name: string) => {
+                  const val = await storage.getItem(name);
+                  return val ? JSON.parse(val) : null;
+                },
+                setItem: async (name: string, value: unknown) => {
+                  await storage.setItem(name, JSON.stringify(value));
+                },
+                removeItem: async (name: string) => {
+                  await storage.removeItem(name);
+                },
+              },
+            }
+          : {}),
         partialize: (state) => ({
           rateLimitedUntil: state.rateLimitedUntil,
           endpoint: state.endpoint,

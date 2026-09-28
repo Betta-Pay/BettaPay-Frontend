@@ -30,8 +30,8 @@ export default function PaymentStatusPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
 
-  const txId = params.txId as string;
-  const initialStatus = (searchParams.get('status') as Status) || 'processing';
+  const txId = (params?.txId as string) ?? '';
+  const initialStatus = (searchParams?.get('status') as Status) || 'processing';
 
   const [status, setStatus] = useState<Status>(initialStatus);
   const [paymentData, setPaymentData] = useState<Record<string, unknown> | null>(null);

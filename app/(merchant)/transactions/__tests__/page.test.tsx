@@ -12,6 +12,14 @@ jest.mock('@/lib/api/hooks', () => ({
   usePayments: () => ({ data: mockPayments, isLoading: false, error: null, refetch: jest.fn() }),
 }));
 
+// The page syncs its filters/pagination with the URL, so it needs the app
+// router hooks that are only available inside a mounted Next.js router.
+jest.mock('next/navigation', () => ({
+  usePathname: () => '/transactions',
+  useRouter: () => ({ push: jest.fn(), replace: jest.fn() }),
+  useSearchParams: () => new URLSearchParams(),
+}));
+
 jest.mock('@/lib/store/offlineStore', () => ({
   useOfflineStore: (selector: (state: { isOnline: boolean }) => unknown) => selector({ isOnline: true }),
 }));
@@ -40,7 +48,7 @@ jest.mock('@/components/ui', () => {
       <select
         aria-label="select"
         value={value}
-        onChange={(e) => onValueChange(e.target.value)}
+        onChange={(e) => onValueChange?.(e.target.value)}
       >
         {children}
       </select>

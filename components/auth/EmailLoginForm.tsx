@@ -8,6 +8,7 @@ import { Button, Input } from '@/components/ui';
 import { useNotify } from '@/lib/hooks/useNotify';
 import { announce } from '@/lib/utils/announce';
 import { useAppTranslation } from '@/lib/i18n/useAppTranslation';
+import { ROUTES } from '@/lib/navigation/routes';
 
 export function EmailLoginForm() {
   const { t } = useAppTranslation();
@@ -65,7 +66,7 @@ export function EmailLoginForm() {
         body: JSON.stringify({ token: `mock_jwt_email_${Date.now()}` }),
       });
       if (res.ok) {
-        window.location.href = '/dashboard';
+        window.location.href = ROUTES.DASHBOARD;
       } else {
         notify.error('Failed to sign in. Please try again.');
       }
@@ -118,7 +119,7 @@ export function EmailLoginForm() {
             Password
           </label>
           <Link
-            href="/auth/forgot-password"
+            href={ROUTES.FORGOT_PASSWORD}
             className="text-xs text-muted-foreground hover:text-primary transition-colors"
           >
             {t('login.forgotPassword')}

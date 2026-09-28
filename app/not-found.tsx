@@ -4,11 +4,12 @@ import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
 import { getSessionFromCookies } from "@/lib/auth/session";
 import { getDefaultRoute } from "@/lib/utils";
+import { ROUTES } from "@/lib/navigation/routes";
 import { ArrowLeft, Frown, Home, LifeBuoy } from "lucide-react";
 
 export default function NotFound() {
   const { isAuthenticated, role } = getSessionFromCookies(cookies());
-  const primaryHref = isAuthenticated ? getDefaultRoute(role) : "/";
+  const primaryHref = isAuthenticated ? getDefaultRoute(role) : ROUTES.HOME;
   const primaryLabel = isAuthenticated ? "Return to Dashboard" : "Return to Home";
   const PrimaryIcon = isAuthenticated ? Home : ArrowLeft;
   const description = isAuthenticated
@@ -18,7 +19,7 @@ export default function NotFound() {
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <header className="border-b border-border px-6 py-4">
-        <Link href="/" className="inline-flex items-center gap-2">
+        <Link href={ROUTES.HOME} className="inline-flex items-center gap-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 p-1">
             <Image
               src="/logo.png"

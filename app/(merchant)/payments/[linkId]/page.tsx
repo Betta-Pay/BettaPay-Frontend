@@ -224,7 +224,7 @@ export default function PaymentLinkDetailPage() {
   const params = useParams();
   const router = useRouter();
   const notify = useNotify();
-  const linkId = params.linkId as string;
+  const linkId = (params?.linkId as string) ?? '';
 
   const [deactivateOpen, setDeactivateOpen] = useState(false);
   const [isDeactivated, setIsDeactivated] = useState(false);

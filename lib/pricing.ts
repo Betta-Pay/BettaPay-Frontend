@@ -1,3 +1,5 @@
+import { ROUTES } from '@/lib/navigation/routes';
+
 export type TierId = 'starter' | 'growth' | 'enterprise';
 
 export interface PricingTier {
@@ -127,7 +129,7 @@ export const PRICING_TIERS: PricingTier[] = [
       'Payment links & QR codes',
       'Basic dashboard analytics',
     ],
-    cta: { label: 'Get Started', href: '/auth/register' },
+    cta: { label: 'Get Started', href: ROUTES.REGISTER },
     highlighted: false,
   },
   {
@@ -159,7 +161,7 @@ export const PRICING_TIERS: PricingTier[] = [
       'Webhooks & API access',
       'Advanced analytics & exports',
     ],
-    cta: { label: 'Get Started', href: '/auth/register' },
+    cta: { label: 'Get Started', href: ROUTES.REGISTER },
     highlighted: true,
   },
   {
@@ -321,10 +323,15 @@ export function formatUsd(amount: number): string {
 }
 
 export function formatUsdCompact(amount: number): string {
+  const absolute = Math.abs(amount);
+  // Thresholds read better with an explicit decimal in the thousands range
+  // (`$10.0K`, `$500.0K`) rather than collapsing to `$10K` / `$500K`.
+  const isThousands = absolute >= 1_000 && absolute < 1_000_000;
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',
     notation: 'compact',
     maximumFractionDigits: 1,
+    minimumFractionDigits: isThousands ? 1 : 0,
   }).format(amount);
 }

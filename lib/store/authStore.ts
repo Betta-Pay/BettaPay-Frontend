@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { User } from "../types";
 import { BP_SESSION_KEY } from "@/lib/auth/session";
+import { ROUTES } from "@/lib/navigation/routes";
 
 interface AuthState {
   user: User | null;
@@ -64,11 +65,18 @@ export function hasRealSession(s: Pick<AuthState, "isAuthenticated" | "user">): 
 
 export const useAuthStore = create<AuthState>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       user: null,
       token: null,
       role: null,
       isAuthenticated: false,
+      isLoggedIn: false,
+      _hasHydrated: false,
+      setHasHydrated: (v: boolean) => set({ _hasHydrated: v }),
+      // Silent JWT refresh (lib/api/axios.ts, useSessionTimeout): swap the token
+      // in place and keep the login flag consistent with the identity.
+      setToken: (token: string) =>
+        set((state) => ({ token, isLoggedIn: hasRealSession(state) })),
       login: (token, user) =>
         set({
           user,
@@ -181,7 +189,7 @@ if (typeof window !== "undefined") {
           useAuthStore.persist.clearStorage();
         } catch {}
         resetAllUserState();
-        window.location.href = "/auth/login";
+        window.location.href = ROUTES.LOGIN;
       }
     };
   } catch {}

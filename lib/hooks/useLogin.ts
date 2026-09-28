@@ -5,6 +5,7 @@ import { useNotify } from '@/lib/hooks/useNotify';
 import { decodeJwtPayload } from '@/lib/utils/jwt';
 import { useWalletStore, WalletState } from '@/lib/store/walletStore';
 import { getApiBaseUrl } from '@/lib/config/api';
+import { ROUTES } from '@/lib/navigation/routes';
 import type { AuthLoginResponse, User } from '@/lib/types';
 
 /**
@@ -128,7 +129,7 @@ export function useLogin() {
         if (merchantData.name === 'My Business') {
           const secureFlag = process.env.NODE_ENV === 'production' ? '; Secure' : '';
           document.cookie = `merchant_onboarded=false; Path=/; SameSite=Lax; Max-Age=86400${secureFlag}`;
-          router.push('/onboarding');
+          router.push(ROUTES.ONBOARDING);
           return;
         }
       }
@@ -138,7 +139,7 @@ export function useLogin() {
 
     const secureFlag = process.env.NODE_ENV === 'production' ? '; Secure' : '';
     document.cookie = `merchant_onboarded=true; Path=/; SameSite=Lax; Max-Age=86400${secureFlag}`;
-    router.push(profile.role === 'admin' ? '/overview' : '/dashboard');
+    router.push(profile.role === 'admin' ? ROUTES.OVERVIEW : ROUTES.DASHBOARD);
   }, [apiBase, login, router, success, error, info]);
 
   const onGoogleSuccess = async (credentialResponse: { credential?: string }) => {

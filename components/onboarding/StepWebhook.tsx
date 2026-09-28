@@ -22,7 +22,7 @@ export function StepWebhook({ data, errors, onChange }: Props) {
     setTested(false);
 
     // Mock API call
-    new Promise((resolve, reject) => {
+    new Promise<string>((resolve) => {
       setTimeout(() => resolve("success"), 1000);
     })
       .then(() => {

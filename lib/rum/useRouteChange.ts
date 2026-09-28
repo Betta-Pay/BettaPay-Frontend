@@ -31,7 +31,7 @@ export function useRouteChange() {
 
     if (routeStart.current > 0) {
       const duration = now - routeStart.current;
-      recordRumEvent("route_change", duration, pathname, {
+      recordRumEvent("route_change", duration, pathname ?? "/", {
         navigationType: "navigate",
       });
     }

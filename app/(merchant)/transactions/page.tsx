@@ -189,32 +189,32 @@ export default function TransactionsPage() {
   const router = useRouter();
   const pathname = usePathname();
 
-  const [searchTerm, setSearchTerm] = useState(() => searchParams.get('q') ?? '');
+  const [searchTerm, setSearchTerm] = useState(() => searchParams?.get('q') ?? '');
   const sanitizedOnChange = useCallback(
     (value: string) => setSearchTerm(sanitizeSearchQuery(value)),
     [],
   );
   const [debouncedSearch] = useDebounceValue(searchTerm, 300);
-  const [statusFilter, setStatusFilter] = useState(() => searchParams.get('status') ?? 'all');
-  const [assetFilter, setAssetFilter] = useState(() => searchParams.get('asset') ?? 'all');
-  const [dateRangeFilter, setDateRangeFilter] = useState(() => searchParams.get('date') ?? 'all');
+  const [statusFilter, setStatusFilter] = useState(() => searchParams?.get('status') ?? 'all');
+  const [assetFilter, setAssetFilter] = useState(() => searchParams?.get('asset') ?? 'all');
+  const [dateRangeFilter, setDateRangeFilter] = useState(() => searchParams?.get('date') ?? 'all');
   const [page, setPage] = useState<number>(() => {
-    const p = searchParams.get('page');
+    const p = searchParams?.get('page');
     const n = p ? parseInt(p, 10) : NaN;
     return Number.isFinite(n) ? n : 1;
   });
 
   // Keep local state in sync when URL search params change externally
   useEffect(() => {
-    setSearchTerm(searchParams.get('q') ?? '');
-    setStatusFilter(searchParams.get('status') ?? 'all');
-    setAssetFilter(searchParams.get('asset') ?? 'all');
-    setDateRangeFilter(searchParams.get('date') ?? 'all');
-    const p = searchParams.get('page');
+    setSearchTerm(searchParams?.get('q') ?? '');
+    setStatusFilter(searchParams?.get('status') ?? 'all');
+    setAssetFilter(searchParams?.get('asset') ?? 'all');
+    setDateRangeFilter(searchParams?.get('date') ?? 'all');
+    const p = searchParams?.get('page');
     const n = p ? parseInt(p, 10) : NaN;
     setPage(Number.isFinite(n) ? n : 1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams.toString()]);
+  }, [searchParams?.toString()]);
 
   const pushParams = useCallback((updates: Record<string, string | number | null | undefined>) => {
     const params = new URLSearchParams(searchParams as unknown as string);
@@ -226,7 +226,7 @@ export default function TransactionsPage() {
       }
     });
     const qs = params.toString();
-    const href = qs ? `${pathname}?${qs}` : pathname;
+    const href = qs ? `${pathname}?${qs}` : pathname ?? '/';
     // use push so user can navigate back, replace could be used to avoid history pollution
     router.push(href);
   }, [router, pathname, searchParams]);

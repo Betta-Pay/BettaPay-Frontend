@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import { useAppTranslation } from '@/lib/i18n/useAppTranslation';
+import { ROUTES } from '@/lib/navigation/routes';
 import { landingFeatures } from '@/lib/landing';
 
 export default function LandingPage() {
@@ -37,7 +38,7 @@ export default function LandingPage() {
 
           {/* CTAs */}
           <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Link href="/auth/register">
+            <Link href={ROUTES.REGISTER}>
               <Button className="h-12 px-8 text-base bg-primary text-white hover:bg-primary font-semibold rounded-xl">
                 {t('landing.primaryCta')}
                 <ArrowRight className="ml-2 w-5 h-5" aria-hidden="true" />

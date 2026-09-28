@@ -62,9 +62,10 @@ const languageLoaders: Record<
 const EAGER_LANGUAGES: readonly Language[] = ['javascript', 'python', 'php', 'go'];
 
 type ShikiCoreModule = typeof import('shiki/core');
+type ShikiEngineModule = typeof import('shiki/engine/javascript');
 
-// Lazy-loaded singleton — the core module (engine + grammar host) is only
-// fetched once, on first use.
+// Lazy-loaded singleton — the core module (grammar host) is only fetched once,
+// on first use.
 let corePromise: Promise<ShikiCoreModule> | null = null;
 
 function loadShikiCore(): Promise<ShikiCoreModule> {
@@ -72,6 +73,17 @@ function loadShikiCore(): Promise<ShikiCoreModule> {
     corePromise = import('shiki/core');
   }
   return corePromise;
+}
+
+// `shiki/core` only hosts grammars; the JavaScript regex engine lives in its
+// own module (`shiki/engine/javascript`), so it is loaded lazily too.
+let enginePromise: Promise<ShikiEngineModule> | null = null;
+
+function loadShikiEngine(): Promise<ShikiEngineModule> {
+  if (!enginePromise) {
+    enginePromise = import('shiki/engine/javascript');
+  }
+  return enginePromise;
 }
 
 // One highlighter for the whole app; one cached promise per language.
@@ -84,7 +96,10 @@ const languagePromiseCache = new Map<Language, Promise<void>>();
 async function getHighlighterForLanguage(
   language: Language,
 ): Promise<Highlighter> {
-  const shiki = await loadShikiCore();
+  const [shiki, shikiEngine] = await Promise.all([
+    loadShikiCore(),
+    loadShikiEngine(),
+  ]);
 
   if (!highlighterPromise) {
     // Warm the engine plus the grammars the docs currently use. Everything
@@ -94,7 +109,7 @@ async function getHighlighterForLanguage(
       import('@shikijs/themes/github-dark'),
     ]);
     highlighterPromise = shiki.getSingletonHighlighterCore({
-      engine: shiki.createJavaScriptRegexEngine({ forgiving: true }),
+      engine: shikiEngine.createJavaScriptRegexEngine({ forgiving: true }),
       themes: themes.map((theme) => theme.default),
       langs: EAGER_LANGUAGES.map((language) => languageLoaders[language]),
     });

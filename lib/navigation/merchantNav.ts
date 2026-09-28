@@ -9,9 +9,10 @@ import {
   Building2,
 } from "lucide-react";
 import type { NavItem } from "./types";
+import { ROUTES } from "./routes";
 
 export const merchantNavItems: NavItem[] = [
-  { href: "/dashboard", label: "Overview", icon: LayoutDashboard, labelKey: "navigation.overview", shortLabel: "Dashboard", shortLabelKey: "navigation.dashboard" },
+  { href: ROUTES.DASHBOARD, label: "Overview", icon: LayoutDashboard, labelKey: "navigation.overview", shortLabel: "Dashboard", shortLabelKey: "navigation.dashboard" },
   { href: "/payments", label: "Payments", icon: LinkIcon, labelKey: "navigation.payments" },
   { href: "/transactions", label: "Transactions", icon: ListOrdered, shortLabel: "History", labelKey: "navigation.transactions", shortLabelKey: "navigation.history" },
   { href: "/settlement", label: "Settlement", icon: Building2, labelKey: "navigation.settlement" },

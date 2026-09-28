@@ -64,8 +64,8 @@ describe("Onboarding Page - Review Step Re-validation and Drift Detection", () =
   };
 
   it("triggers re-validation and enables Finish button on success", async () => {
-    let resolveAnchors: () => void;
-    let resolveRates: () => void;
+    let resolveAnchors: () => void = () => {};
+    let resolveRates: () => void = () => {};
     const anchorsPromise = new Promise((resolve) => {
       resolveAnchors = () =>
         resolve({

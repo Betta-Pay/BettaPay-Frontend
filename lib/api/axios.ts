@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { announce } from '@/lib/utils/announce';
 import { parseApiError, isTimeoutError, ApiError } from '../utils/apiError';
 import { getAppRouter } from '../navigation/appRouter';
+import { ROUTES } from '../navigation/routes';
 import { isJwtExpiredOrInvalid } from '../utils/jwt';
 import { captureException } from '../errorReporting';
 
@@ -287,7 +288,7 @@ function processQueue(error: unknown) {
 
 function redirectToLogin() {
   // Don't redirect if already on an auth page — prevents infinite redirect loops
-  if (typeof window !== 'undefined' && window.location.pathname.startsWith('/auth')) {
+  if (typeof window !== 'undefined' && window.location.pathname.startsWith(ROUTES.AUTH_PREFIX)) {
     return;
   }
   // Bounce once. A burst of queued 401s all reach here; without this each one
@@ -305,9 +306,9 @@ function redirectToLogin() {
   // only when the router isn't available (SSR or before the provider mounts).
   const router = getAppRouter();
   if (router) {
-    router.push('/auth/login');
+    router.push(ROUTES.LOGIN);
   } else if (typeof window !== 'undefined') {
-    window.location.href = '/auth/login';
+    window.location.href = ROUTES.LOGIN;
   }
 }
 

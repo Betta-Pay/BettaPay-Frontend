@@ -50,6 +50,9 @@ export function ProfileEditor({
 }: ProfileEditorProps) {
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // Read the active locale for Intl.DisplayNames outside the Controller render
+  // prop — hooks may only be called at the top level of the component.
+  const { i18n } = useAppTranslation();
 
   const {
     register,
@@ -313,7 +316,6 @@ export function ProfileEditor({
                 name="country"
                 control={control}
                 render={({ field }) => {
-                  const { i18n } = useAppTranslation();
                   const locale = i18n.language ?? 'en';
                   // Minimal curated list of ISO 3166-1 alpha-2 country codes used in the app.
                   const COUNTRY_CODES = [
@@ -332,7 +334,7 @@ export function ProfileEditor({
                   let displayName: Intl.DisplayNames | null = null;
                   try {
                     displayName = new Intl.DisplayNames([locale], { type: 'region' });
-                  } catch (e) {
+                  } catch {
                     // Fallback to English if locale unsupported
                     displayName = new Intl.DisplayNames(['en'], { type: 'region' });
                   }

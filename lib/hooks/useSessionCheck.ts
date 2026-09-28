@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/store/authStore';
+import { ROUTES } from '@/lib/navigation/routes';
 import type { SessionCheckResponse } from '@/lib/auth/session';
 
 export function useSessionCheck() {
@@ -22,7 +23,7 @@ export function useSessionCheck() {
         // Session expired or rotated away — clear persisted state and redirect
         // Aligns with middleware's getSessionFromCookies/isSessionValid on auth_token + user_role
         logout();
-        router.push('/auth/login');
+        router.push(ROUTES.LOGIN);
         return null;
       }
       const data = (await res.json().catch(() => null)) as SessionCheckResponse | null;

@@ -67,7 +67,11 @@ describe('useWalletStore - Multi Account Support (#503)', () => {
 
     const state = useWalletStore.getState();
     expect(state.address).toBe(secondAddress);
-    expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining(secondAddress));
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining(secondAddress),
+      // The refresh passes an AbortSignal so a superseded request is cancelled.
+      expect.objectContaining({ signal: expect.anything() }),
+    );
   });
 
   it('ignores account selection for unpresented accounts', () => {

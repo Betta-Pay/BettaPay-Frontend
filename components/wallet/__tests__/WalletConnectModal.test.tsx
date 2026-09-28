@@ -11,11 +11,11 @@ const onStatus = jest.fn();
 const onSession = jest.fn();
 const resetWalletConnectClient = jest.fn();
 const isWalletConnectConfigured = jest.fn(() => true);
-const getWalletConnectClient = jest.fn(() => ({
+const getWalletConnectClient = jest.fn().mockReturnValue({
   connect,
   onStatus,
   onSession,
-}));
+});
 
 jest.mock('@/lib/stellar/walletconnect', () => ({
   getWalletConnectClient: (...args: unknown[]) => getWalletConnectClient(...args),

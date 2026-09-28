@@ -99,7 +99,8 @@ jest.mock('@/components/ui/network-tooltip', () => ({
 
 jest.mock('next/navigation', () => ({
   usePathname: () => '/transactions',
-  useRouter: () => ({ push: jest.fn() }),
+  useRouter: () => ({ push: jest.fn(), replace: jest.fn() }),
+  useSearchParams: () => new URLSearchParams(),
 }));
 
 jest.mock('lucide-react', () => {

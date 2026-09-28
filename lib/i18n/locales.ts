@@ -62,6 +62,20 @@ export function isSupportedLocale(value: string | null | undefined): value is Lo
 }
 
 /**
+ * Strip a supported locale prefix from a pathname, e.g. `/en/dashboard` →
+ * `/dashboard` and `/fr` → `/`. Pathnames without a supported prefix (and the
+ * bare root) are returned unchanged.
+ */
+export function stripLocalePrefix(pathname: string): string {
+  const [leading, ...segments] = pathname.split("/");
+  if (leading !== "" || !isSupportedLocale(segments[0])) {
+    return pathname;
+  }
+  const stripped = `/${segments.slice(1).join("/")}`;
+  return stripped === "/" ? "/" : stripped;
+}
+
+/**
  * Writing direction used by the `dir` attribute on `<html>` (issue #744).
  * `ltr` covers every currently supported locale; RTL languages (e.g. Arabic,
  * Hebrew) are resolved by their base ISO 639-1 code so the document direction

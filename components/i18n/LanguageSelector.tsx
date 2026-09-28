@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useRouter, usePathname } from "next/navigation";
 
-import { isSupportedLocale, localeStorageKey, supportedLocales } from "@/lib/i18n/config";
+import { isSupportedLocale, localeStorageKey, stripLocalePrefix, supportedLocales } from "@/lib/i18n/config";
 import { getLocaleDirection } from "@/lib/i18n/locales";
 
 export function LanguageSelector() {
@@ -44,7 +44,7 @@ export function LanguageSelector() {
 
     // Navigate to the locale-prefixed URL so the path always reflects the
     // active language (important for SEO and bookmarkability).
-    const basePath = stripLocalePrefix(pathname);
+    const basePath = stripLocalePrefix(pathname ?? "/");
     const newPath = `/${locale}${basePath === "/" ? "" : basePath}`;
     router.push(newPath);
   };

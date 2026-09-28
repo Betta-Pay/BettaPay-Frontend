@@ -27,7 +27,7 @@ function makeWrapper() {
     },
   });
   // Capture so tests can assert against the cache directly.
-  (makeWrapper as Record<string, unknown>).__cache = client;
+  (makeWrapper as unknown as Record<string, unknown>).__cache = client;
   return function Wrapper({ children }: { children: React.ReactNode }) {
     return (
       <QueryClientProvider client={client}>{children}</QueryClientProvider>

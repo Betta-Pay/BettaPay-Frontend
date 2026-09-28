@@ -44,6 +44,9 @@ describe('Next.js Middleware Auth & RBAC', () => {
           return { ...this, pathname: this.pathname };
         }),
       },
+      headers: {
+        get: (name: string) => headers[name.toLowerCase()] ?? null,
+      },
       cookies: {
         get: (name: string) => {
           const value = cookies[name];

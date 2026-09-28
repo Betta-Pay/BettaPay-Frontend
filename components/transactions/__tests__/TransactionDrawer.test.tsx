@@ -28,7 +28,7 @@ function buildInvokeContractEnvelope(): { envelopeXdr: string; contractId: strin
     function: 'transfer',
     args: [
       nativeToScVal(Keypair.random().publicKey(), { type: 'address' }),
-      nativeToScVal(1000n, { type: 'i128' }),
+      nativeToScVal(BigInt(1000), { type: 'i128' }),
     ],
   });
 

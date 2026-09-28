@@ -6,6 +6,7 @@ import { Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/lib/store/authStore";
 import { useWalletStore } from "@/lib/store/walletStore";
+import { ROUTES } from "@/lib/navigation/routes";
 import {
   actionsForRole,
   type CommandAction,
@@ -53,7 +54,7 @@ export function CommandPalette({ role }: CommandPaletteProps) {
       navigate: (href) => router.push(href),
       logout: () => {
         logout();
-        router.push("/auth/login");
+        router.push(ROUTES.LOGIN);
       },
       switchNetwork: () => setNetwork(network === "testnet" ? "public" : "testnet"),
     }),

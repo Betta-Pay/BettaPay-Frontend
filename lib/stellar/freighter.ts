@@ -62,6 +62,8 @@ const SIGNING_DECLINED_MSGS = [
   'refused to sign',
   'rejected the transaction',
   'rejected the signing',
+  // Freighter 3.x wording when the user declines the sign popup.
+  'rejected the request to sign',
 ];
 
 const USER_CANCELLED_MSGS = [
@@ -77,6 +79,18 @@ const USER_CANCELLED_MSGS = [
 ];
 
 function classifyFreighterError(error: unknown): Error {
+  // Already-mapped application errors must survive a second pass: callers
+  // classify inside `catch` blocks too, and re-classifying would discard the
+  // specific error (e.g. a signing decline) for a broader match.
+  if (
+    error instanceof FreighterNotInstalledError ||
+    error instanceof FreighterCancelledError ||
+    error instanceof FreighterNetworkMismatchError ||
+    error instanceof FreighterSigningDeclinedError
+  ) {
+    return error;
+  }
+
   const msg = (error instanceof Error ? error.message : String(error)).toLowerCase();
 
   if (FREIGHTER_NOT_INSTALLED_MSGS.some((k) => msg.includes(k))) {

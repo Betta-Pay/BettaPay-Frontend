@@ -14,6 +14,7 @@ import { isSettlementConfigUnlocked } from '@/lib/kyc/status';
 import { useRouter } from 'next/navigation';
 import { useNotify } from '@/lib/hooks/useNotify';
 import { cn } from '@/lib/utils';
+import { ROUTES } from '@/lib/navigation/routes';
 import { ProfileEditor } from '@/components/settings/ProfileEditor';
 import { useMerchantProfile } from '@/lib/api/hooks';
 import { apiClient } from '@/lib/api/axios';
@@ -216,7 +217,7 @@ export default function SettingsPage() {
   const handleLogout = useCallback(() => {
     logout();
     notify.success('Logged out successfully');
-    router.push('/auth/login');
+    router.push(ROUTES.LOGIN);
   }, [logout, notify, router]);
 
   const handleTabChange = useCallback((id: string) => {

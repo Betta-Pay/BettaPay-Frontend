@@ -43,7 +43,7 @@ jest.mock("@/components/ui/select", () => {
       <select
         aria-label="select-env"
         value={value}
-        onChange={(e) => onValueChange(e.target.value)}
+        onChange={(e) => onValueChange?.(e.target.value)}
       >
         {children}
       </select>

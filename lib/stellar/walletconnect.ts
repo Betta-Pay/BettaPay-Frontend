@@ -1281,11 +1281,13 @@ export class WalletConnectClient {
         this.sessionKeyVersion,
         JSON.stringify(payload),
       ).catch((e) => {
-        const pending = this.pendingRequests.get(id);
         // A publish onto a silently severed socket must not leave the signer
         // hanging on a raw transport error — surface the typed timeout so the
-        // UI recovers (issue #764).
-        pending?.reject(
+        // UI recovers (issue #764). Failing the client (rather than only
+        // rejecting this request) also moves its status to the terminal
+        // `error`, so the UI never sits on `reconnecting` while the pending
+        // signature has already been rejected.
+        this.failWith(
           e instanceof WalletConnectTimeoutError
             ? e
             : new WalletConnectTimeoutError(

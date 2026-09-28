@@ -1,4 +1,5 @@
-import { clearRateLimits, POST } from '../route';
+import { POST } from '../route';
+import { clearRateLimits } from '@/lib/utils/errorsRateLimit';
 
 jest.mock('next/server', () => {
   class MockNextResponse {

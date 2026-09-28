@@ -9,27 +9,6 @@ import { StellarNetwork, STELLAR_NETWORKS, normalizeNetwork } from '@/lib/stella
 
 type Connector = 'freighter' | 'walletconnect' | null;
 
-function debouncePromise<T extends (...args: any[]) => Promise<void>>(
-  func: T,
-  wait: number
-): T {
-  let timeout: NodeJS.Timeout | null = null;
-  let resolvers: Array<() => void> = [];
-
-  return (async (...args: any[]) => {
-    return new Promise<void>((resolve) => {
-      resolvers.push(resolve);
-      if (timeout) clearTimeout(timeout);
-      timeout = setTimeout(async () => {
-        const currentResolvers = resolvers;
-        resolvers = [];
-        await func(...args);
-        currentResolvers.forEach((r) => r());
-      }, wait);
-    });
-  }) as T;
-}
-
 const NETWORK_URLS: Record<StellarNetwork, string> = {
   testnet: STELLAR_NETWORKS.testnet.horizonUrl,
   public: STELLAR_NETWORKS.public.horizonUrl,
@@ -455,7 +434,12 @@ export const useWalletStore = create<WalletState>((set, get) => ({
     throw new Error('No wallet connected');
   },
 
-  refreshBalances: debouncePromise(async () => {
+  // Every call refreshes immediately: the `refreshBalancesController` below
+  // aborts any request that is still in flight, which is what keeps a burst of
+  // triggers from opening duplicate Horizon requests. Delaying the call (the
+  // previous 2s debounce) made awaited refreshes resolve after their callers
+  // had already rendered the stale balance.
+  refreshBalances: async () => {
     const { address, network } = get();
     if (!address) return;
 
@@ -533,7 +517,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
         error: error instanceof Error ? error.message : 'Failed to fetch balances',
       });
     }
-  }, 2000),
+  },
 }));
 
 // Let error reports carry wallet context. Registered here rather than imported

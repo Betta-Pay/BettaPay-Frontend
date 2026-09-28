@@ -18,7 +18,7 @@ function createMemoryStorage(): Storage {
 // limit the user is already waiting out.
 describe('axios rate-limit gate', () => {
   let apiClient: AxiosInstance;
-  let store: ReturnType<typeof import("../rateLimitStore").createRateLimitStore>;
+  let store: ReturnType<typeof import("@/lib/store/rateLimitStore").createRateLimitStore>;
   let dispatched: string[];
   let memStorage: Storage;
 
@@ -30,7 +30,7 @@ describe('axios rate-limit gate', () => {
 
     const axios = require('axios');
     axios.defaults.adapter = (config: import("axios").InternalAxiosRequestConfig) => {
-      dispatched.push(config.url);
+      dispatched.push(config.url ?? '');
       return Promise.resolve({
         data: { ok: true },
         status: 200,

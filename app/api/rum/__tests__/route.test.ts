@@ -1,16 +1,27 @@
 import { clearEvents, getEventCount, queryEvents } from '@/lib/rum/store';
 
 jest.mock('next/server', () => {
+  class MockNextResponse {
+    status: number;
+    headers: Map<string, string>;
+    body: unknown;
+
+    constructor(body: unknown, init?: ResponseInit) {
+      this.status = init?.status ?? 200;
+      this.body = body;
+      const headersRecord = (init?.headers as Record<string, string>) || {};
+      this.headers = new Map(Object.entries(headersRecord));
+    }
+
+    static json(data: unknown, init?: ResponseInit) {
+      const resp = new MockNextResponse(JSON.stringify(data), init);
+      resp.headers.set('content-type', 'application/json');
+      return resp;
+    }
+  }
+
   return {
-    NextResponse: {
-      json(data: unknown, init?: ResponseInit) {
-        return {
-          status: init?.status ?? 200,
-          headers: new Map(Object.entries({ 'content-type': 'application/json', ...((init?.headers as Record<string, string>) || {}) })),
-          body: JSON.stringify(data),
-        };
-      },
-    },
+    NextResponse: MockNextResponse,
   };
 });
 
@@ -171,7 +182,7 @@ describe('POST /api/rum', () => {
       events: [{ invalid: true }],
     });
     const res = await POST(req);
-    const body = (res as { body: string }).body;
+    const body = (res as unknown as { body: string }).body;
     expect(body).not.toContain('email');
     expect(body).not.toContain('token');
     expect(body).not.toContain('password');
