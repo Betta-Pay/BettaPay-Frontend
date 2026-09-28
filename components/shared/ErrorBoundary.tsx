@@ -9,6 +9,8 @@ import { ROUTES } from "@/lib/navigation/routes";
 const buttonBase =
   "inline-flex items-center justify-center rounded-lg px-4 h-11 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
+type Fallback = ReactNode | ((reset: () => void) => ReactNode);
+
 interface ErrorBoundaryProps {
   children: ReactNode;
   pathname?: string;
@@ -71,13 +73,19 @@ export class ErrorBoundary extends Component<
   }
 
   handleReset = () => {
+    this.props.onReset?.();
     // Reset the boundary so the children get a fresh render attempt.
     this.setState({ hasError: false });
   };
 
   render() {
     if (!this.state.hasError) return this.props.children;
-    if (this.props.fallback) return this.props.fallback;
+
+    if (this.props.fallback) {
+      return typeof this.props.fallback === "function"
+        ? this.props.fallback(this.handleReset)
+        : this.props.fallback;
+    }
 
     return (
       <div className="flex min-h-[60vh] items-center justify-center p-4">
@@ -105,7 +113,7 @@ export class ErrorBoundary extends Component<
               className={`${buttonBase} gap-2 bg-primary text-primary-foreground hover:bg-primary/80`}
             >
               <RotateCcw className="h-4 w-4" aria-hidden="true" />
-              Try Again
+              {this.props.retryLabel ?? "Try Again"}
             </button>
             <Link
               href={ROUTES.DASHBOARD}
@@ -125,7 +133,7 @@ export function ErrorBoundaryWithRouter({
   fallback,
 }: {
   children: ReactNode;
-  fallback?: ReactNode;
+  fallback?: Fallback;
 }) {
   const pathname =
     typeof window !== "undefined" ? window.location.pathname : undefined;
