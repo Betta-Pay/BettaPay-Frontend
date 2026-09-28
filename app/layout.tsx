@@ -11,6 +11,7 @@ import { defaultLocale, getLocaleDirection, isSupportedLocale } from "@/lib/i18n
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { I18nProvider } from '@/components/i18n/I18nProvider';
 import { TranslationCoveragePanel } from '@/components/i18n/TranslationCoveragePanel';
+import RouteProgress from "@/components/layout/RouteProgress";
 import {
   DEFAULT_DESCRIPTION,
   DEFAULT_OG_IMAGE,
@@ -98,6 +99,7 @@ export default async function RootLayout({
   return (
     <html lang={htmlLang} dir={documentDirection} suppressHydrationWarning className={cn("font-sans antialiased", fraunces.variable, dmSans.variable)}>
       <body className="min-h-screen bg-background text-foreground">
+        <RouteProgress />
         <a
           href="#main-content"
           className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 rounded-md bg-background px-4 py-2 text-sm font-medium text-foreground shadow-md ring-2 ring-ring"
