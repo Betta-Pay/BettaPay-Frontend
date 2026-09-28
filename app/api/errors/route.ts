@@ -3,6 +3,7 @@
  *
  * Ingest endpoint for batched frontend error reports.
  *
+ * - Enforces IP-based rate limiting (max 10 error reports/requests per minute per IP)
  * - Validates the body strictly against the supported schema
  * - Rejects malformed or oversized payloads
  * - Never logs the raw payload (it is user-adjacent even after scrubbing)
@@ -22,6 +23,53 @@ const MAX_BATCH_SIZE = 20;
 
 /** Maximum payload size (bytes) — 128KB. */
 const MAX_PAYLOAD_SIZE = 128 * 1024;
+
+/** Rate limit settings: max 10 requests/reports per minute per IP. */
+const RATE_LIMIT_MAX = 10;
+const RATE_LIMIT_WINDOW_MS = 60 * 1000;
+
+interface RateLimitRecord {
+  timestamps: number[];
+}
+
+const globalForErrors = global as unknown as {
+  errorsRateLimitMap?: Map<string, RateLimitRecord>;
+};
+
+const rateLimitMap =
+  globalForErrors.errorsRateLimitMap || new Map<string, RateLimitRecord>();
+
+if (process.env.NODE_ENV !== 'production') {
+  globalForErrors.errorsRateLimitMap = rateLimitMap;
+}
+
+/** Clears rate limit store (useful for test isolation). */
+export function clearRateLimits() {
+  rateLimitMap.clear();
+}
+
+/**
+ * Checks and updates rate limit for a given IP.
+ * Returns true if allowed, false if rate limit exceeded.
+ */
+function checkRateLimit(ip: string): { allowed: boolean; retryAfterSeconds: number } {
+  const now = Date.now();
+  const record = rateLimitMap.get(ip) || { timestamps: [] };
+
+  const windowStart = now - RATE_LIMIT_WINDOW_MS;
+  record.timestamps = record.timestamps.filter((t) => t > windowStart);
+
+  if (record.timestamps.length >= RATE_LIMIT_MAX) {
+    const oldest = record.timestamps[0];
+    const resetMs = oldest + RATE_LIMIT_WINDOW_MS - now;
+    const retryAfterSeconds = Math.max(1, Math.ceil(resetMs / 1000));
+    return { allowed: false, retryAfterSeconds };
+  }
+
+  record.timestamps.push(now);
+  rateLimitMap.set(ip, record);
+  return { allowed: true, retryAfterSeconds: 0 };
+}
 
 const contextSchema = z
   .object({
@@ -62,6 +110,23 @@ const batchSchema = z
 
 export async function POST(request: Request) {
   try {
+    const forwarded = request.headers.get('x-forwarded-for');
+    const realIp = request.headers.get('x-real-ip');
+    const ip = forwarded ? forwarded.split(',')[0].trim() : realIp || '127.0.0.1';
+
+    const { allowed, retryAfterSeconds } = checkRateLimit(ip);
+    if (!allowed) {
+      return NextResponse.json(
+        { error: 'Too Many Requests' },
+        {
+          status: 429,
+          headers: {
+            'Retry-After': String(retryAfterSeconds),
+          },
+        }
+      );
+    }
+
     const contentLength = request.headers.get('content-length');
     if (contentLength && Number(contentLength) > MAX_PAYLOAD_SIZE) {
       return new NextResponse(null, { status: 413 });

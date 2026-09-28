@@ -51,6 +51,20 @@ test.describe('Transaction detail drawer', () => {
     await expect(drawer.getByText(/raw payload/i)).toBeVisible();
   });
 
+  test('navigates from dashboard to transaction detail', async ({ page }) => {
+    await gotoAuthed(page, '/dashboard');
+    await expect(page.getByRole('heading', { name: /dashboard/i })).toBeVisible();
+
+    const txRow = page.getByText('GBX...4Q3').first();
+    if (await txRow.isVisible()) {
+      await txRow.click();
+      const drawer = page.getByRole('dialog');
+      await expect(drawer.getByText(/transaction details/i)).toBeVisible();
+      await expect(drawer.getByText(/basic info/i)).toBeVisible();
+      await expect(drawer.getByText(/payment details/i)).toBeVisible();
+    }
+  });
+
   test('copies a field from the drawer', async ({ page }) => {
     await page.getByText('GBX...4Q3').first().click();
     const drawer = page.getByRole('dialog');

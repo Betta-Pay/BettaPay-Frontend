@@ -4,18 +4,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import { useTheme } from "next-themes";
-import {
-  ResponsiveContainer,
-  LineChart,
-  Line,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  CartesianGrid,
-  Legend,
-} from "recharts";
+import dynamic from "next/dynamic";
 import {
   Card,
   CardContent,
@@ -32,82 +21,30 @@ import {
 import { ErrorDisplay } from "@/components/shared";
 import { Activity, BarChart3, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { formatMs, getMetricLabel } from "@/components/admin/performance/performanceFormat";
+import type { DashboardResponse } from "@/components/admin/performance/performanceFormat";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+const TrendChart = dynamic(
+  () =>
+    import("@/components/admin/performance/PerformanceCharts").then(
+      (m) => m.TrendChart
+    ),
+  {
+    ssr: false,
+    loading: () => <Skeleton className="h-[300px] w-full" />,
+  }
+);
 
-interface PercentileResult {
-  p50: number;
-  p75: number;
-  p90: number;
-  p95: number;
-  count: number;
-  min: number;
-  max: number;
-}
-
-interface TrendPoint {
-  date: string;
-  percentiles: PercentileResult;
-  count: number;
-}
-
-interface DistributionBucket {
-  lower: number;
-  upper: number;
-  count: number;
-}
-
-interface RouteSummary {
-  route: string;
-  percentiles: PercentileResult;
-  count: number;
-}
-
-interface PerformanceData {
-  metric: string;
-  percentiles: PercentileResult;
-  trend: TrendPoint[];
-  routeSummaries: RouteSummary[];
-  distribution: DistributionBucket[];
-  route: string | null;
-  sampleCount: number;
-}
-
-interface DashboardResponse {
-  routes: string[];
-  metrics: string[];
-  timeRange: { from: string; to: string };
-  totalEvents: number;
-  data: PerformanceData | null;
-}
-
-// ─── Formatting ───────────────────────────────────────────────────────────────
-
-function formatMs(value: number, metric: string): string {
-  if (metric === "cls") return value.toFixed(3);
-  if (value < 1000) return `${Math.round(value)}ms`;
-  return `${(value / 1000).toFixed(2)}s`;
-}
-
-function formatDate(dateStr: string): string {
-  const d = new Date(dateStr);
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-}
-
-function getMetricLabel(metric: string): string {
-  const labels: Record<string, string> = {
-    fcp: "First Contentful Paint",
-    lcp: "Largest Contentful Paint",
-    cls: "Cumulative Layout Shift",
-    long_task: "Long Tasks",
-    ttfb: "Time to First Byte",
-    domContentLoaded: "DOMContentLoaded",
-    load: "Load",
-    route_change: "Route Change Duration",
-    hydration_error: "Hydration Errors",
-  };
-  return labels[metric] || metric;
-}
+const DistributionChart = dynamic(
+  () =>
+    import("@/components/admin/performance/PerformanceCharts").then(
+      (m) => m.DistributionChart
+    ),
+  {
+    ssr: false,
+    loading: () => <Skeleton className="h-[300px] w-full" />,
+  }
+);
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -126,139 +63,6 @@ function PercentileCard({
       <span className="text-lg font-bold text-foreground font-mono">
         {formatMs(value, metric)}
       </span>
-    </div>
-  );
-}
-
-function TrendChart({
-  data,
-  metric,
-  isDark,
-}: {
-  data: TrendPoint[];
-  metric: string;
-  isDark: boolean;
-}) {
-  const chartData = data.map((d) => ({
-    date: formatDate(d.date),
-    p50: d.percentiles.p50,
-    p75: d.percentiles.p75,
-    p90: d.percentiles.p90,
-    p95: d.percentiles.p95,
-    count: d.count,
-  }));
-
-  return (
-    <div className="w-full" style={{ height: 300 }}>
-      <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={chartData}>
-          <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-          <XAxis
-            dataKey="date"
-            stroke="var(--muted-foreground)"
-            fontSize={12}
-            tickLine={false}
-          />
-          <YAxis
-            stroke="var(--muted-foreground)"
-            fontSize={12}
-            tickLine={false}
-            tickFormatter={(v) => formatMs(v, metric)}
-          />
-          <Tooltip
-            contentStyle={{
-              backgroundColor: isDark ? "var(--card)" : "var(--card)",
-              borderColor: isDark ? "var(--border)" : "var(--border)",
-              color: isDark ? "var(--foreground)" : "var(--foreground)",
-            }}
-            formatter={(value, name) => [
-              formatMs(Number(value ?? 0), metric),
-              name,
-            ]}
-          />
-          <Legend />
-          <Line
-            type="monotone"
-            dataKey="p50"
-            stroke="var(--primary)"
-            strokeWidth={2}
-            name="p50"
-            dot={false}
-          />
-          <Line
-            type="monotone"
-            dataKey="p75"
-            stroke="var(--primary)"
-            strokeWidth={2}
-            strokeDasharray="5 5"
-            name="p75"
-            dot={false}
-          />
-          <Line
-            type="monotone"
-            dataKey="p90"
-            stroke="var(--warning)"
-            strokeWidth={2}
-            name="p90"
-            dot={false}
-          />
-          <Line
-            type="monotone"
-            dataKey="p95"
-            stroke="var(--destructive)"
-            strokeWidth={2}
-            name="p95"
-            dot={false}
-          />
-        </LineChart>
-      </ResponsiveContainer>
-    </div>
-  );
-}
-
-function DistributionChart({
-  data,
-  metric,
-  isDark,
-}: {
-  data: DistributionBucket[];
-  metric: string;
-  isDark: boolean;
-}) {
-  const chartData = data.map((d) => ({
-    range: `${formatMs(d.lower, metric)}–${d.upper === Infinity ? "+" : formatMs(d.upper, metric)}`,
-    count: d.count,
-  }));
-
-  return (
-    <div className="w-full" style={{ height: 300 }}>
-      <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={chartData}>
-          <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-          <XAxis
-            dataKey="range"
-            stroke="var(--muted-foreground)"
-            fontSize={10}
-            tickLine={false}
-            angle={-35}
-            textAnchor="end"
-            height={60}
-          />
-          <YAxis
-            stroke="var(--muted-foreground)"
-            fontSize={12}
-            tickLine={false}
-          />
-          <Tooltip
-            contentStyle={{
-              backgroundColor: isDark ? "var(--card)" : "var(--card)",
-              borderColor: isDark ? "var(--border)" : "var(--border)",
-              color: isDark ? "var(--foreground)" : "var(--foreground)",
-            }}
-          />
-          <Bar dataKey="count" fill="var(--primary)" radius={[4, 4, 0, 0]} />
-        </BarChart>
-      </ResponsiveContainer>
     </div>
   );
 }

@@ -96,8 +96,16 @@ export function RequestExample({ samples }: RequestExampleProps) {
           id={`${baseId}-panel-${index}`}
           aria-labelledby={`${baseId}-tab-${index}`}
           hidden={index !== active}
+          className="group/panel relative"
         >
           <SafeHtmlRenderer className="docs-code" html={sample.html} />
+          <div className="pointer-events-none absolute bottom-3 right-3 z-10 opacity-0 transition-opacity group-focus-within/panel:opacity-100 group-hover/panel:opacity-100">
+            <CopyButton
+              value={sample.code}
+              label={`Copy ${sample.label} snippet`}
+              className="pointer-events-auto border border-border bg-card/80 shadow-sm backdrop-blur-sm"
+            />
+          </div>
         </div>
       ))}
     </div>

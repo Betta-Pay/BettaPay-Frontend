@@ -76,6 +76,7 @@ const METHOD_SESSION_PROPOSE = 'wc_sessionPropose';
 const METHOD_SESSION_SETTLE = 'wc_sessionSettle';
 const METHOD_SESSION_REQUEST = 'wc_sessionRequest';
 const METHOD_SESSION_DELETE = 'wc_sessionDelete';
+const METHOD_SESSION_PING = 'wc_sessionPing';
 const METHOD_STELLAR_SIGN_TX = 'stellar_signTransaction';
 const METHOD_STELLAR_SIGN_MSG = 'stellar_signMessage';
 
@@ -102,6 +103,13 @@ const PAIRING_TIMEOUT_MS = 180_000;
 const APPROVE_TIMEOUT_MS = 30_000;
 /** Max time to wait for a signature before auto-aborting the request. */
 const SIGN_TIMEOUT_MS = 60_000;
+/**
+ * Max time to wait for a restored session's peer to answer a liveness ping
+ * (issue #792). A persisted session surviving in localStorage does not mean
+ * the mobile wallet still honors the pairing — it may have been disconnected
+ * or the pairing revoked on the wallet side without us being told.
+ */
+const SESSION_RESTORE_PING_TIMEOUT_MS = 15_000;
 
 // ─── Expiry & replay tuning (issue #499) ─────────────────────────────────────
 
@@ -442,6 +450,13 @@ export class WalletConnectClient {
   private statusBeforeReconnect: WalletConnectStatus | null = null;
   /** Last status handed to the listener — the source of truth for restore/guard logic. */
   private currentStatus: WalletConnectStatus = 'idle';
+  /**
+   * Set by `restoreSession()` before opening the socket; consumed exactly once
+   * by the next `onWsOpen()` to trigger a liveness ping against the peer
+   * (issue #792). Cleared as soon as it is consumed so a later reconnect
+   * mid-session never re-triggers it.
+   */
+  private verifyingRestoredSession = false;
 
   /**
    * @param wsFactory Socket constructor, injectable for tests. Defaults to the
@@ -528,6 +543,11 @@ export class WalletConnectClient {
     this.intentionalClose = false;
     this.reconnectAttempts = 0;
     this.wsUrl = `${RELAY_URL}?projectId=${PROJECT_ID}&ua=BettaPay%2F1.0`;
+    // A session object surviving in storage does not prove the mobile wallet
+    // still honors the pairing — verify it with a liveness ping once the
+    // socket reopens, and quietly drop the session if the peer never answers
+    // (issue #792). This flag is consumed exactly once by the next onWsOpen.
+    this.verifyingRestoredSession = true;
     this.openSocket();
     this.startTopicPurge();
     this.emit('connected');
@@ -610,11 +630,30 @@ export class WalletConnectClient {
 
     this.startHeartbeat();
 
+    if (this.verifyingRestoredSession) {
+      this.verifyingRestoredSession = false;
+      void this.verifyRestoredSessionVitality();
+    }
+
     if (reconnected) {
       const restore = this.statusBeforeReconnect ?? 'connecting';
       this.statusBeforeReconnect = null;
       console.info('[WalletConnect] relay reconnected, resuming as', restore);
       this.emit(restore);
+    }
+  }
+
+  /**
+   * Pings the peer over a just-restored session and disconnects (clearing
+   * the persisted session via the normal `'disconnected'` status path) if it
+   * never answers — a stale session must not sit around reporting connected
+   * (issue #792).
+   */
+  private async verifyRestoredSessionVitality() {
+    const alive = await this.pingSession(SESSION_RESTORE_PING_TIMEOUT_MS);
+    if (!alive && this.currentStatus === 'connected') {
+      console.warn('[WalletConnect] restored session did not answer a liveness ping — disconnecting');
+      this.disconnect();
     }
   }
 
@@ -968,6 +1007,21 @@ export class WalletConnectClient {
       }
       return;
     }
+
+    if (!method) {
+      // A bare JSON-RPC response (no method field) — e.g. the peer's answer to
+      // our own outbound wc_sessionPing (issue #792), which has no wrapping
+      // wc_sessionRequest envelope the way sign requests do.
+      const pending = this.pendingRequests.get(msg.id);
+      if (pending) {
+        if (msg.error) {
+          pending.reject(new Error(msg.error.message));
+        } else {
+          pending.resolve(msg.result);
+        }
+        this.pendingRequests.delete(msg.id);
+      }
+    }
   }
 
   private async handleSessionProposal(
@@ -1228,7 +1282,58 @@ export class WalletConnectClient {
         JSON.stringify(payload),
       ).catch((e) => {
         const pending = this.pendingRequests.get(id);
-        pending?.reject(e instanceof Error ? e : new Error(String(e)));
+        // A publish onto a silently severed socket must not leave the signer
+        // hanging on a raw transport error — surface the typed timeout so the
+        // UI recovers (issue #764).
+        pending?.reject(
+          e instanceof WalletConnectTimeoutError
+            ? e
+            : new WalletConnectTimeoutError(
+                'signing',
+                'Lost the connection to the wallet while waiting for the signature. Nothing was signed — please try again.',
+              ),
+        );
+      });
+    });
+  }
+
+  /**
+   * Sends a lightweight `wc_sessionPing` on the session topic and resolves
+   * whether the peer answered within `timeoutMs` (issue #792). Never throws,
+   * and deliberately does not go through `sendSessionRequest` / the `signing`
+   * phase timer — this is a silent background check, not a user-facing
+   * signing request.
+   */
+  private async pingSession(timeoutMs: number): Promise<boolean> {
+    if (!this.sessionKey || !this.sessionTopic) return false;
+
+    const id = this.nextId();
+    try {
+      await this.publishEncrypted(
+        this.sessionTopic,
+        this.sessionKey,
+        this.sessionKeyVersion,
+        JSON.stringify({ id, jsonrpc: '2.0' as const, method: METHOD_SESSION_PING, params: {} }),
+      );
+    } catch {
+      return false;
+    }
+
+    return new Promise<boolean>((resolve) => {
+      const timer = setTimeout(() => {
+        this.pendingRequests.delete(id);
+        resolve(false);
+      }, timeoutMs);
+
+      this.pendingRequests.set(id, {
+        resolve: () => {
+          clearTimeout(timer);
+          resolve(true);
+        },
+        reject: () => {
+          clearTimeout(timer);
+          resolve(false);
+        },
       });
     });
   }

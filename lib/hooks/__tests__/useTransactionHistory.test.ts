@@ -3,9 +3,21 @@
  */
 
 import { renderHook, act, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import React from 'react';
 import { useTransactionHistory } from '@/lib/hooks/useTransactionHistory';
 
 const mockAddress = 'GABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+const secondAddress = 'GBCDEFGHIJKLMNOPQRSTUVWXYZ234567A';
+
+function createWrapper(queryClient = new QueryClient()) {
+  queryClient.setDefaultOptions({
+    queries: { retry: false, staleTime: Infinity },
+  });
+  return function Wrapper({ children }: { children: React.ReactNode }) {
+    return React.createElement(QueryClientProvider, { client: queryClient }, children);
+  };
+}
 
 jest.mock('@/lib/store/walletStore', () => ({
   useWalletStore: (selector: (s: { address: string; network: string }) => unknown) =>
@@ -62,8 +74,9 @@ describe('useTransactionHistory pagination (#515)', () => {
         json: async () => page2,
       });
 
-    const { result } = renderHook(() =>
-      useTransactionHistory({ pageSize: 2, order: 'desc', address: mockAddress }),
+    const { result } = renderHook(
+      () => useTransactionHistory({ pageSize: 2, order: 'desc', address: mockAddress }),
+      { wrapper: createWrapper() },
     );
 
     await waitFor(() => expect(result.current.loading).toBe(false));
@@ -96,12 +109,41 @@ describe('useTransactionHistory pagination (#515)', () => {
       }),
     });
 
-    const { result } = renderHook(() =>
-      useTransactionHistory({ pageSize: 20, address: mockAddress }),
+    const { result } = renderHook(
+      () => useTransactionHistory({ pageSize: 20, address: mockAddress }),
+      { wrapper: createWrapper() },
     );
 
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.hasNextPage).toBe(false);
     expect(result.current.nextCursor).toBeNull();
+  });
+
+  it('caches history separately by wallet address', async () => {
+    (global.fetch as jest.Mock)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ _embedded: { records: [makeRecord('1', 'token-1')] }, _links: {} }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ _embedded: { records: [makeRecord('2', 'token-2')] }, _links: {} }),
+      });
+
+    const wrapper = createWrapper();
+    const { result, rerender } = renderHook(
+      ({ address }) => useTransactionHistory({ address }),
+      { initialProps: { address: mockAddress }, wrapper },
+    );
+
+    await waitFor(() => expect(result.current.transactions).toHaveLength(1));
+    expect(result.current.transactions[0].id).toBe('1');
+
+    rerender({ address: secondAddress });
+    await waitFor(() => expect(result.current.transactions[0]?.id).toBe('2'));
+
+    rerender({ address: mockAddress });
+    expect(result.current.transactions[0]?.id).toBe('1');
+    expect(global.fetch).toHaveBeenCalledTimes(2);
   });
 });

@@ -4,22 +4,18 @@
  * One KYB document slot: pick a file, validate it in the browser, preview it,
  * watch the upload progress, then see its review status. A rejected document
  * shows the reviewer's reason and a re-upload control. (Issue #458.)
+ *
+ * Presentational only — picking, validation, preview and upload state live in
+ * `useKybDocumentUpload`.
  */
 
-import { useRef, useState } from 'react';
 import Image from 'next/image';
 import { Button } from '@/components/ui';
 import { Progress } from '@/components/ui';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui';
 import { cn } from '@/lib/utils';
-import { useUploadKybDocument } from '@/lib/kyc/api';
-import {
-  fileInputAccept,
-  formatBytes,
-  isImageMime,
-  validateKybFile,
-  type FileRejection,
-} from '@/lib/kyc/validation';
+import { useKybDocumentUpload } from '@/lib/kyc/useKybDocumentUpload';
+import { fileInputAccept, formatBytes } from '@/lib/kyc/validation';
 import type { KybDocTypeMeta, KybDocument } from '@/lib/kyc/types';
 import { KybDocStatusBadge } from './KybStatusBadge';
 import { FileText, Upload, RotateCcw, AlertTriangle } from 'lucide-react';
@@ -40,47 +36,17 @@ export function KybDocumentRow({
   disabled,
   simulateReject,
 }: Props) {
-  const inputRef = useRef<HTMLInputElement>(null);
-  const [rejection, setRejection] = useState<FileRejection | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [previewName, setPreviewName] = useState<string | null>(null);
-
-  const { upload, isUploading, progress, error } = useUploadKybDocument(merchantId);
-
-  function pick() {
-    setRejection(null);
-    inputRef.current?.click();
-  }
-
-  async function onFile(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    // Allow re-selecting the same filename later.
-    event.target.value = '';
-    if (!file) return;
-
-    const problem = validateKybFile(file);
-    if (problem) {
-      setRejection(problem);
-      return;
-    }
-    setRejection(null);
-
-    // Render a thumbnail as a data URL — the production CSP allows `img-src
-    // data:` but not `blob:`, so `URL.createObjectURL` previews would break.
-    setPreviewUrl(null);
-    setPreviewName(file.name);
-    if (isImageMime(file.type)) {
-      const reader = new FileReader();
-      reader.onload = () => setPreviewUrl(typeof reader.result === 'string' ? reader.result : null);
-      reader.readAsDataURL(file);
-    }
-
-    try {
-      await upload({ type: meta.type, file, simulateReject });
-    } catch {
-      // The hook surfaces `error`; nothing more to do here.
-    }
-  }
+  const {
+    inputRef,
+    pick,
+    onFileChange,
+    rejection,
+    previewUrl,
+    previewName,
+    isUploading,
+    progress,
+    error,
+  } = useKybDocumentUpload({ merchantId, type: meta.type, simulateReject });
 
   const showRejectionBanner = document?.status === 'rejected';
   const isBusy = isUploading || Boolean(disabled);
@@ -173,7 +139,7 @@ export function KybDocumentRow({
           type="file"
           accept={fileInputAccept()}
           className="hidden"
-          onChange={onFile}
+          onChange={onFileChange}
           data-testid={`kyb-file-input-${meta.type}`}
         />
         <Button

@@ -2,11 +2,17 @@
 
 import { useState } from 'react';
 import { Button } from '@/components/ui';
-import { FileDown, Loader2 } from 'lucide-react';
+import { FileDown } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuthStore } from '@/lib/store/authStore';
 import type { ApiSettlement } from '@/lib/api/hooks';
-import type { InvoiceMerchant } from '@/lib/utils/pdf';
+import {
+  downloadPdf,
+  generateInvoice,
+  type InvoiceData,
+  type InvoiceMerchant,
+} from '@/lib/services/pdfGenerator';
+import { InvoicePreviewModal, type InvoicePreviewData } from './InvoicePreviewModal';
 
 function useInvoiceMerchant(): InvoiceMerchant {
   const user = useAuthStore((s) => s.user);
@@ -18,56 +24,27 @@ function useInvoiceMerchant(): InvoiceMerchant {
   };
 }
 
-function generatePdfViaWorker(type: 'SINGLE' | 'BATCH', payload: any): Promise<{ blob: Blob, filename: string } | null> {
-  return new Promise((resolve, reject) => {
-    const worker = new Worker(new URL('@/lib/workers/pdf.worker.ts', import.meta.url));
-    const id = Date.now();
-    worker.onmessage = (e) => {
-      if (e.data.id === id) {
-        if (e.data.success) {
-          resolve(e.data.result);
-        } else {
-          reject(new Error(e.data.error));
-        }
-        worker.terminate();
-      }
-    };
-    worker.onerror = (err) => {
-      reject(err);
-      worker.terminate();
-    };
-    worker.postMessage({ type, payload, id });
-  });
+async function downloadInvoice(data: InvoiceData) {
+  const pdf = await generateInvoice(data);
+  if (pdf) downloadPdf(pdf);
 }
-
-async function triggerDownload(type: 'SINGLE' | 'BATCH', payload: any) {
-  const result = await generatePdfViaWorker(type, payload);
-  if (!result) return;
-  const url = URL.createObjectURL(result.blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = result.filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-}
-
 
 interface InvoiceDownloadButtonProps {
   settlement: ApiSettlement;
 }
 
-/** Icon button that downloads a PDF invoice for a single completed settlement. */
+/** Icon button that opens an invoice preview before downloading a PDF for a completed settlement (issue #790). */
 export function InvoiceDownloadButton({ settlement }: InvoiceDownloadButtonProps) {
+  const [previewOpen, setPreviewOpen] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const merchant = useInvoiceMerchant();
 
   const handleDownload = async () => {
     setIsGenerating(true);
     try {
-      await triggerDownload('SINGLE', { settlement, merchant });
+      await downloadInvoice({ kind: 'single', settlement, merchant });
       toast.success('Invoice downloaded');
+      setPreviewOpen(false);
     } catch {
       toast.error('Failed to generate invoice');
     } finally {
@@ -76,21 +53,26 @@ export function InvoiceDownloadButton({ settlement }: InvoiceDownloadButtonProps
   };
 
   return (
-    <Button
-      variant="ghost"
-      size="icon"
-      className="min-h-[44px] min-w-[44px] rounded-lg"
-      onClick={handleDownload}
-      disabled={isGenerating}
-      aria-label="Download invoice"
-      title="Download invoice"
-    >
-      {isGenerating ? (
-        <Loader2 className="w-3.5 h-3.5 text-muted-foreground animate-spin" />
-      ) : (
+    <>
+      <Button
+        variant="ghost"
+        size="icon"
+        className="min-h-[44px] min-w-[44px] rounded-lg"
+        onClick={() => setPreviewOpen(true)}
+        aria-label="Preview invoice"
+        title="Preview invoice"
+      >
         <FileDown className="w-3.5 h-3.5 text-muted-foreground" />
-      )}
-    </Button>
+      </Button>
+      <InvoicePreviewModal
+        open={previewOpen}
+        onOpenChange={setPreviewOpen}
+        data={{ kind: 'single', settlement } satisfies InvoicePreviewData}
+        merchant={merchant}
+        isDownloading={isGenerating}
+        onDownload={handleDownload}
+      />
+    </>
   );
 }
 
@@ -99,8 +81,9 @@ interface BatchInvoiceDownloadProps {
   disabled?: boolean;
 }
 
-/** Downloads a single PDF containing one invoice per completed settlement. */
+/** Opens an invoice preview, then downloads a single PDF with one invoice per completed settlement (issue #790). */
 export function BatchInvoiceDownload({ settlements, disabled }: BatchInvoiceDownloadProps) {
+  const [previewOpen, setPreviewOpen] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const merchant = useInvoiceMerchant();
 
@@ -109,8 +92,9 @@ export function BatchInvoiceDownload({ settlements, disabled }: BatchInvoiceDown
   const handleDownload = async () => {
     setIsGenerating(true);
     try {
-      await triggerDownload('BATCH', { settlements: completed, merchant });
+      await downloadInvoice({ kind: 'batch', settlements: completed, merchant });
       toast.success(`Downloaded ${completed.length} invoice${completed.length === 1 ? '' : 's'}`);
+      setPreviewOpen(false);
     } catch {
       toast.error('Failed to generate invoices');
     } finally {
@@ -119,19 +103,25 @@ export function BatchInvoiceDownload({ settlements, disabled }: BatchInvoiceDown
   };
 
   return (
-    <Button
-      variant="outline"
-      disabled={disabled || isGenerating || completed.length === 0}
-      aria-disabled={disabled || isGenerating || completed.length === 0}
-      onClick={handleDownload}
-      className="border-border text-muted-foreground rounded-xl text-xs h-8 px-3"
-    >
-      {isGenerating ? (
-        <Loader2 className="w-3 h-3 mr-1.5 animate-spin" />
-      ) : (
+    <>
+      <Button
+        variant="outline"
+        disabled={disabled || completed.length === 0}
+        aria-disabled={disabled || completed.length === 0}
+        onClick={() => setPreviewOpen(true)}
+        className="border-border text-muted-foreground rounded-xl text-xs h-8 px-3"
+      >
         <FileDown className="w-3 h-3 mr-1.5" />
-      )}
-      Download Invoices
-    </Button>
+        Download Invoices
+      </Button>
+      <InvoicePreviewModal
+        open={previewOpen}
+        onOpenChange={setPreviewOpen}
+        data={{ kind: 'batch', settlements: completed } satisfies InvoicePreviewData}
+        merchant={merchant}
+        isDownloading={isGenerating}
+        onDownload={handleDownload}
+      />
+    </>
   );
 }

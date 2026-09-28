@@ -13,7 +13,7 @@ jest.mock('@/lib/api/hooks', () => ({
 }));
 
 jest.mock('@/lib/store/offlineStore', () => ({
-  useOfflineStore: (selector: (state: { isOnline: boolean })) => selector({ isOnline: true }),
+  useOfflineStore: (selector: (state: { isOnline: boolean }) => unknown) => selector({ isOnline: true }),
 }));
 
 jest.mock('@tanstack/react-virtual', () => ({

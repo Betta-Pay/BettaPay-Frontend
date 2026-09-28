@@ -15,7 +15,7 @@ jest.mock("@/lib/hooks/useNotify", () => ({
 }));
 
 jest.mock("@/lib/store/offlineStore", () => ({
-  useOfflineStore: (selector: (state: { isOnline: boolean })) => selector({ isOnline: true }),
+  useOfflineStore: (selector: (state: { isOnline: boolean }) => unknown) => selector({ isOnline: true }),
 }));
 
 jest.mock("@/lib/api/axios", () => ({

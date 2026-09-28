@@ -1,7 +1,9 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import { useForm, useWatch, type Resolver } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowLeft, ArrowRight, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui";
@@ -16,7 +18,7 @@ import { StepSettlement } from "@/components/onboarding/StepSettlement";
 import { StepWebhook } from "@/components/onboarding/StepWebhook";
 import { StepKyc } from "@/components/onboarding/StepKyc";
 import { StepReview } from "@/components/onboarding/StepReview";
-import { accountNumberSchema, bankCodeSchema, businessTypeSchema, webhookUrlSchema } from "@/lib/utils/onboardingSchemas";
+import { accountNumberSchema, bankCodeSchema, businessInfoSchema, webhookUrlSchema } from "@/lib/utils/onboardingSchemas";
 import { setOnboardingCompleted } from "@/lib/auth/session";
 
 export type OnboardingData = {
@@ -60,6 +62,9 @@ const steps = ["Business info", "Currency", "Settlement", "Webhook", "Verificati
 
 /** Index of the review step — the revalidation gate keys off this. */
 const REVIEW_STEP = steps.length - 1;
+
+/** Fields the business info step owns, validated through the RHF resolver. */
+const BUSINESS_INFO_FIELDS = ["businessName", "businessType", "country"] as const;
 
 /**
  * Safely read persisted onboarding progress from localStorage.
@@ -110,8 +115,28 @@ export default function OnboardingPage() {
   const notify = useNotify();
   const { user } = useAuthStore();
   const [step, setStep] = useState(0);
-  const [data, setData] = useState<OnboardingData>(initialData);
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  // React Hook Form owns the wizard's data (issue #754). `data` below is a
+  // live view of the form state, so the step components keep the same
+  // read-only prop they always had while validation, persistence and the
+  // country Select all run through one form instance.
+  const form = useForm<OnboardingData>({
+    // The resolver intentionally covers the business info step only — the
+    // remaining steps keep their existing checks in `validate` until they are
+    // migrated. The cast mirrors the pattern used on the payments page.
+    resolver: zodResolver(businessInfoSchema) as unknown as Resolver<OnboardingData>,
+    defaultValues: initialData,
+  });
+  const { control, setValue, getValues, reset, clearErrors, setError, trigger, formState } = form;
+  const data = useWatch({ control }) as OnboardingData;
+  /** Flattens RHF's field errors into the `Record<string, string>` the steps read. */
+  const errors = useMemo(() => {
+    const flattened: Record<string, string> = {};
+    for (const [field, detail] of Object.entries(formState.errors)) {
+      const message = (detail as { message?: string } | undefined)?.message;
+      if (message) flattened[field] = message;
+    }
+    return flattened;
+  }, [formState.errors]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showResumePrompt, setShowResumePrompt] = useState(false);
   const [savedProgress, setSavedProgress] = useState<SavedProgress | null>(null);
@@ -132,22 +157,22 @@ export default function OnboardingPage() {
   const handleResume = useCallback(() => {
     if (savedProgress) {
       setStep(savedProgress.step);
-      setData(savedProgress.data);
+      reset(savedProgress.data);
     }
     setShowResumePrompt(false);
-  }, [savedProgress]);
+  }, [savedProgress, reset]);
 
   const handleStartFresh = useCallback(() => {
     clearSavedProgress();
     setStep(0);
-    setData(initialData);
+    reset(initialData);
     setSavedProgress(null);
     setShowResumePrompt(false);
-  }, []);
+  }, [reset]);
 
-  // Trim string inputs upfront so state always reflects the cleaned value.
-  // This keeps the validation logic in sync with what is actually sent to
-  // the API at submit time (and prevents inputs like "  Acme  " from being
+  // Trim string inputs upfront so form state always reflects the cleaned value.
+  // This keeps the validation logic in sync with what is actually sent to the
+  // API at submit time (and prevents inputs like "  Acme  " from being
   // stored as-is and validated against the trimmed length in isolation).
   const updateData = (changes: Partial<OnboardingData>) => {
     const cleaned = Object.fromEntries(
@@ -156,12 +181,11 @@ export default function OnboardingPage() {
         typeof v === 'string' ? v.trim() : v,
       ]),
     ) as Partial<OnboardingData>;
-    setData((current) => {
-      const updated = { ...current, ...cleaned };
-      saveProgress(step, updated);
-      return updated;
+    (Object.keys(cleaned) as (keyof OnboardingData)[]).forEach((key) => {
+      setValue(key, cleaned[key]);
     });
-    setErrors({});
+    saveProgress(step, getValues());
+    clearErrors();
   };
 
   const revalidateData = useCallback(async () => {
@@ -231,27 +255,29 @@ export default function OnboardingPage() {
     }
   }, [step, revalidateData]);
 
-  const validate = (targetStep: number) => {
-    const nextErrors: Record<string, string> = {};
+  const validate = async (targetStep: number) => {
+    // Replace any previous step's messages so a step only ever shows its own.
+    clearErrors();
+
+    // Step 0 runs through the resolver registered on the form, so the country
+    // Select validates like any other Controller-bound field.
     if (targetStep === 0) {
-      if (data.businessName.trim().length < 2) nextErrors.businessName = "Enter a business name with at least 2 characters.";
-      if (!data.country) nextErrors.country = "Select your country.";
-      const res = businessTypeSchema.safeParse(data.businessType);
-      if (!res.success) {
-        nextErrors.businessType = res.error.issues[0]?.message || "Invalid business type.";
-      }
+      return trigger([...BUSINESS_INFO_FIELDS]);
     }
-    if (targetStep === 1 && !data.settlementCurrency) nextErrors.settlementCurrency = "Choose a settlement currency.";
+
+    const values = getValues();
+    const nextErrors: Record<string, string> = {};
+    if (targetStep === 1 && !values.settlementCurrency) nextErrors.settlementCurrency = "Choose a settlement currency.";
     if (targetStep === 2) {
-      if (!data.preferredAnchor) nextErrors.preferredAnchor = "Choose a preferred anchor.";
-      if (data.accountNumber && data.accountNumber.trim()) {
-        const res = accountNumberSchema.safeParse(data.accountNumber);
+      if (!values.preferredAnchor) nextErrors.preferredAnchor = "Choose a preferred anchor.";
+      if (values.accountNumber && values.accountNumber.trim()) {
+        const res = accountNumberSchema.safeParse(values.accountNumber);
         if (!res.success) {
           nextErrors.accountNumber = res.error.issues[0]?.message || "Invalid account number or IBAN format.";
         }
       }
-      if (data.bankCode && data.bankCode.trim()) {
-        const res = bankCodeSchema.safeParse(data.bankCode);
+      if (values.bankCode && values.bankCode.trim()) {
+        const res = bankCodeSchema.safeParse(values.bankCode);
         if (!res.success) {
           nextErrors.bankCode = res.error.issues[0]?.message || "Invalid bank code.";
         }
@@ -259,21 +285,31 @@ export default function OnboardingPage() {
     }
     // webhookUrl is optional — skip URL validation entirely when it is
     // empty so a blank input never triggers a runtime exception from new URL().
-    if (targetStep === 3 && data.webhookUrl.trim()) {
-      const res = webhookUrlSchema.safeParse(data.webhookUrl);
+    if (targetStep === 3 && values.webhookUrl.trim()) {
+      const res = webhookUrlSchema.safeParse(values.webhookUrl);
       if (!res.success) {
         nextErrors.webhookUrl = res.error.issues[0]?.message || "Invalid webhook URL.";
       }
     }
-    setErrors(nextErrors);
+    // Report through the form so every step reads its errors from one place.
+    (Object.keys(nextErrors) as (keyof OnboardingData)[]).forEach((field) => {
+      setError(field, { type: "manual", message: nextErrors[field] });
+    });
     return Object.keys(nextErrors).length === 0;
   };
 
   const goToStep = (target: number) => {
-    if (target <= step || validate(step)) {
+    if (target <= step) {
       setStep(target);
-      saveProgress(target, data);
+      saveProgress(target, getValues());
+      return;
     }
+    void validate(step).then((isValid) => {
+      if (isValid) {
+        setStep(target);
+        saveProgress(target, getValues());
+      }
+    });
   };
 
   const skip = () => {
@@ -317,6 +353,12 @@ export default function OnboardingPage() {
     saveProgress(newStep, data);
   };
 
+  const continueToNextStep = () => {
+    void validate(step).then((isValid) => {
+      if (isValid) advanceStep(step + 1);
+    });
+  };
+
   return (
     <main className="min-h-screen bg-muted/30 px-4 py-8 sm:py-12">
       {/* Resume prompt overlay */}
@@ -350,7 +392,7 @@ export default function OnboardingPage() {
         </CardHeader>
         <CardContent className="space-y-8">
           <Stepper steps={steps} currentStep={step} onStepClick={goToStep} />
-          {step === 0 && <StepBusinessInfo data={data} errors={errors} onChange={updateData} />}
+          {step === 0 && <StepBusinessInfo data={data} errors={errors} onChange={updateData} control={control} />}
           {step === 1 && <StepCurrency data={data} errors={errors} onChange={updateData} />}
           {step === 2 && <StepSettlement data={data} errors={errors} onChange={updateData} />}
           {step === 3 && <StepWebhook data={data} errors={errors} onChange={updateData} />}
@@ -371,7 +413,7 @@ export default function OnboardingPage() {
               <Button variant="ghost" onClick={skip} disabled={isSubmitting}>Complete later</Button>
             </div>
             {step < steps.length - 1 ? (
-              <Button onClick={() => validate(step) && advanceStep(step + 1)}>Continue<ArrowRight className="ml-2 h-4 w-4" /></Button>
+              <Button onClick={continueToNextStep}>Continue<ArrowRight className="ml-2 h-4 w-4" /></Button>
             ) : (
               <Button onClick={submit} disabled={isSubmitting || isValidating || !revalidated}>{isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Finish setup</Button>
             )}

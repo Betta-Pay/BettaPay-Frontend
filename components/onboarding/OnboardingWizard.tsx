@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui";
 import { useWalletStore } from "@/lib/store/walletStore";
 import { useOnboardingStatus } from "@/lib/hooks/useOnboardingStatus";
+import { useAppTranslation } from "@/lib/i18n/useAppTranslation";
 import {
   Wallet,
   Link2,
@@ -20,11 +21,9 @@ import {
 import { setOnboardingCompleted } from "@/lib/auth/session";
 
 interface Step {
-  title: string;
-  description: string;
+  key: string;
   icon: LucideIcon;
   cta: {
-    label: string;
     href?: string;
     onClick?: () => void;
   };
@@ -32,47 +31,35 @@ interface Step {
 
 const STEPS: Step[] = [
   {
-    title: "Connect your Freighter wallet",
-    description:
-      "Link your Stellar wallet to start accepting USDC payments on the Stellar network.",
+    key: "connectWallet",
     icon: Wallet,
-    cta: {
-      label: "Connect Wallet",
-    },
+    cta: {},
   },
   {
-    title: "Create your first payment link",
-    description:
-      "Generate a reusable payment link or QR code to share with your customers.",
+    key: "createPaymentLink",
     icon: Link2,
     cta: {
-      label: "Create Payment Link",
       href: "/payments",
     },
   },
   {
-    title: "Set up your bank account",
-    description:
-      "Add your Nigerian bank account details to enable USDC → NGN settlements.",
+    key: "setupBankAccount",
     icon: Building2,
     cta: {
-      label: "Configure Settlements",
       href: "/settlement",
     },
   },
   {
-    title: "Test a payment",
-    description:
-      "Try the sandbox environment to verify your integration before going live.",
+    key: "testPayment",
     icon: Beaker,
     cta: {
-      label: "Open Sandbox",
       href: "/developers",
     },
   },
 ];
 
 export const OnboardingWizard = () => {
+  const { t } = useAppTranslation();
   const [currentStep, setCurrentStep] = useState(0);
   const { isConnected, setWalletModalOpen } = useWalletStore((s) => ({
     isConnected: s.isConnected,
@@ -149,17 +136,17 @@ export const OnboardingWizard = () => {
             <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 p-1 shadow-sm">
               <Image src="/logo.png" alt="BettaPay Logo" width={20} height={20} className="h-full w-full object-contain" />
             </div>
-            <span className="text-sm font-bold text-foreground">Getting Started</span>
+            <span className="text-sm font-bold text-foreground">{t("onboarding.gettingStarted")}</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="text-xs font-medium text-muted-foreground">
-              Step {currentStep + 1} of {STEPS.length}
+              {t("onboarding.stepProgress", { current: currentStep + 1, total: STEPS.length })}
             </span>
             <button
               type="button"
               onClick={dismiss}
               className="rounded-lg p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-              aria-label="Dismiss onboarding"
+              aria-label={t("onboarding.dismissAriaLabel")}
             >
               <X className="h-4 w-4" />
             </button>
@@ -179,16 +166,16 @@ export const OnboardingWizard = () => {
           </div>
           <div className="min-w-0 flex-1">
             <h3 className="mb-1 text-base font-bold text-foreground">
-              {STEPS[currentStep].title}
+              {t(`onboarding.steps.${STEPS[currentStep].key}.title` as never)}
             </h3>
             <p className="mb-4 text-sm leading-relaxed text-muted-foreground">
-              {STEPS[currentStep].description}
+              {t(`onboarding.steps.${STEPS[currentStep].key}.description` as never)}
             </p>
             <div className="flex items-center gap-2">
               {STEPS[currentStep].cta.href ? (
                 <Link href={STEPS[currentStep].cta.href} onClick={handleNext}>
                   <Button size="sm" className="shadow-button">
-                    {STEPS[currentStep].cta.label}
+                    {t(`onboarding.steps.${STEPS[currentStep].key}.cta` as never)}
                     <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
                   </Button>
                 </Link>
@@ -198,13 +185,13 @@ export const OnboardingWizard = () => {
                   className="shadow-button"
                   onClick={() => handleStepCta(STEPS[currentStep])}
                 >
-                  {isConnected ? "Connected" : STEPS[currentStep].cta.label}
+                  {isConnected ? t("onboarding.connected") : t(`onboarding.steps.${STEPS[currentStep].key}.cta` as never)}
                   {!isConnected && <ArrowRight className="ml-1.5 h-3.5 w-3.5" />}
                 </Button>
               )}
               {!isLastStep && (
                 <Button variant="ghost" size="sm" onClick={handleNext} className="text-muted-foreground">
-                  Skip
+                  {t("onboarding.skip")}
                   <ChevronRight className="ml-1 h-3.5 w-3.5" />
                 </Button>
               )}
@@ -226,7 +213,7 @@ export const OnboardingWizard = () => {
                   ? "w-2 bg-primary/40"
                   : "w-2 bg-muted-foreground/20 hover:bg-muted-foreground/40",
               )}
-              aria-label={"Go to step " + (i + 1)}
+              aria-label={t("onboarding.goToStep", { number: i + 1 })}
             />
           ))}
           <span className="ml-auto">
@@ -235,7 +222,7 @@ export const OnboardingWizard = () => {
               onClick={dismiss}
               className="text-xs text-muted-foreground underline underline-offset-2 transition-colors hover:text-foreground"
             >
-              Skip all
+              {t("onboarding.skipAll")}
             </button>
           </span>
         </div>

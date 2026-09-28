@@ -41,3 +41,26 @@ export function extractValidStellarAddresses(accountIds: string[]): string[] {
     .map(extractStellarAddress)
     .filter((address) => address.length > 0 && isValidStellarAddress(address));
 }
+
+const MAX_PUBLIC_KEY_LENGTH = 56;
+
+/**
+ * Reduces an untrusted account string to characters a Stellar public key can
+ * contain (base32 alphabet: A–Z, 2–7) and caps it at key length. React already
+ * escapes text nodes, but this keeps markup, control characters, bidi
+ * overrides or memo-style payloads out of the UI and out of attributes like
+ * `aria-label` if the data source ever changes.
+ */
+export function toDisplaySafeStellarAddress(address: string): string {
+  return address
+    .toUpperCase()
+    .replace(/[^A-Z2-7]/g, '')
+    .slice(0, MAX_PUBLIC_KEY_LENGTH);
+}
+
+/** Shortens a public key to `GABCDEFG...XYZ123` after making it display-safe. */
+export function shortenStellarAddress(address: string, head = 8, tail = 6): string {
+  const safe = toDisplaySafeStellarAddress(address);
+  if (safe.length <= head + tail) return safe;
+  return `${safe.slice(0, head)}...${safe.slice(-tail)}`;
+}

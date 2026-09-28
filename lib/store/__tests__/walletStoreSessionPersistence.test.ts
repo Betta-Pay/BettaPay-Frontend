@@ -1,5 +1,6 @@
 import { useWalletStore } from '../walletStore';
 import { connectFreighter, restoreFreighterSession } from '@/lib/stellar/freighter';
+import { createMockFreighterStore } from '../__mocks__/freighterProvider';
 
 const mockWalletConnectClient = {
   restoreSession: jest.fn().mockResolvedValue(undefined),
@@ -34,16 +35,8 @@ describe('useWalletStore wallet session persistence', () => {
       json: async () => ({ balances: [{ asset_type: 'native', balance: '10.0000000' }] }),
     });
     useWalletStore.setState({
-      address: null,
-      stellarAccounts: [],
-      isConnected: false,
-      connector: null,
+      ...createMockFreighterStore(),
       network: 'testnet',
-      balances: [],
-      loading: false,
-      isReconnecting: false,
-      error: null,
-      connectError: null,
       walletConnectPending: false,
       walletConnectSession: null,
       walletModalOpen: false,

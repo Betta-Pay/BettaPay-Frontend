@@ -1,11 +1,17 @@
+import { Controller, type Control } from "react-hook-form";
 import { Input, Label, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui";
 import type { OnboardingData } from "@/app/onboarding/page";
 
 const COUNTRIES = ["Nigeria", "Ghana", "Kenya", "South Africa", "United States"] as const;
 
-type Props = { data: OnboardingData; errors: Record<string, string>; onChange: (data: Partial<OnboardingData>) => void };
+type Props = {
+  data: OnboardingData;
+  errors: Record<string, string>;
+  onChange: (data: Partial<OnboardingData>) => void;
+  control: Control<OnboardingData>;
+};
 
-export function StepBusinessInfo({ data, errors, onChange }: Props) {
+export function StepBusinessInfo({ data, errors, onChange, control }: Props) {
   return (
     <section className="space-y-5">
       <div>
@@ -30,21 +36,38 @@ export function StepBusinessInfo({ data, errors, onChange }: Props) {
       </fieldset>
       <div className="space-y-2">
         <Label htmlFor="country">Country</Label>
-        <Select name="country" value={data.country || null} onValueChange={(value) => onChange({ country: (value as string | null) ?? "" })}>
-          <SelectTrigger
-            id="country"
-            className="w-full"
-            aria-invalid={!!errors.country}
-            aria-describedby={errors.country ? "country-error" : undefined}
-          >
-            <SelectValue placeholder="Select your country" />
-          </SelectTrigger>
-          <SelectContent>
-            {COUNTRIES.map((country) => (
-              <SelectItem key={country} value={country}>{country}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {/* The Select is a controlled custom component, so it needs the
+            Controller wrapper to be part of the form: `field` binds the value
+            to React Hook Form (the wizard's single source of truth and what
+            `trigger("country")` validates), while `onChange` still routes
+            through the page so the value is trimmed and persisted. */}
+        <Controller
+          control={control}
+          name="country"
+          render={({ field }) => (
+            <Select
+              value={field.value || null}
+              onValueChange={(value) => {
+                field.onChange(value);
+                onChange({ country: (value as string | null) ?? "" });
+              }}
+            >
+              <SelectTrigger
+                id="country"
+                className="w-full"
+                aria-invalid={!!errors.country}
+                aria-describedby={errors.country ? "country-error" : undefined}
+              >
+                <SelectValue placeholder="Select your country" />
+              </SelectTrigger>
+              <SelectContent>
+                {COUNTRIES.map((country) => (
+                  <SelectItem key={country} value={country}>{country}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        />
         {errors.country && <p id="country-error" className="text-sm text-destructive">{errors.country}</p>}
       </div>
     </section>

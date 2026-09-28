@@ -12,6 +12,11 @@ import { getStellarExplorerTxUrl } from '@/lib/utils/explorer';
 import { useWalletStore } from '@/lib/store/walletStore';
 import { useNotify } from '@/lib/hooks/useNotify';
 import { cn } from '@/lib/utils';
+import {
+  decodeSorobanInvocation,
+  fetchTransactionEnvelope,
+  type SorobanInvocation,
+} from '@/lib/stellar/sorobanInvocation';
 
 interface TransactionDrawerProps {
   transaction: ApiPayment | null;
@@ -87,17 +92,56 @@ const EmptySection = ({ message }: { message: string }) => (
   <p className="text-xs text-muted-foreground italic">{message}</p>
 );
 
+/** Renders a decoded Soroban argument as a readable string (bigint-safe). */
+function formatSorobanArg(value: unknown): string {
+  if (typeof value === 'bigint') return value.toString();
+  if (value instanceof Uint8Array) {
+    return Array.from(value, (b) => b.toString(16).padStart(2, '0')).join('');
+  }
+  try {
+    return JSON.stringify(value, (_key, v) => (typeof v === 'bigint' ? v.toString() : v));
+  } catch {
+    return String(value);
+  }
+}
+
 // ─── Drawer ───────────────────────────────────────────────────────────────────
 
 export const TransactionDrawer = ({ transaction, isOpen, onClose }: TransactionDrawerProps) => {
   // Retain the last transaction while the closing slide-out animation plays,
   // since the parent clears `transaction` at the same moment it closes.
   const [tx, setTx] = useState<ApiPayment | null>(transaction);
-  const { network, isSigning, walletConnectPending } = useWalletStore((s) => ({
-    network: s.network,
-    isSigning: s.isSigning,
-    walletConnectPending: s.walletConnectPending,
-  }));
+  // Three separate primitive selectors, not one selector returning a new
+  // object each call — zustand v5's useStore doesn't memoize the selector
+  // result itself, so an object-returning selector fails React's
+  // useSyncExternalStore consistency check and infinite-loops the moment
+  // this component actually mounts (pre-existing bug, never caught because
+  // every other test mocked TransactionDrawer out entirely).
+  const network = useWalletStore((s) => s.network);
+  const isSigning = useWalletStore((s) => s.isSigning);
+  const walletConnectPending = useWalletStore((s) => s.walletConnectPending);
+
+  // Soroban contract invocation (issue #793): fetched and decoded from the
+  // transaction's envelope XDR when a hash is available. `null` covers both
+  // "not fetched yet" and "not a Soroban invocation" — the section below
+  // simply doesn't render either way, so ordinary payments look unchanged.
+  const [invocation, setInvocation] = useState<SorobanInvocation | null>(null);
+
+  useEffect(() => {
+    setInvocation(null);
+    const txHash = transaction?.txHash;
+    if (!txHash) return;
+
+    let cancelled = false;
+    fetchTransactionEnvelope(txHash, network).then((envelopeXdr) => {
+      if (cancelled || !envelopeXdr) return;
+      setInvocation(decodeSorobanInvocation(envelopeXdr, network));
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [transaction?.txHash, network]);
 
   // History / focus management refs
   const popupRef = useRef<HTMLDivElement>(null);
@@ -387,6 +431,27 @@ export const TransactionDrawer = ({ transaction, isOpen, onClose }: TransactionD
                 <EmptySection message="Settlement details will appear once funds are settled." />
               )}
             </Section>
+
+            {/* Contract Invocation (issue #793) — only present for Soroban transactions */}
+            {invocation && (
+              <Section title="Contract Invocation">
+                <Row label="Contract ID" copyValue={invocation.contractId}>
+                  <span className="font-mono text-xs">{truncateAddress(invocation.contractId)}</span>
+                </Row>
+                <Row label="Function">
+                  <span className="font-mono text-xs">{invocation.functionName}</span>
+                </Row>
+                {invocation.args.length > 0 ? (
+                  invocation.args.map((arg, i) => (
+                    <Row key={i} label={`Arg ${i + 1}`}>
+                      <span className="break-all font-mono text-xs">{formatSorobanArg(arg)}</span>
+                    </Row>
+                  ))
+                ) : (
+                  <EmptySection message="This invocation takes no arguments." />
+                )}
+              </Section>
+            )}
 
             {/* Webhook Logs */}
             <Section title="Webhook Logs">

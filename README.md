@@ -125,6 +125,8 @@ Create a `.env.local` in the frontend package root (or set in your deployment pl
 | `NEXT_PUBLIC_GOOGLE_CLIENT_ID` | No | *(unset)* | Google OAuth 2.0 Web Client ID. Create in Google Cloud Console → APIs & Services → Credentials → Create OAuth client ID (Web application), add your origin to **Authorized JavaScript origins**. When unset, empty or whitespace, the app does **not** mount `GoogleOAuthProvider` — no SDK errors are logged. The login page shows a disabled “Continue with Google” button with tooltip `“Google login not configured — set NEXT_PUBLIC_GOOGLE_CLIENT_ID”` and a dev-only `console.warn`. Set this to enable Google sign-in. | `1234567890-abc.apps.googleusercontent.com` |
 | `NEXT_PUBLIC_STELLAR_NETWORK` | No | `testnet` | Stellar network to connect to. Valid values: `testnet` (development/friendbot funding) or `mainnet` (production/live assets). Also accepts `public` as an alias for `mainnet`. Must match the network your Freighter wallet is configured for. | `mainnet` |
 | `NEXT_PUBLIC_STELLAR_HORIZON_URL` | No | `https://horizon-testnet.stellar.org` | Horizon RPC endpoint for querying Stellar ledger data. Defaults to the testnet Horizon instance. Set to `https://horizon.stellar.org` for mainnet, or a custom Horizon URL if running a private Stellar network or using a load-balanced endpoint. | `https://horizon.stellar.org` |
+| `NEXT_PUBLIC_SOROBAN_RPC_URL` | For contract calls | *(unset)* | Soroban RPC endpoint used to simulate and submit smart-contract transactions (required by `/pay/[linkId]`, which throws when unset). Point it at `http://localhost:8000/rpc` to use a local node — see [Local Soroban node (offline development)](#local-soroban-node-offline-development). | `http://localhost:8000/rpc` |
+| `NEXT_PUBLIC_STELLAR_NETWORK_PASSPHRASE` | For contract calls | *(unset)* | Network passphrase used when building transactions; required alongside `NEXT_PUBLIC_SOROBAN_RPC_URL` (the pay flow throws when it is empty). Use `Test SDF Network ; September 2015` for testnet or `Standalone Network ; February 2017` for a local node. | `Standalone Network ; February 2017` |
 | `NEXT_PUBLIC_SETTLEMENT_CONTRACT_ID` | No | Embedded demo default | Soroban smart contract ID for settlement logic. If not set, the app uses a hardcoded demo contract ID (`CBGBGKJSUY7XYB6HWW4CVAU6MW2KD25FSF45E5KCP53TKUK374MBZNFB`). In production, deploy your own contract and set this to its ID. | `CA3D...XYZ` |
 | `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` | Only for WalletConnect | *(unset)* | WalletConnect Cloud project ID, required to pair mobile wallets (Lobstr, Solar, …) over the WalletConnect relay. Get one for free at [cloud.walletconnect.com](https://cloud.walletconnect.com) → **Create project** → copy the **Project ID** (a 32-character hex string), and add your site origin to the project's allowed domains. When unset, empty or whitespace, WalletConnect is treated as **not configured**: no relay connection is attempted, the connect modal shows a “WalletConnect is not configured” notice instead of a QR code, and a dev-only `console.warn` is logged. Freighter keeps working. | `9f3c2e1a4b5d6c7e8f9a0b1c2d3e4f5a` |
 | `NEXT_PUBLIC_WALLETCONNECT_RELAY_URL` | No | `wss://relay.walletconnect.com` | WalletConnect v2 relay WebSocket URL. Only change this if you run your own relay. | `wss://relay.walletconnect.com` |
@@ -142,6 +144,105 @@ Next.js loads environment variables from `.env` files in this order (later files
 For local development, create a `.env.local` file. The values there will take precedence over any other `.env` files.
 
 When deploying to **Vercel**, set environment variables in the **Vercel Dashboard** (Project Settings → Environment Variables) rather than relying on `.env.production` files in the repo. Vercel does not read `.env.local` from the repository during deployment — you must configure production/ preview/development variables in the Vercel UI or CLI.
+
+---
+
+## Local Soroban node (offline development)
+
+To exercise smart-contract interactions without touching Testnet, run a standalone Stellar/Soroban node locally and point the app at it. Once the Docker image has been pulled, the node + backend + this frontend run entirely offline.
+
+**Additional prerequisites for this section:** [Docker](https://docs.docker.com/get-docker/) 20.10+, and optionally the [Stellar CLI](https://developers.stellar.org/docs/tools/cli/stellar-cli) (`brew install stellar-cli` or `cargo install stellar-cli`).
+
+### 1. Start the node
+
+**Option A — Stellar CLI** (recommended):
+
+```bash
+# downloads the stellar/quickstart image and starts it in local mode
+stellar container start local
+```
+
+**Option B — Docker directly:**
+
+```bash
+docker run -d -p "8000:8000" --name stellar stellar/quickstart --local
+```
+
+`--local` starts an accelerated private network (ledgers close roughly once a second). Everything is proxied through port 8000:
+
+| Service | URL |
+|---|---|
+| Horizon | `http://localhost:8000/` |
+| Soroban RPC | `http://localhost:8000/rpc` |
+| Friendbot (faucet) | `http://localhost:8000/friendbot` |
+| Stellar Lab | `http://localhost:8000/lab` |
+| Network passphrase | `Standalone Network ; February 2017` |
+
+The first start pulls a large image and then initialises the services — this can take a couple of minutes. Watch the logs (`stellar container logs` for Option A, `docker logs -f stellar` for Option B) until you see `stellar-rpc: up and ready`, then verify the RPC:
+
+```bash
+curl -s http://localhost:8000/rpc -H 'Content-Type: application/json' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"getHealth"}'
+# → {"jsonrpc":"2.0","id":1,"result":{"status":"healthy"}}
+```
+
+Stop the node with `stellar container stop` (Option A) or `docker stop stellar` (Option B). The container is ephemeral — state is discarded on restart unless you mount a volume (`-v /absolute/path:/opt/stellar`).
+
+### 2. Point the frontend at localhost
+
+Append the following to `.env.local`, then **restart `pnpm dev`** (Next.js does not hot-reload env changes):
+
+```bash
+# Horizon + Soroban RPC served by the local node
+NEXT_PUBLIC_STELLAR_HORIZON_URL=http://localhost:8000
+NEXT_PUBLIC_SOROBAN_RPC_URL=http://localhost:8000/rpc
+
+# Passphrase of the standalone network — required when building transactions
+NEXT_PUBLIC_STELLAR_NETWORK_PASSPHRASE=Standalone Network ; February 2017
+
+# Contract + merchant account on the local node (step 3)
+NEXT_PUBLIC_SETTLEMENT_CONTRACT_ID=<contract id printed on deploy>
+NEXT_PUBLIC_MERCHANT_ADDRESS=<G... address of your local key>
+
+# Backend stays local as well (see "Running with the backend vs. mock mode")
+NEXT_PUBLIC_API_URL=http://localhost:3001
+```
+
+Things worth knowing:
+
+- **Leave `NEXT_PUBLIC_STELLAR_NETWORK=testnet`.** It is validated to `testnet | mainnet | public` (`lib/config.ts`) and the app refuses to boot on any other value. It does not switch endpoints — `NEXT_PUBLIC_STELLAR_HORIZON_URL` and `NEXT_PUBLIC_SOROBAN_RPC_URL` do that.
+- The Content-Security-Policy in `next.config.js` builds `connect-src` from those two URL variables, so `http://localhost:8000` is allowed automatically — no CSP edits needed.
+- Use `http://localhost:8000/rpc` for the RPC. The older `/soroban/rpc` path is deprecated in current Quickstart images.
+
+### 3. Fund an account and deploy a contract
+
+Run these from your contract repository:
+
+```bash
+stellar keys generate alice --network local --fund
+
+stellar contract deploy \
+  --wasm target/wasm32v1-none/release/my_contract.wasm \
+  --source-account alice \
+  --network local
+# (on older toolchains the wasm lands in target/wasm32-unknown-unknown/release/;
+#  inside a Cargo workspace, `stellar contract deploy --source-account alice --network local` builds it for you)
+```
+
+Copy the printed contract ID into `NEXT_PUBLIC_SETTLEMENT_CONTRACT_ID`, and the key's public address (`stellar keys address alice`) into `NEXT_PUBLIC_MERCHANT_ADDRESS`.
+
+### 4. Run the stack
+
+```bash
+pnpm dev   # frontend → http://localhost:3000
+```
+
+Contract simulation and submission (`/pay/[linkId]`), health checks, and any other request built from `NEXT_PUBLIC_STELLAR_HORIZON_URL` / `NEXT_PUBLIC_SOROBAN_RPC_URL` now target `localhost:8000`. Friendbot on the local node funds accounts, so nothing needs to reach the public internet.
+
+### Known limitations
+
+- **Freighter signing.** `lib/stellar/freighter.ts` derives the passphrase it passes to Freighter from `NEXT_PUBLIC_STELLAR_NETWORK` (Testnet/Mainnet only), so a wallet-signed transaction built with the standalone passphrase is rejected by the local node. Until that helper honours `NEXT_PUBLIC_STELLAR_NETWORK_PASSPHRASE`, sign local transactions with the Stellar CLI or [Stellar Lab](http://localhost:8000/lab) instead of the in-app wallet flow.
+- **Transaction history & explorer links.** `lib/hooks/useTransactionHistory.ts` and `lib/utils/explorer.ts` resolve their endpoints from `NEXT_PUBLIC_STELLAR_NETWORK`, so those panels still call the public testnet Horizon / stellar.expert and need internet access (they show no data for local accounts).
 
 ---
 
@@ -247,6 +348,19 @@ pnpm dev -- -p 3001
   - Mainnet: `https://horizon.stellar.org`
 - Check [Stellar status](https://status.stellar.org/) for any network incidents.
 - Testnet accounts need to be funded — use the [Stellar Friendbot](https://friendbot.stellar.org/) for testnet funding.
+
+---
+
+### Local Soroban node not reachable
+
+**Symptom:** Contract calls fail with a network error, or `/pay/[linkId]` throws `NEXT_PUBLIC_SOROBAN_RPC_URL is not set` / `NEXT_PUBLIC_STELLAR_NETWORK_PASSPHRASE is not set`.
+
+**Fix:**
+1. Confirm a `stellar/quickstart` container is running (`docker ps`), then `curl -s http://localhost:8000/rpc -H 'Content-Type: application/json' -d '{"jsonrpc":"2.0","id":1,"method":"getHealth"}'`.
+2. Wait for the first boot to finish — it can take a minute or two; the container logs (`stellar container logs` or `docker logs <container>`) should end with `stellar-rpc: up and ready`.
+3. Make sure `.env.local` sets `NEXT_PUBLIC_SOROBAN_RPC_URL=http://localhost:8000/rpc` and `NEXT_PUBLIC_STELLAR_NETWORK_PASSPHRASE=Standalone Network ; February 2017`, then restart `pnpm dev`.
+
+See [Local Soroban node (offline development)](#local-soroban-node-offline-development) for the full setup.
 
 ---
 
