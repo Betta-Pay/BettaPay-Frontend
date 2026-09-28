@@ -3,9 +3,11 @@ import {
   formatCurrency,
   truncateAddress,
   formatDate,
+  formatFiat,
   formatNumber,
   formatRelativeTime,
   getActiveLocale,
+  isSupportedFiatCurrency,
 } from '@/lib/utils/format';
 
 describe('utils/format', () => {
@@ -177,6 +179,105 @@ describe('utils/format', () => {
           minute: '2-digit',
         }).format(new Date('2024-01-02T03:04:00.000Z')),
       );
+    });
+  });
+
+  describe('formatFiat() (#750)', () => {
+    afterEach(() => {
+      document.documentElement.lang = '';
+    });
+
+    it('renders the native symbol for the requested ISO currency', () => {
+      expect(formatFiat(1234.56, 'EUR')).toBe(
+        new Intl.NumberFormat('en-US', {
+          style: 'currency',
+          currency: 'EUR',
+          maximumFractionDigits: 2,
+        }).format(1234.56),
+      );
+    });
+
+    it('keeps both cents for two-decimal currencies instead of trimming to "1,120.5"', () => {
+      expect(formatFiat(1120.5, 'EUR')).toBe('€1,120.50');
+      expect(formatFiat(1120.5, 'USD')).toBe('$1,120.50');
+    });
+
+    it('places the symbol per locale convention (fr-FR suffixes it)', () => {
+      const expected = new Intl.NumberFormat('fr-FR', {
+        style: 'currency',
+        currency: 'EUR',
+        maximumFractionDigits: 2,
+      }).format(1234.56);
+
+      expect(formatFiat(1234.56, 'EUR', 'fr')).toBe(expected);
+      expect(formatFiat(1234.56, 'EUR', 'fr')).toMatch(/€$/);
+    });
+
+    it('defaults to NGN and resolves the ₦ symbol for the default `en` locale', () => {
+      // en-US has no Naira symbol, so formatFiat must switch to the en-NG tag.
+      const ngn = new Intl.NumberFormat('en-NG', {
+        style: 'currency',
+        currency: 'NGN',
+        minimumFractionDigits: 0,
+      }).format(2325000);
+
+      expect(formatFiat(2325000)).toBe(ngn);
+      expect(formatFiat(2325000)).toContain('₦');
+    });
+
+    it('drops minor units for currencies that have none', () => {
+      expect(formatFiat(1234.5, 'JPY', 'en')).toBe('¥1,235');
+    });
+
+    it('keeps the sign ahead of the symbol for negative amounts', () => {
+      expect(formatFiat(-50, 'NGN')).toBe(
+        new Intl.NumberFormat('en-NG', {
+          style: 'currency',
+          currency: 'NGN',
+          minimumFractionDigits: 0,
+        }).format(-50),
+      );
+    });
+
+    it('collapses floating-point residuals to a clean zero', () => {
+      expect(formatFiat(-0.0000001, 'NGN')).toBe(
+        new Intl.NumberFormat('en-NG', {
+          style: 'currency',
+          currency: 'NGN',
+          minimumFractionDigits: 0,
+        }).format(0),
+      );
+    });
+
+    it('falls back to NGN for a malformed currency code instead of throwing', () => {
+      const ngn = new Intl.NumberFormat('en-NG', {
+        style: 'currency',
+        currency: 'NGN',
+        minimumFractionDigits: 0,
+      }).format(1000);
+
+      expect(formatFiat(1000, 'EURO')).toBe(ngn);
+      expect(formatFiat(1000, '')).toBe(ngn);
+      expect(formatFiat(1000, 'usd1')).toBe(ngn);
+      expect(formatFiat(1000, null as unknown as string)).toBe(ngn);
+      expect(formatFiat(1000, undefined)).toBe(ngn);
+    });
+
+    it('normalises case and surrounding whitespace on the currency code', () => {
+      expect(formatFiat(10, ' eur ')).toBe(formatFiat(10, 'EUR'));
+    });
+
+    it('isSupportedFiatCurrency() accepts ISO codes and rejects everything else', () => {
+      expect(isSupportedFiatCurrency('EUR')).toBe(true);
+      expect(isSupportedFiatCurrency('NGN')).toBe(true);
+      // 4-letter tickers are tokens, not ISO fiat — they must be rejected so a
+      // stablecoin can never be rendered with a fiat symbol.
+      expect(isSupportedFiatCurrency('USDC')).toBe(false);
+      expect(isSupportedFiatCurrency('EURO')).toBe(false);
+      expect(isSupportedFiatCurrency('12')).toBe(false);
+      expect(isSupportedFiatCurrency('')).toBe(false);
+      expect(isSupportedFiatCurrency(undefined)).toBe(false);
+      expect(isSupportedFiatCurrency(123)).toBe(false);
     });
   });
 

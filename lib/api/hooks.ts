@@ -24,6 +24,10 @@ export interface ApiPayment {
   merchantId: string;
   amountUsdc: number;
   amountNgn: number | null;
+  /** ISO 4217 settlement currency. Omitted/absent means NGN (paired with `amountNgn`). */
+  fiatCurrency?: string | null;
+  /** Settlement amount in `fiatCurrency`. Only honoured when both fields are present. */
+  fiatAmount?: number | null;
   fxRate: number | null;
   status: string;
   source: string | null;

@@ -20,7 +20,7 @@ import {
   Link as LinkIcon
 } from 'lucide-react';
 import { Transaction } from '@/lib/mock/transactions';
-import { formatDate } from '@/lib/utils/format';
+import { formatDate, formatFiat, isSupportedFiatCurrency } from '@/lib/utils/format';
 import { CurrencyDisplay } from '@/components/shared';
 import { StatusBadge } from '@/components/shared';
 import { getStellarExplorerTxUrl } from '@/lib/utils/explorer';
@@ -33,6 +33,42 @@ interface TransactionDetailProps {
   isOpen: boolean;
   onClose: () => void;
 }
+
+/** Currency fields both the mock `Transaction` and `ApiPayment` shapes provide. */
+type FiatMetadata = {
+  amountNgn?: number | null;
+  fiatCurrency?: string | null;
+  fiatAmount?: number | null;
+};
+
+/** BettaPay settles in NGN unless a transaction says otherwise. */
+const DEFAULT_FIAT_CURRENCY = 'NGN';
+
+/**
+ * Resolve the fiat approximation to display from the transaction's own
+ * metadata, so no currency symbol is hardcoded in the markup (issue #750).
+ *
+ * `fiatAmount` is only trusted when `fiatCurrency` is a valid ISO 4217 code and
+ * the two arrive together. Otherwise `amountNgn` is the only amount we can label
+ * without inventing a conversion, so it stays NGN — rendering a non-NGN symbol
+ * against a naira amount would silently misstate the transaction value.
+ */
+const resolveSettlementFiat = (transaction: FiatMetadata) => {
+  const { fiatAmount, fiatCurrency } = transaction;
+  const hasFiatPair =
+    typeof fiatAmount === 'number' &&
+    Number.isFinite(fiatAmount) &&
+    isSupportedFiatCurrency(fiatCurrency);
+
+  if (hasFiatPair) {
+    return {
+      amount: fiatAmount as number,
+      currency: (fiatCurrency as string).trim().toUpperCase(),
+    };
+  }
+
+  return { amount: transaction.amountNgn ?? 0, currency: DEFAULT_FIAT_CURRENCY };
+};
 
 export const TransactionDetail: React.FC<TransactionDetailProps> = ({
   transaction,
@@ -146,6 +182,8 @@ export const TransactionDetail: React.FC<TransactionDetailProps> = ({
 
   if (!displayTransaction) return null;
 
+  const settlementFiat = resolveSettlementFiat(displayTransaction);
+
   const handleCopy = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
     success(`${label} copied to clipboard`);
@@ -227,7 +265,7 @@ export const TransactionDetail: React.FC<TransactionDetailProps> = ({
               <CurrencyDisplay amount={displayTransaction.amountUsdc} currency="USDC" />
             </div>
             <p className="text-sm font-medium text-muted-foreground mt-1">
-              ≈ ₦{(displayTransaction.amountNgn ?? 0).toLocaleString()} NGN
+              ≈ {formatFiat(settlementFiat.amount, settlementFiat.currency)}
             </p>
           </div>
 
