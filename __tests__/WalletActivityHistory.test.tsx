@@ -3,6 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { WalletActivityHistory } from '@/components/wallet/WalletActivityHistory';
 import { useWalletStore } from '@/lib/store/walletStore';
+import { useAuthStore } from '@/lib/store/authStore';
 
 function createWrapper() {
   const queryClient = new QueryClient({
@@ -30,12 +31,17 @@ jest.mock('@tanstack/react-virtual', () => ({
 describe('WalletActivityHistory (Issue #570)', () => {
   const originalFetch = global.fetch;
 
+  const ACTIVE_ACCOUNT = 'GB22222222222222222222222222222222222222222222222222222222';
+  const SECOND_ACCOUNT = `GA${'A'.repeat(54)}`;
+
   beforeEach(() => {
     jest.clearAllMocks();
+    // The component reads the active account from the store (issue #761).
     useWalletStore.setState({
-      address: null,
+      address: ACTIVE_ACCOUNT,
       network: 'testnet',
     });
+    useAuthStore.setState({ user: null });
   });
 
   afterEach(() => {
@@ -86,6 +92,25 @@ describe('WalletActivityHistory (Issue #570)', () => {
       'href',
       expect.stringContaining('abc123hash')
     );
+  });
+
+  it('follows the store when another account is selected (no prop drilling)', async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ _embedded: { records: [] } }),
+    } as Response);
+
+    render(<WalletActivityHistory />);
+    await waitFor(() => expect(global.fetch).toHaveBeenCalled());
+
+    act(() => {
+      useWalletStore.setState({ address: SECOND_ACCOUNT });
+    });
+
+    await waitFor(() => {
+      const urls = (global.fetch as jest.Mock).mock.calls.map((call) => String(call[0]));
+      expect(urls.some((url) => url.includes(SECOND_ACCOUNT))).toBe(true);
+    });
   });
 
   it('renders "No wallet activity yet" when account has no on-chain payments', async () => {
