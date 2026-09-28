@@ -6,8 +6,157 @@ import { Menu as MenuPrimitive } from "@base-ui/react/menu"
 import { cn } from "@/lib/utils"
 import { ChevronRightIcon, CheckIcon } from "lucide-react"
 
-function DropdownMenu({ ...props }: MenuPrimitive.Root.Props) {
-  return <MenuPrimitive.Root data-slot="dropdown-menu" {...props} />
+/**
+ * Opt-in configuration for mirroring a dropdown's open state into the URL.
+ *
+ * Pass a string for the common case (query-string key) or an object when the
+ * menu needs the hash fragment instead of the query string, or a value other
+ * than the default `"open"`.
+ *
+ * @example
+ * <DropdownMenu urlParam="menu">        // ?menu=open while open
+ * <DropdownMenu urlParam={{ key: "menu", hash: true }}>  // #menu=open while open
+ */
+export type DropdownMenuUrlParam =
+  | string
+  | {
+      /** Query-string (or hash) key that mirrors the open state. */
+      key: string
+      /** Value written to the URL while the menu is open. Default: `"open"`. */
+      value?: string
+      /** Mirror the state into the hash fragment instead of the query string. */
+      hash?: boolean
+    }
+
+const DEFAULT_URL_OPEN_VALUE = "open"
+
+function readUrlOpenState(
+  key: string,
+  value: string,
+  useHash: boolean
+): boolean {
+  if (typeof window === "undefined") return false
+  try {
+    if (useHash) {
+      const hash = window.location.hash.replace(/^#/, "")
+      if (!hash) return false
+      const separator = hash.indexOf("=")
+      // Both `#menu` and `#menu=open` mean "open".
+      if (hash.slice(0, separator === -1 ? hash.length : separator) !== key) {
+        return false
+      }
+      return separator === -1 || hash.slice(separator + 1) === value
+    }
+    return new URLSearchParams(window.location.search).get(key) === value
+  } catch {
+    return false
+  }
+}
+
+function writeUrlOpenState(
+  key: string,
+  value: string,
+  useHash: boolean,
+  nextOpen: boolean
+) {
+  if (typeof window === "undefined") return
+  try {
+    const url = new URL(window.location.href)
+    if (useHash) {
+      const hashParams = new URLSearchParams(url.hash.replace(/^#/, ""))
+      if (nextOpen) {
+        hashParams.set(key, value)
+      } else {
+        hashParams.delete(key)
+      }
+      url.hash = hashParams.toString()
+    } else if (nextOpen) {
+      url.searchParams.set(key, value)
+    } else {
+      url.searchParams.delete(key)
+    }
+    // `replaceState` (not `pushState`) so toggling a menu never floods the
+    // history stack, and the existing state object is preserved because the
+    // Next.js router keeps its own data there.
+    window.history.replaceState(window.history.state, "", url.toString())
+  } catch {
+    // `replaceState` can throw in some sandboxed iframes — the menu still works.
+  }
+}
+
+/**
+ * Dropdown menu root.
+ *
+ * By default the open state is local to the component (ephemeral). Pass
+ * `urlParam` to opt into URL-driven state for menus that carry critical
+ * navigation: the menu then initialises from the URL, writes/removes the param
+ * on every open/close, and follows back/forward navigation — so reloading or
+ * sharing the URL keeps the menu open (issue #759).
+ *
+ * When both `urlParam` and `open` are supplied the caller stays the source of
+ * truth for the open state and the URL is only kept in sync.
+ */
+function DropdownMenu({
+  urlParam,
+  open: openProp,
+  onOpenChange,
+  ...props
+}: MenuPrimitive.Root.Props & { urlParam?: DropdownMenuUrlParam }) {
+  const urlKey = typeof urlParam === "string" ? urlParam : urlParam?.key
+  const urlValue =
+    (typeof urlParam === "string" ? undefined : urlParam?.value) ??
+    DEFAULT_URL_OPEN_VALUE
+  const useUrlHash = (typeof urlParam === "string" ? false : urlParam?.hash) ?? false
+  const [urlOpen, setUrlOpen] = React.useState(false)
+
+  // Read the URL after mount rather than during render so server and client
+  // markup match, and keep following back/forward navigation.
+  React.useEffect(() => {
+    if (!urlKey) return
+
+    const syncFromUrl = () => {
+      setUrlOpen(readUrlOpenState(urlKey, urlValue, useUrlHash))
+    }
+
+    syncFromUrl()
+    window.addEventListener("popstate", syncFromUrl)
+    window.addEventListener("hashchange", syncFromUrl)
+
+    return () => {
+      window.removeEventListener("popstate", syncFromUrl)
+      window.removeEventListener("hashchange", syncFromUrl)
+    }
+  }, [urlKey, urlValue, useUrlHash])
+
+  const handleOpenChange = React.useCallback<
+    NonNullable<MenuPrimitive.Root.Props["onOpenChange"]>
+  >(
+    (nextOpen, eventDetails) => {
+      if (urlKey) {
+        setUrlOpen(nextOpen)
+        writeUrlOpenState(urlKey, urlValue, useUrlHash, nextOpen)
+      }
+      onOpenChange?.(nextOpen, eventDetails)
+    },
+    [urlKey, urlValue, useUrlHash, onOpenChange]
+  )
+
+  // Without `urlParam` and without caller-supplied state this stays an
+  // uncontrolled menu, exactly as before.
+  if (!urlKey && openProp === undefined && onOpenChange === undefined) {
+    return <MenuPrimitive.Root data-slot="dropdown-menu" {...props} />
+  }
+
+  const open = openProp === undefined && urlKey ? urlOpen : openProp
+
+  return (
+    <MenuPrimitive.Root
+      data-slot="dropdown-menu"
+      open={open}
+      onOpenChange={handleOpenChange}
+      {...props}
+    />
+  )
 }
 
 function DropdownMenuPortal({ ...props }: MenuPrimitive.Portal.Props) {

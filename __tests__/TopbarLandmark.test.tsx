@@ -31,6 +31,7 @@ jest.mock("@/components/ui/dropdown-menu", () => {
   return {
     DropdownMenu: Passthrough,
     DropdownMenuContent: Passthrough,
+    DropdownMenuGroup: Passthrough,
     DropdownMenuItem: Passthrough,
     DropdownMenuLabel: Passthrough,
     DropdownMenuSeparator: () => <hr />,
