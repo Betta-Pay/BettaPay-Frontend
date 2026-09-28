@@ -16,6 +16,7 @@ import type {
   WalletConnectStatus,
   WalletConnectSession,
 } from '@/lib/stellar/walletconnect';
+import { useAppTranslation } from '@/lib/i18n/useAppTranslation';
 
 function useCopyUri(uri: string) {
   const [copied, setCopied] = useState(false);
@@ -31,15 +32,25 @@ function useCopyUri(uri: string) {
   return { copied, copy };
 }
 
-const STATUS_LABEL: Record<WalletConnectStatus, string> = {
-  idle: '',
-  connecting: 'Waiting for wallet to scan…',
-  reconnecting: 'Reconnecting to the relay…',
-  approving: 'Approving session…',
-  connected: 'Wallet connected',
-  signing: 'Waiting for signature in wallet…',
-  disconnected: 'Disconnected',
-  error: 'Connection failed',
+type WalletConnectStatusLabelKey =
+  | 'walletConnect.status.connecting'
+  | 'walletConnect.status.reconnecting'
+  | 'walletConnect.status.approving'
+  | 'walletConnect.status.connected'
+  | 'walletConnect.status.signing'
+  | 'walletConnect.status.disconnected'
+  | 'walletConnect.status.error';
+
+// `idle` has no label of its own (nothing is shown in that state), so it is
+// deliberately omitted here rather than mapped to an empty translation key.
+const STATUS_LABEL_KEY: Record<Exclude<WalletConnectStatus, 'idle'>, WalletConnectStatusLabelKey> = {
+  connecting: 'walletConnect.status.connecting',
+  reconnecting: 'walletConnect.status.reconnecting',
+  approving: 'walletConnect.status.approving',
+  connected: 'walletConnect.status.connected',
+  signing: 'walletConnect.status.signing',
+  disconnected: 'walletConnect.status.disconnected',
+  error: 'walletConnect.status.error',
 };
 
 interface WalletConnectModalProps {
@@ -55,6 +66,7 @@ export function WalletConnectModal({
   network,
   onConnected,
 }: WalletConnectModalProps) {
+  const { t } = useAppTranslation();
   const [uri, setUri] = useState<string>('');
   const [status, setStatus] = useState<WalletConnectStatus>('idle');
   const [errorMsg, setErrorMsg] = useState<string>('');
@@ -91,7 +103,7 @@ export function WalletConnectModal({
       if (closedRef.current || startedNetworkRef.current !== activeNetwork) return;
       setStatus(s);
       setStatusDetail(detail ?? '');
-      if (s === 'error') setErrorMsg(detail ?? 'Unknown error');
+      if (s === 'error') setErrorMsg(detail ?? t('walletConnect.errors.unknown'));
     });
 
     client.onSession((session) => {
@@ -114,9 +126,9 @@ export function WalletConnectModal({
         return;
       }
       setStatus('error');
-      setErrorMsg(err instanceof Error ? err.message : 'Failed to start WalletConnect');
+      setErrorMsg(err instanceof Error ? err.message : t('walletConnect.errors.startFailed'));
     }
-  }, [network, onOpenChange, onConnected]);
+  }, [network, onOpenChange, onConnected, t]);
 
   useEffect(() => {
     if (!open) {
@@ -164,9 +176,9 @@ export function WalletConnectModal({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-sm">
         <DialogHeader>
-          <DialogTitle>Connect with WalletConnect</DialogTitle>
+          <DialogTitle>{t('walletConnect.title')}</DialogTitle>
           <DialogDescription className="sr-only">
-            Scan the QR code with your Stellar mobile wallet to connect.
+            {t('walletConnect.description')}
           </DialogDescription>
         </DialogHeader>
 
@@ -178,15 +190,15 @@ export function WalletConnectModal({
             >
               <Settings className="w-4 h-4 text-muted-foreground mt-0.5 shrink-0" />
               <div>
-                <p className="font-medium">WalletConnect is not configured</p>
+                <p className="font-medium">{t('walletConnect.notConfigured.title')}</p>
                 <p className="text-muted-foreground mt-1">
-                  Mobile wallet pairing isn&apos;t available on this deployment yet. Connect
-                  with Freighter instead, or contact the site operator.
+                  {t('walletConnect.notConfigured.description')}
                 </p>
                 {process.env.NODE_ENV !== 'production' && (
                   <p className="text-muted-foreground mt-2 text-xs">
-                    Developers: set <code className="font-mono">NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID</code>{' '}
-                    in <code className="font-mono">.env.local</code> (see README) and restart the dev server.
+                    {t('walletConnect.notConfigured.developerHintPrefix')}{' '}
+                    <code className="font-mono">NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID</code>{' '}
+                    {t('walletConnect.notConfigured.developerHintSuffix')}
                   </p>
                 )}
               </div>
@@ -196,14 +208,13 @@ export function WalletConnectModal({
           {showQr && (
             <div className="flex flex-col items-center gap-3 w-full">
               <p className="text-sm text-muted-foreground text-center">
-                Scan with your Stellar mobile wallet (Lobstr, Solar, or any
-                WalletConnect v2 compatible wallet).
+                {t('walletConnect.scanPrompt')}
               </p>
 
               <div
                 className="rounded-xl border border-border bg-white p-3 shadow-sm"
                 role="img"
-                aria-label="WalletConnect QR code"
+                aria-label={t('walletConnect.qrAriaLabel')}
               >
                 <QRCodeSVG
                   value={uri}
@@ -218,17 +229,17 @@ export function WalletConnectModal({
                 size="sm"
                 className="w-full text-xs"
                 onClick={copy}
-                aria-label="Copy WalletConnect URI to clipboard"
+                aria-label={t('walletConnect.copyAriaLabel')}
               >
                 {copied ? (
                   <>
                     <CheckCircle2 className="w-3.5 h-3.5 mr-1.5 text-success" />
-                    Copied
+                    {t('walletConnect.copied')}
                   </>
                 ) : (
                   <>
                     <Copy className="w-3.5 h-3.5 mr-1.5" />
-                    Copy URI
+                    {t('walletConnect.copyUri')}
                   </>
                 )}
               </Button>
@@ -241,7 +252,7 @@ export function WalletConnectModal({
               <p className="text-sm text-muted-foreground text-center">
                 {status === 'reconnecting' && statusDetail
                   ? statusDetail
-                  : STATUS_LABEL[status]}
+                  : t(STATUS_LABEL_KEY[status as Exclude<WalletConnectStatus, 'idle'>])}
               </p>
             </div>
           )}
@@ -250,7 +261,7 @@ export function WalletConnectModal({
             <div className="flex flex-col items-center gap-3 py-6">
               <CheckCircle2 className="w-10 h-10 text-success" />
               <p className="text-sm font-medium text-center">
-                {STATUS_LABEL.connected}
+                {t(STATUS_LABEL_KEY.connected)}
               </p>
             </div>
           )}
@@ -260,7 +271,7 @@ export function WalletConnectModal({
               <div className="flex items-start gap-2">
                 <AlertTriangle className="w-4 h-4 text-destructive mt-0.5 shrink-0" />
                 <div>
-                  <p className="font-medium text-destructive">Connection failed</p>
+                  <p className="font-medium text-destructive">{t('walletConnect.status.error')}</p>
                   {errorMsg && (
                     <p className="text-destructive/80 mt-1 break-words">{errorMsg}</p>
                   )}
@@ -273,7 +284,7 @@ export function WalletConnectModal({
                 onClick={startConnection}
               >
                 <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
-                Try again
+                {t('walletConnect.tryAgain')}
               </Button>
             </div>
           )}
@@ -281,7 +292,7 @@ export function WalletConnectModal({
           {status === 'connecting' && uri && (
             <p className="text-xs text-muted-foreground flex items-center gap-1.5">
               <span className="inline-block w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-              {STATUS_LABEL.connecting}
+              {t(STATUS_LABEL_KEY.connecting)}
             </p>
           )}
         </div>
