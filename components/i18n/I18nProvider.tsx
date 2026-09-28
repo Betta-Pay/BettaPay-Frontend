@@ -22,6 +22,9 @@ export function I18nProvider({ children }: { children: ReactNode }) {
         initAsync: false,
         react: { useSuspense: false },
       });
+    // Publish this instance so non-React code (Zod error maps, validation
+    // messages) resolves against the language the user selected.
+    setActiveI18nInstance(instance);
     return instance;
   });
 

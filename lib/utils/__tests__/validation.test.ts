@@ -6,6 +6,10 @@ import {
 } from '@/lib/utils/validation';
 
 describe('utils/validation', () => {
+  afterEach(async () => {
+    await i18n.changeLanguage('en');
+  });
+
   describe('paymentLinkSchema refinement', () => {
     it('allows open links without amount/currency', () => {
       const result = paymentLinkSchema.safeParse({

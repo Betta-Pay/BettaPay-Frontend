@@ -28,7 +28,9 @@ const amountSchema = z.string()
   });
 
 export const paymentLinkSchema = z.object({
-  label: z.string().min(2, 'Label must be at least 2 characters'),
+  label: z.string().min(2, {
+    error: () => translate('validation.paymentLink.labelMin'),
+  }),
   type: z.enum(['fixed', 'open']),
   amount: amountSchema.optional(),
   currency: z.string().optional(),
@@ -39,7 +41,7 @@ export const paymentLinkSchema = z.object({
   }
   return true;
 }, {
-  message: "Amount and currency are required for fixed links",
+  error: () => translate('validation.paymentLink.amountCurrencyRequired'),
   path: ["amount"],
 });
 
@@ -48,12 +50,22 @@ export type PaymentLinkFormValues = z.infer<typeof paymentLinkSchema>;
 const businessTypeEnum = z.enum(['individual', 'sole_proprietor', 'llc', 'corporation']);
 
 export const merchantProfileSchema = z.object({
-  businessName: z.string().min(1, 'Business name is required'),
+  businessName: z.string().min(1, {
+    error: () => translate('validation.merchantProfile.businessNameRequired'),
+  }),
   businessType: businessTypeEnum,
-  country: z.string().min(1, 'Country is required'),
-  industry: z.string().min(1, 'Industry is required'),
-  websiteUrl: z.string().regex(/^https:\/\/.*/, 'Website URL must start with https://').or(z.literal('')).nullable(),
-  contactEmail: z.string().email('Invalid email format'),
+  country: z.string().min(1, {
+    error: () => translate('validation.merchantProfile.countryRequired'),
+  }),
+  industry: z.string().min(1, {
+    error: () => translate('validation.merchantProfile.industryRequired'),
+  }),
+  websiteUrl: z.string().regex(/^https:\/\/.*/, {
+    error: () => translate('validation.merchantProfile.websiteHttps'),
+  }).or(z.literal('')).nullable(),
+  contactEmail: z.string().email({
+    error: () => translate('validation.merchantProfile.emailInvalid'),
+  }),
   phoneNumber: z.string().nullable().or(z.literal('')),
   logoUrl: z.string().nullable(),
 });
@@ -61,11 +73,15 @@ export const merchantProfileSchema = z.object({
 export type MerchantProfileFormValues = z.infer<typeof merchantProfileSchema>;
 
 export const editPaymentLinkSchema = z.object({
-  label: z.string().min(1, 'Label is required'),
+  label: z.string().min(1, {
+    error: () => translate('validation.editPaymentLink.labelRequired'),
+  }),
   amount: amountSchema.optional(),
   currency: z.enum(['USDC', 'XLM', 'USDT']).default('USDC'),
   expiry: z.string().optional(),
-  redirectUrl: z.string().url('Invalid URL').or(z.literal('')).optional(),
+  redirectUrl: z.string().url({
+    error: () => translate('validation.editPaymentLink.urlInvalid'),
+  }).or(z.literal('')).optional(),
   reference: z.string().optional(),
 });
 
