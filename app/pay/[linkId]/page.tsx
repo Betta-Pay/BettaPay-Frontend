@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useMemo, Suspense } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, useMemo, Suspense } from "react";
+import { useRouter, useParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -26,6 +26,11 @@ import {
 } from "@stellar/stellar-sdk";
 import { signWithFreighter } from "@/lib/stellar/freighter";
 import { apiClient } from "@/lib/api/axios";
+import { parseApiError } from "@/lib/utils/apiError";
+import {
+  InvalidPaymentLinkState,
+  type InvalidLinkReason,
+} from "@/components/payments/InvalidPaymentLinkState";
 import { MULTI_CURRENCY_ASSETS, MOCK_RATES, USE_MOCK_RATE_DATA } from "@/lib/utils/constants";
 import { SOROBAN_RPC_URL, SETTLEMENT_CONTRACT_ID, MERCHANT_ADDRESS, STELLAR_NETWORK_PASSPHRASE } from "@/lib/config";
 import { WalletModalFallback } from "@/components/wallet/WalletModalFallback";
@@ -42,8 +47,37 @@ function hexToUint8Array(hexString: string): Uint8Array {
   return result;
 }
 
+/**
+ * Shape of the payment link resolution API (`GET /api/payment-links/:linkId`).
+ * @see lib/docs/endpoints.ts — payments schema.
+ */
+interface PaymentLink {
+  id: string;
+  merchantName: string;
+  label: string;
+  type: "fixed" | "open";
+  currency: string;
+  fixedAmount: number;
+  isMultiCurrency: boolean;
+  acceptedCurrencies: string[];
+  expiresAt: string | null;
+}
+
+/** Map a failed link-resolution attempt to an empty-state reason. */
+function resolveErrorReason(error: unknown): InvalidLinkReason {
+  const apiError = parseApiError(error);
+  // 410 Gone is the canonical "link expired" signal; backends that can't
+  // return 410 usually say so in the message. 403 means the link exists but
+  // was revoked — the not-found copy covers revocation.
+  if (apiError.status === 410 || /expire/i.test(apiError.message)) return "expired";
+  if (apiError.status === 404 || apiError.status === 403) return "not-found";
+  return "error";
+}
+
 export default function PaymentLinkPage() {
   const router = useRouter();
+  const params = useParams<{ linkId: string }>();
+  const linkId = params?.linkId ?? "";
   const { isConnected, connect, address } = useWalletStore();
   const { error: notifyError } = useNotify();
   const walletModalOpen = useWalletStore((s: WalletState) => s.walletModalOpen);
@@ -65,22 +99,49 @@ export default function PaymentLinkPage() {
     [walletModalRetryKey],
   );
 
-  // Mock data for this link
-  const linkData = {
-    merchantName: "Merchant Corp",
-    label: "Consulting Retainer Q3",
-    type: "open" as "fixed" | "open",
-    currency: "USDC",
-    fixedAmount: 0,
-    isMultiCurrency: true,
-    acceptedCurrencies: ["USDC", "XLM", "USDT"],
-  };
+  // ── Payment link resolution ────────────────────────────────────────────────
+  // The whole form depends on the link payload, so it stays `null` until the
+  // link resolves. Any 404/expiry turns into a branded empty state (issue #741)
+  // instead of an exception or a generic error boundary.
+  const [linkData, setLinkData] = useState<PaymentLink | null>(null);
+  const [linkStatus, setLinkStatus] = useState<
+    "loading" | "ready" | "invalid"
+  >("loading");
+  const [invalidReason, setInvalidReason] = useState<InvalidLinkReason>("not-found");
+  const [resolveAttempt, setResolveAttempt] = useState(0);
 
-  const [selectedCurrency, setSelectedCurrency] = useState<string[]>([linkData.currency]);
-  const activeCurrency = selectedCurrency[0] ?? linkData.currency;
+  useEffect(() => {
+    let cancelled = false;
+    setLinkStatus("loading");
+
+    apiClient
+      .get<PaymentLink>(`/api/payment-links/${encodeURIComponent(linkId)}`)
+      .then((response) => {
+        if (cancelled) return;
+        setLinkData(response.data);
+        setLinkStatus("ready");
+      })
+      .catch((error: unknown) => {
+        if (cancelled) return;
+        // Payment submission is a POST; link resolution is a public GET, but a
+        // dead auth cookie could still surface here — treat it like any other
+        // resolution failure rather than bouncing a payer to login mid-payment.
+        setInvalidReason(resolveErrorReason(error));
+        setLinkStatus("invalid");
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [linkId, resolveAttempt]);
+
+  const retryResolution = () => setResolveAttempt((attempt) => attempt + 1);
+
+  const [selectedCurrency, setSelectedCurrency] = useState<string[]>([linkData?.currency ?? "USDC"]);
+  const activeCurrency = selectedCurrency[0] ?? linkData?.currency ?? "USDC";
 
   const [amount, setAmount] = useState(
-    linkData.type === "fixed" ? linkData.fixedAmount.toString() : "",
+    linkData?.type === "fixed" ? linkData.fixedAmount.toString() : "",
   );
   const [isProcessing, setIsProcessing] = useState(false);
   const [step, setStep] = useState<"details" | "review">("details");
@@ -177,6 +238,35 @@ export default function PaymentLinkPage() {
     }
   };
 
+  // ── Branded empty states for unresolvable links (issue #741) ──────────────
+  if (linkStatus === "invalid") {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
+        <div className="w-full max-w-md">
+          <InvalidPaymentLinkState
+            reason={invalidReason}
+            linkId={linkId || undefined}
+            onRetry={invalidReason === "error" ? retryResolution : undefined}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  if (linkStatus === "loading") {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
+        <div className="w-full max-w-md flex flex-col items-center justify-center text-center" role="status">
+          <div className="w-16 h-16 rounded-full border-4 border-primary/20 border-t-primary animate-spin" />
+          <p className="mt-6 text-sm text-muted-foreground">Loading payment link...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // `linkData` is non-null whenever linkStatus is "ready".
+  const link = linkData as PaymentLink;
+
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
       <div className="w-full max-w-md">
@@ -199,15 +289,15 @@ export default function PaymentLinkPage() {
           <div className="w-16 h-16 rounded-full bg-slate-900 flex items-center justify-center mb-4 overflow-hidden">
             <Image
               src="/logo.png"
-              alt={`${linkData.merchantName} logo`}
+              alt={`${link.merchantName} logo`}
               width={64}
               height={64}
               priority={true}
               className="w-full h-full object-cover"
             />
           </div>
-          <h1 className="text-xl font-semibold">{linkData.merchantName}</h1>
-          <p className="text-muted-foreground text-sm">{linkData.label}</p>
+          <h1 className="text-xl font-semibold">{link.merchantName}</h1>
+          <p className="text-muted-foreground text-sm">{link.label}</p>
         </div>
 
         <AnimatePresence mode="wait">
@@ -225,7 +315,7 @@ export default function PaymentLinkPage() {
                   </h2>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {linkData.isMultiCurrency && linkData.acceptedCurrencies.length > 1 && (
+                  {link.isMultiCurrency && link.acceptedCurrencies.length > 1 && (
                     <div className="space-y-2">
                       <label className="text-sm font-medium text-muted-foreground">
                         Pay with
@@ -239,17 +329,17 @@ export default function PaymentLinkPage() {
                     </div>
                   )}
 
-                  {linkData.type === "fixed" ? (
+                  {link.type === "fixed" ? (
                     <div className="text-center py-6">
                       <div className="text-4xl font-bold text-foreground">
                         <CurrencyDisplay
-                          amount={linkData.fixedAmount}
+                          amount={link.fixedAmount}
                           currency={activeCurrency}
                         />
                       </div>
                       {USE_MOCK_RATE_DATA && (MOCK_RATES[activeCurrency] ?? 1) !== 1 && (
                         <p className="text-sm text-muted-foreground mt-2">
-                          {`≈ $${(linkData.fixedAmount * (MOCK_RATES[activeCurrency] ?? 1)).toFixed(2)} USD`}
+                          {`≈ $${(link.fixedAmount * (MOCK_RATES[activeCurrency] ?? 1)).toFixed(2)} USD`}
                         </p>
                       )}
                     </div>
@@ -414,8 +504,8 @@ export default function PaymentLinkPage() {
           open={qrModalOpen}
           onOpenChange={setQrModalOpen}
           value={typeof window !== "undefined" ? window.location.href : ""}
-          title={linkData.label}
-          subtitle={`Pay ${linkData.merchantName}`}
+          title={link.label}
+          subtitle={`Pay ${link.merchantName}`}
           amountUsdc={amount ? Number(amount) : undefined}
         />
       </div>
