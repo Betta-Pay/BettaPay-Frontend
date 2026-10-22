@@ -117,7 +117,7 @@ To explicitly signal mock mode, you can leave `NEXT_PUBLIC_API_URL` unset or poi
 
 ## Environment variables
 
-Create a `.env.local` in the frontend package root (or set in your deployment platform):
+Create a `.env.local` in the frontend package root (or set in your deployment platform);
 
 | Variable | Required | Default | Description | Example |
 |---|---|---|---|---|
