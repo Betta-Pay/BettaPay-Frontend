@@ -1,9 +1,15 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, Button } from '@/components/ui';
 import { PageHeader } from '@/components/shared/PageHeader';
-import { Sliders, Bell, Shield, Gauge } from 'lucide-react';
+import { Sliders, Bell, Shield, Gauge, Percent, Lock, Activity, Wrench } from 'lucide-react';
+import { Alert, AlertDescription, Skeleton } from '@/components/ui';
+import { SettingsSectionCard, type FieldConfig } from '@/components/admin/settings/SettingsSection';
+import { SettingsHistory } from '@/components/admin/settings/SettingsHistory';
+import { useSettings } from '@/lib/settings/client';
+import { useUnsavedGuard } from '@/lib/settings/useUnsavedGuard';
+import type { SettingsSection } from '@/lib/settings/types';
 import { useNotify } from '@/lib/hooks/useNotify';
 
 const POLL_RATES = [
@@ -14,9 +20,37 @@ const POLL_RATES = [
   { label: '10 seconds (Eco)', value: 10000 },
 ];
 
+const FEE_FIELDS: FieldConfig[] = [
+  { key: 'defaultBps', label: 'Default fee (bps)', type: 'number', help: '100 bps = 1%. Applied when a merchant has no override.' },
+  { key: 'capUsdc', label: 'Fee cap (USDC)', type: 'number', step: 'any', help: 'No single settlement is charged more than this.' },
+  { key: 'minFeeUsdc', label: 'Minimum fee (USDC)', type: 'number', step: 'any' },
+];
+const AUTH_FIELDS: FieldConfig[] = [
+  { key: 'ipScoreThreshold', label: 'IP score threshold', type: 'number', help: 'Requests from an IP at or above this score are rejected.' },
+  { key: 'lockoutMaxFailures', label: 'Failed attempts before lockout', type: 'number' },
+  { key: 'lockoutMinutes', label: 'Lockout duration (minutes)', type: 'number' },
+];
+const RATE_FIELDS: FieldConfig[] = [
+  { key: 'globalRequestsPerMinute', label: 'Requests per minute (global)', type: 'number' },
+  { key: 'burst', label: 'Burst allowance', type: 'number' },
+  { key: 'windowSeconds', label: 'Window (seconds)', type: 'number' },
+];
+const MAINTENANCE_FIELDS: FieldConfig[] = [
+  { key: 'enabled', label: 'Maintenance mode', type: 'bool', help: 'Shows the maintenance banner to merchants.' },
+  { key: 'readOnlyMode', label: 'Read-only mode', type: 'bool', help: 'Blocks writes but keeps reads working.' },
+  { key: 'message', label: 'Banner message', type: 'text', help: 'Up to 280 characters.' },
+];
+
 export default function AdminSettingsPage() {
   const notify = useNotify();
   const [selectedRate, setSelectedRate] = useState<number>(3000);
+  const settings = useSettings();
+  const [dirty, setDirty] = useState<Partial<Record<SettingsSection, boolean>>>({});
+  const [simulateFailure, setSimulateFailure] = useState(false);
+  const handleDirty = useCallback((section: SettingsSection, isDirty: boolean) => {
+    setDirty((d) => (d[section] === isDirty ? d : { ...d, [section]: isDirty }));
+  }, []);
+  useUnsavedGuard(Object.values(dirty).some(Boolean));
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -45,6 +79,51 @@ export default function AdminSettingsPage() {
         title="Admin Settings & Performance"
         description="Configure real-time polling rates, ticker settings, and administrative defaults."
       />
+
+      <section aria-labelledby="platform-config-heading" className="space-y-4">
+        <h2 id="platform-config-heading" className="text-lg font-semibold">Platform configuration</h2>
+        {process.env.NODE_ENV !== 'production' && (
+          <label className="flex items-center gap-2 text-xs text-muted-foreground">
+            <input type="checkbox" checked={simulateFailure} onChange={(e) => setSimulateFailure(e.target.checked)} />
+            Simulate failure on next save (dev only: the save fails after the optimistic update, to show rollback)
+          </label>
+        )}
+        {settings.isError ? (
+          <Alert variant="destructive">
+            <AlertDescription>
+              Couldn&apos;t load platform settings.{' '}
+              <Button variant="outline" size="sm" onClick={() => void settings.refetch()}>Retry</Button>
+            </AlertDescription>
+          </Alert>
+        ) : !settings.data ? (
+          <div className="grid gap-6 md:grid-cols-2" role="status" aria-busy="true" aria-label="Loading settings">
+            {[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-64 w-full rounded-xl" />)}
+          </div>
+        ) : (
+          <div className="grid gap-6 md:grid-cols-2">
+            <SettingsSectionCard section="fees" title="Fee configuration" description="Default platform fee and caps." icon={<Percent className="w-5 h-5" />} fields={FEE_FIELDS} server={settings.data.fees} updatedAt={settings.data.fees.updatedAt} simulateFailure={simulateFailure} onDirtyChange={handleDirty} />
+            <SettingsSectionCard section="authPolicy" title="Auth policy" description="IP reputation threshold and account lockout." icon={<Lock className="w-5 h-5" />} fields={AUTH_FIELDS} server={settings.data.authPolicy} updatedAt={settings.data.authPolicy.updatedAt} simulateFailure={simulateFailure} onDirtyChange={handleDirty} />
+            <SettingsSectionCard section="rateLimits" title="Rate-limit globals" description="Platform-wide request limits." icon={<Activity className="w-5 h-5" />} fields={RATE_FIELDS} server={settings.data.rateLimits} updatedAt={settings.data.rateLimits.updatedAt} simulateFailure={simulateFailure} onDirtyChange={handleDirty} />
+            <SettingsSectionCard
+              section="maintenance"
+              title="Maintenance"
+              description="Take the platform offline or read-only."
+              icon={<Wrench className="w-5 h-5" />}
+              fields={MAINTENANCE_FIELDS}
+              server={settings.data.maintenance}
+              updatedAt={settings.data.maintenance.updatedAt}
+              simulateFailure={simulateFailure}
+              onDirtyChange={handleDirty}
+              confirmMessage={(next, prev) =>
+                next.enabled !== prev.enabled || next.readOnlyMode !== prev.readOnlyMode
+                  ? 'This changes what every merchant can do right now. Save the maintenance settings?'
+                  : null
+              }
+            />
+          </div>
+        )}
+        <SettingsHistory />
+      </section>
 
       <div className="grid gap-6 md:grid-cols-2">
         {/* Real-time Ticker Update Rate Controls */}
