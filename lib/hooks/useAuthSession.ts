@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useAuthStore } from "@/lib/store/authStore";
 import { ROUTES } from "@/lib/navigation/routes";
 import type { User } from "@/lib/types";
+import { isPublicRoute, isAuthRoute } from "@/lib/auth/session";
 
 interface SessionResponse {
   user?: User;
@@ -24,6 +25,11 @@ export function useAuthSession() {
   const [isSessionValid, setIsSessionValid] = useState(false);
 
   const verifySession = useCallback(async (signal?: AbortSignal) => {
+    if (pathname && (isPublicRoute(pathname) || isAuthRoute(pathname))) {
+      setIsSessionValid(false);
+      setIsVerifying(false);
+      return;
+    }
     setIsVerifying(true);
     try {
       const response = await fetch("/api/auth/session", {
@@ -57,7 +63,7 @@ export function useAuthSession() {
     } finally {
       setIsVerifying(false);
     }
-  }, [login, logout, router]);
+  }, [login, logout, pathname, router]);
 
   useEffect(() => {
     const controller = new AbortController();
