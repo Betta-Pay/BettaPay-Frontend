@@ -34,7 +34,7 @@ npm install -g pnpm@8
 
 ## Monorepo structure
 
-This repo is a **Turborepo** monorepo. The frontend lives alongside other packages (e.g. backend, shared types) under a single root. Here's where this package fits:
+This repo is a **Turborepo** monorepo. The frontend lives alongside other packages (e.g. backend, shared types) under a single root. Here's where this package fits;
 
 ```
 /                          ← monorepo root (pnpm-workspace.yaml here)
