@@ -1,4 +1,5 @@
 import { expect, type BrowserContext, type Page } from '@playwright/test';
+import path from 'path';
 
 /**
  * Mock authentication for the merchant/admin surfaces.
@@ -20,6 +21,7 @@ import { expect, type BrowserContext, type Page } from '@playwright/test';
 export type Role = 'merchant' | 'admin';
 
 const AUTH_STORAGE_KEY = 'bp-session';
+export const AUTH_STORAGE_STATE = path.join(process.cwd(), 'playwright', '.auth', 'merchant.json');
 
 export async function mockLogin(context: BrowserContext, role: Role = 'merchant'): Promise<void> {
   // 1. Persist the minimal auth state zustand keeps on disk (only isLoggedIn per lib/store/authStore.ts:35).
