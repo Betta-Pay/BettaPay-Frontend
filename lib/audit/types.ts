@@ -22,6 +22,7 @@ export interface AuditEntry {
 
 export interface AuditFilters {
   entityType?: string;
+  entityId?: string;
   /** Exact action, or a `PREFIX_*` wildcard. */
   action?: string;
   actor?: string;

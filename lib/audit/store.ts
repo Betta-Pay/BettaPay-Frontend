@@ -118,6 +118,7 @@ export function decodeCursor(cursor: string): [string, string] | null {
 
 export function matchesFilters(e: AuditEntry, f: AuditFilters): boolean {
   if (f.entityType && e.entityType !== f.entityType) return false;
+  if (f.entityId && e.entityId !== f.entityId) return false;
   if (f.action) {
     if (f.action.endsWith("*")) {
       if (!e.action.startsWith(f.action.slice(0, -1))) return false;

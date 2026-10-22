@@ -62,7 +62,11 @@ function walk(before: unknown, after: unknown, path: string, out: DiffRow[]) {
 
 export function diffJson(before: unknown, after: unknown): DiffRow[] {
   const out: DiffRow[] = [];
-  walk(before ?? null, after ?? null, "", out);
+  // A missing side against an object is "every field added/removed", not one
+  // opaque value, so expand it to an empty object.
+  const b = before == null && isObject(after) ? {} : before ?? null;
+  const a = after == null && isObject(before) ? {} : after ?? null;
+  walk(b, a, "", out);
   return out;
 }
 
