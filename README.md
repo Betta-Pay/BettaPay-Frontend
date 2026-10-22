@@ -8,7 +8,7 @@ BettaPay frontend — a Next.js 14 TypeScript app built as part of a Turborepo w
 
 ## Prerequisites
 
-Before you start, make sure you have the following installed:
+Before you start, make sure you have the following installed;
 
 | Tool | Version | Notes |
 |------|---------|-------|
