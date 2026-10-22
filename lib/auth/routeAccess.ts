@@ -21,11 +21,13 @@ const ADMIN_EXACT = new Set<string>([
   "/anchors",
   "/fx-management",
   "/compliance",
+  "/audit",
+  "/batches",
   "/webhooks",
   "/assets",
   "/alerts",
 ]);
-const ADMIN_PREFIXES = ["/admin", "/merchants/kyb"];
+const ADMIN_PREFIXES = ["/admin", "/merchants/kyb", "/security"];
 
 /** Exact paths and prefixes that belong to the merchant app shell. */
 const MERCHANT_EXACT = new Set<string>([
