@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { translate } from '@/lib/i18n/runtime';
 
 /**
  * Largest amount a Stellar operation can carry: int64 max stroops / 10^7.

@@ -5,6 +5,7 @@ import { createInstance } from "i18next";
 import { I18nextProvider, initReactI18next } from "react-i18next";
 import { defaultLocale, detectPreferredLocale, fallbackResources } from "@/lib/i18n/config";
 import { getLocaleDirection, supportedLocales } from "@/lib/i18n/locales";
+import { setActiveI18nInstance } from "@/lib/i18n/runtime";
 
 export function I18nProvider({ children }: { children: ReactNode }) {
   const [i18n] = useState(() => {
