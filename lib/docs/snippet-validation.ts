@@ -274,7 +274,7 @@ export function validateRequestExample(endpoint: Endpoint): SnippetProblem[] {
 // languages. Two things drift there: the languages drift apart from each
 // other, and all four drift away from the API schema. Both are checkable.
 
-export type SdkLanguage = 'javascript' | 'python' | 'php' | 'go';
+export type SdkLanguage = 'javascript' | 'python' | 'php' | 'go' | 'rust';
 
 export interface SdkCall {
   /** Resource segment, normalized (e.g. `payments`). */
@@ -291,10 +291,41 @@ function normalizeSegment(segment: string): string {
 
 /** Find the SDK call in a snippet, in whichever way the language spells it. */
 export function extractSdkCall(code: string): SdkCall | null {
-  // `client.payments.create(`, `client.Payments.Create(`, `$client->payments->create(`
-  const match = code.match(/\$?client(?:\.|->)(\w+)(?:\.|->)(\w+)\s*\(/);
+  // `client.payments.create(`, `client.Payments.Create(`, `$client->payments->create(`,
+  // `client.fx().quote(` (Rust accessor)
+  const match = code.match(SDK_CALL);
   if (!match) return null;
   return { resource: normalizeSegment(match[1]), action: normalizeSegment(match[2]) };
+}
+
+const SDK_CALL = /\$?client\s*(?:\.|->)\s*(\w+)\s*(?:\(\))?\s*(?:\.|->)\s*(\w+)\s*\(/;
+
+/** Every SDK call in a snippet, not just the first. */
+export function extractAllSdkCalls(code: string): SdkCall[] {
+  const calls: SdkCall[] = [];
+  for (const m of code.matchAll(new RegExp(SDK_CALL.source, 'g'))) {
+    calls.push({ resource: normalizeSegment(m[1]), action: normalizeSegment(m[2]) });
+  }
+  return calls;
+}
+
+/** Calls a snippet makes that are not part of the documented SDK surface. */
+export function validateSdkSurface(
+  source: string,
+  code: string,
+  isDocumented: (resource: string, action: string) => boolean,
+): SnippetProblem[] {
+  const calls = extractAllSdkCalls(code);
+  if (calls.length === 0) {
+    return [{ source, kind: 'unknown-route', message: 'Snippet does not contain a recognizable SDK call.' }];
+  }
+  return calls
+    .filter((call) => !isDocumented(call.resource, call.action))
+    .map((call) => ({
+      source,
+      kind: 'unknown-route' as const,
+      message: `${call.resource}.${call.action} is not part of the documented SDK surface.`,
+    }));
 }
 
 /** Return the source between an opening delimiter and its balanced partner. */
@@ -312,7 +343,7 @@ function balancedSlice(code: string, openIndex: number, open: string, close: str
 
 /** The argument list of the SDK call, so trailing output comments are ignored. */
 function sdkCallArguments(code: string): string {
-  const match = code.match(/\$?client(?:\.|->)\w+(?:\.|->)\w+\s*\(/);
+  const match = code.match(SDK_CALL);
   if (!match || match.index === undefined) return '';
   return balancedSlice(code, match.index + match[0].length - 1, '(', ')');
 }
@@ -335,6 +366,8 @@ export function extractSdkFields(code: string, language: SdkLanguage): Set<strin
       break;
     case 'python':
       for (const m of args.matchAll(/(?:^|[(,])\s*(\w+)\s*=/g)) push(m[1]);
+      // `from` is a Python keyword, so dict-style arguments are allowed too.
+      for (const m of args.matchAll(/['"](\w+)['"]\s*:/g)) push(m[1]);
       break;
     case 'php':
       for (const m of args.matchAll(/'(\w+)'\s*=>/g)) push(m[1]);
@@ -344,6 +377,10 @@ export function extractSdkFields(code: string, language: SdkLanguage): Set<strin
       for (const m of args.matchAll(/(?:^|[{,])\s*([A-Z]\w*)\s*:/g)) {
         push(m[1].charAt(0).toLowerCase() + m[1].slice(1));
       }
+      break;
+    case 'rust':
+      // Struct literal: `QuoteRequest { from: ..., to: ... }`
+      for (const m of args.matchAll(/(?:^|[{,])\s*([a-z_]\w*)\s*:/g)) push(m[1]);
       break;
   }
 
@@ -359,7 +396,7 @@ export function validateSdkOperation(
   operation: string,
   endpoint: Endpoint,
   expectedCall: SdkCall,
-  snippets: Record<SdkLanguage, string>,
+  snippets: Partial<Record<SdkLanguage, string>>,
 ): SnippetProblem[] {
   const problems: SnippetProblem[] = [];
   const languages = Object.keys(snippets) as SdkLanguage[];
@@ -368,7 +405,7 @@ export function validateSdkOperation(
 
   for (const language of languages) {
     const source = `${operation}/${language}`;
-    const code = snippets[language];
+    const code = snippets[language] ?? '';
 
     const call = extractSdkCall(code);
     if (!call) {

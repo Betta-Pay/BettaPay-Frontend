@@ -10,6 +10,7 @@ import Footer from './Footer';
 import Image from 'next/image';
 import { CommandPalette } from '@/components/command/CommandPalette';
 import { ThemePreferenceSync } from './ThemePreferenceSync';
+import { useAlertUnreadCount } from '@/lib/alerts/useAlertFeed';
 
 /**
  * Interactive admin chrome (sidebar, drawer, topbar, command palette).
@@ -23,6 +24,7 @@ export function AdminShell({
   children: React.ReactNode;
 }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const alertUnreadCount = useAlertUnreadCount();
 
   return (
     <div className="flex h-screen h-dvh overflow-hidden bg-background">
@@ -57,7 +59,7 @@ export function AdminShell({
       />
       
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <Topbar onMenuClick={() => setMobileMenuOpen(!mobileMenuOpen)} isMenuOpen={mobileMenuOpen} title="Platform Operations" />
+        <Topbar onMenuClick={() => setMobileMenuOpen(!mobileMenuOpen)} isMenuOpen={mobileMenuOpen} title="Platform Operations" alertUnreadCount={alertUnreadCount} />
         <main id="main-content" tabIndex={-1} className="flex-1 overflow-y-auto bg-background/50">
           <div className="mx-auto max-w-7xl px-3 sm:px-6 py-4 sm:py-8">
             <PageTransition>

@@ -11,6 +11,7 @@ import { useSettings } from '@/lib/settings/client';
 import { useUnsavedGuard } from '@/lib/settings/useUnsavedGuard';
 import type { SettingsSection } from '@/lib/settings/types';
 import { useNotify } from '@/lib/hooks/useNotify';
+import { ThresholdEditor } from '@/components/admin/alerts/ThresholdEditor';
 
 const POLL_RATES = [
   { label: '1 second (Aggressive)', value: 1000 },
@@ -206,6 +207,8 @@ export default function AdminSettingsPage() {
             </div>
           </CardContent>
         </Card>
+
+        <ThresholdEditor />
       </div>
     </div>
   );

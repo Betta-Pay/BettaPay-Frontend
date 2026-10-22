@@ -4,6 +4,13 @@ import { useState, useEffect, useCallback, memo } from "react";
 import { cn } from "@/lib/utils";
 import { Check, TrendingUp, TrendingDown, Loader2 } from "lucide-react";
 import { MULTI_CURRENCY_ASSETS, MOCK_RATES, USE_MOCK_RATE_DATA } from "@/lib/utils/constants";
+import { useEnabledAssets } from "@/lib/assets/hooks";
+import type { SupportedAsset } from "@/lib/assets/types";
+import {
+  AssetGridSkeleton,
+  AssetLoadError,
+  UnsupportedAssetBanner,
+} from "@/components/assets/AssetPickerStates";
 
 export interface CurrencySelectorProps {
   selectedCurrencies: string[];
@@ -15,7 +22,7 @@ export interface CurrencySelectorProps {
 }
 
 interface CurrencyCardProps {
-  code: string;
+  asset: SupportedAsset;
   selected: boolean;
   rate: number | null;
   rateLoading: boolean;
@@ -25,7 +32,7 @@ interface CurrencyCardProps {
 }
 
 const CurrencyCard = memo(function CurrencyCard({
-  code,
+  asset,
   selected,
   rate,
   rateLoading,
@@ -33,8 +40,10 @@ const CurrencyCard = memo(function CurrencyCard({
   disabled,
   showRate,
 }: CurrencyCardProps) {
-  const asset = MULTI_CURRENCY_ASSETS[code];
-  if (!asset) return null;
+  const { code } = asset;
+  // The glyph is presentation only; assets the admin added later fall back to
+  // their first letter instead of being hidden.
+  const icon = MULTI_CURRENCY_ASSETS[code]?.icon ?? code.charAt(0);
 
   return (
     <button
@@ -56,12 +65,12 @@ const CurrencyCard = memo(function CurrencyCard({
           selected ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground",
         )}
       >
-        {asset.icon}
+        {icon}
       </div>
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
-          <span className="font-semibold text-sm">{asset.code}</span>
+          <span className="font-semibold text-sm">{code}</span>
           <span className="text-xs text-muted-foreground truncate">{asset.name}</span>
         </div>
         {showRate && (
@@ -70,7 +79,7 @@ const CurrencyCard = memo(function CurrencyCard({
               <Loader2 className="w-3 h-3 animate-spin text-muted-foreground" />
             ) : rate !== null ? (
               <span className="text-xs text-muted-foreground">
-                1 {asset.code} ≈ ${rate.toFixed(4)} USD
+                1 {code} ≈ ${rate.toFixed(4)} USD
               </span>
             ) : (
               <span className="text-xs text-destructive">Rate unavailable</span>
@@ -96,6 +105,8 @@ export function CurrencySelector({
   className,
   showRates = true,
 }: CurrencySelectorProps) {
+  const assetsQuery = useEnabledAssets();
+  const assets = assetsQuery.data;
   const [rates, setRates] = useState<Record<string, number>>({});
   const [ratesLoading, setRatesLoading] = useState(true);
   const [trends, setTrends] = useState<Record<string, "up" | "down">>({});
@@ -115,7 +126,7 @@ export function CurrencySelector({
       await new Promise((resolve) => setTimeout(resolve, 500));
       const fetchedRates: Record<string, number> = {};
       const fetchedTrends: Record<string, "up" | "down"> = {};
-      for (const [code] of Object.entries(MULTI_CURRENCY_ASSETS)) {
+      for (const code of Object.keys(MULTI_CURRENCY_ASSETS)) {
         const base = MOCK_RATES[code] ?? 1.0;
         const jitter = 1 + (Math.random() - 0.5) * 0.02;
         fetchedRates[code] = base * jitter;
@@ -153,17 +164,44 @@ export function CurrencySelector({
     }
   };
 
+  // Anything selected that the backend no longer lists as enabled.
+  const unsupported = assets
+    ? selectedCurrencies.filter((code) => !assetsQuery.codes.has(code))
+    : [];
+
+  // A failed refetch must not keep serving the previous list as if it were
+  // current, so an error replaces the grid outright.
+  if (assetsQuery.isError) {
+    return (
+      <div className={cn("space-y-3", className)}>
+        <AssetLoadError onRetry={() => void assetsQuery.refetch()} />
+      </div>
+    );
+  }
+
+  if (!assets) {
+    return (
+      <div className={cn("space-y-3", className)}>
+        <AssetGridSkeleton />
+      </div>
+    );
+  }
+
   return (
     <div className={cn("space-y-3", className)}>
+      <UnsupportedAssetBanner
+        codes={unsupported}
+        onRemove={() => onSelectionChange(selectedCurrencies.filter((c) => assetsQuery.codes.has(c)))}
+      />
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-        {Object.keys(MULTI_CURRENCY_ASSETS).map((code) => (
+        {assets.map((asset) => (
           <CurrencyCard
-            key={code}
-            code={code}
-            selected={selectedCurrencies.includes(code)}
-            rate={rates[code] ?? null}
+            key={asset.code}
+            asset={asset}
+            selected={selectedCurrencies.includes(asset.code)}
+            rate={rates[asset.code] ?? null}
             rateLoading={ratesLoading}
-            onClick={() => handleToggle(code)}
+            onClick={() => handleToggle(asset.code)}
             disabled={disabled}
             showRate={showRates}
           />
@@ -181,14 +219,21 @@ export function CurrencySelector({
         <div className="flex items-center gap-1.5 flex-wrap">
           <span className="text-xs text-muted-foreground">Selected:</span>
           {selectedCurrencies.map((code) => {
-            const asset = MULTI_CURRENCY_ASSETS[code];
+            const icon = MULTI_CURRENCY_ASSETS[code]?.icon ?? code.charAt(0);
             const trend = trends[code];
+            const isUnsupported = unsupported.includes(code);
             return (
               <span
                 key={code}
-                className="inline-flex items-center gap-1 text-xs font-medium bg-primary/10 text-primary px-2 py-0.5 rounded-full"
+                className={cn(
+                  "inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full",
+                  isUnsupported
+                    ? "bg-destructive/10 text-destructive line-through"
+                    : "bg-primary/10 text-primary",
+                )}
               >
-                {asset?.icon} {code}
+                {icon} {code}
+                {isUnsupported && <span className="sr-only"> (unsupported)</span>}
                 {showRates && rates[code] && trend && (
                   trend === "up" ? (
                     <TrendingUp className="w-3 h-3 text-emerald-500" />

@@ -10,7 +10,7 @@
     "lint": "next lint",
     "lint:css": "stylelint \"app/**/*.css\" \"components/**/*.css\"",
     "typecheck": "tsc --noEmit",
-    "typecheck:snippets": "tsc -p tsconfig.snippets.json",
+    "typecheck:snippets": "node scripts/extract-sdk-snippets.mjs && tsc -p tsconfig.snippets.json",
     "test": "jest --passWithNoTests",
     "test:watch": "jest --watch",
     "test:e2e": "playwright test",

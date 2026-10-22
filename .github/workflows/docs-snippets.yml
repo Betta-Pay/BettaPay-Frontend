@@ -36,9 +36,17 @@ jobs:
       - name: Validate docs snippets
         run: npx jest lib/docs/__tests__/snippets.test.ts
 
-      # Type-checks the snippet and status modules. Scoped rather than
-      # repo-wide because the repository currently has unrelated type errors
-      # elsewhere; widening the include list is the follow-up.
+      # Fails when an SDK snippet in any language calls a method that is not in
+      # the documented SDK surface (lib/sdks/surface.ts), and when the
+      # copy-to-clipboard text differs from the displayed text.
+      - name: Validate SDK surface and copy fidelity
+        run: npx jest lib/docs/__tests__/sdkSnippets.test.ts lib/sdks components/sdks
+
+      # Extracts every TypeScript snippet and compiles it against the typed SDK
+      # declaration (lib/sdks/sdk.d.ts), alongside the snippet and status
+      # modules. Scoped rather than repo-wide because the repository currently
+      # has unrelated type errors elsewhere; widening the include list is the
+      # follow-up.
       - name: Type-check snippet sources
         run: npm run typecheck:snippets
 
@@ -66,6 +74,8 @@ jobs:
           changed=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA" -- \
             lib/docs/endpoints.ts \
             lib/docs/snippets.ts \
+            lib/sdks/sdk.d.ts \
+            lib/sdks/surface.ts \
             components/developers/codeSnippets.ts)
 
           if [ -z "$changed" ]; then

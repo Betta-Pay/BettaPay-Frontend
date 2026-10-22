@@ -3,7 +3,21 @@ import { Toggle } from "@/components/ui";
 import type { OnboardingData } from "@/app/onboarding/page";
 import { useRates } from "@/lib/api/hooks";
 import { cn } from "@/lib/utils";
-import { SUPPORTED_SETTLEMENT_CURRENCIES } from "@/lib/utils/constants";
+import { MULTI_CURRENCY_ASSETS, SUPPORTED_SETTLEMENT_CURRENCIES } from "@/lib/utils/constants";
+import { useEnabledAssets } from "@/lib/assets/hooks";
+import {
+  AssetGridSkeleton,
+  AssetLoadError,
+  UnsupportedAssetBanner,
+} from "@/components/assets/AssetPickerStates";
+
+/**
+ * Fiat payout rails. These are not Stellar assets, so the supported-assets
+ * endpoint does not manage them; every on-chain option comes from the endpoint.
+ */
+const FIAT_SETTLEMENT_CURRENCIES = SUPPORTED_SETTLEMENT_CURRENCIES.filter(
+  (code) => !(code in MULTI_CURRENCY_ASSETS),
+);
 
 type Props = {
   data: OnboardingData;
@@ -14,6 +28,15 @@ type Props = {
 
 export function StepCurrency({ data, errors, onChange }: Props) {
   const { data: rates, isLoading: ratesLoading, primaryRate } = useRates();
+  const assets = useEnabledAssets();
+
+  const options: string[] = [
+    ...FIAT_SETTLEMENT_CURRENCIES,
+    ...(assets.data ?? []).map((asset) => asset.code),
+  ];
+  const selected = data.settlementCurrency;
+  const selectedIsUnsupported =
+    !!assets.data && !!selected && !options.includes(selected);
 
   const getRateText = (currency: string) => {
     if (currency === 'NGN') return null;
@@ -40,8 +63,21 @@ export function StepCurrency({ data, errors, onChange }: Props) {
         <p className="text-sm text-muted-foreground">Choose the currency you want to receive by default.</p>
       </div>
 
+      {selectedIsUnsupported && (
+        <UnsupportedAssetBanner
+          codes={[selected]}
+          onRemove={() => onChange({ settlementCurrency: FIAT_SETTLEMENT_CURRENCIES[0] })}
+          removeLabel={`Switch to ${FIAT_SETTLEMENT_CURRENCIES[0]}`}
+        />
+      )}
+
+      {assets.isError ? (
+        <AssetLoadError onRetry={() => void assets.refetch()} />
+      ) : !assets.data ? (
+        <AssetGridSkeleton count={6} />
+      ) : (
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        {SUPPORTED_SETTLEMENT_CURRENCIES.map((currency) => {
+        {options.map((currency) => {
           const rateText = getRateText(currency);
 
           return (
@@ -77,6 +113,7 @@ export function StepCurrency({ data, errors, onChange }: Props) {
           );
         })}
       </div>
+      )}
 
       {errors.settlementCurrency && (
         <p className="text-sm text-destructive">{errors.settlementCurrency}</p>

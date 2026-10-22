@@ -39,6 +39,7 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci
+      # Extracts every TypeScript SDK snippet and compiles it against lib/sdks/sdk.d.ts.
       - name: Typecheck snippets
         run: npm run typecheck:snippets
 

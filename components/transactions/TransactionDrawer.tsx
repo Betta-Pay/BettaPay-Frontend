@@ -22,6 +22,7 @@ interface TransactionDrawerProps {
   transaction: ApiPayment | null;
   isOpen: boolean;
   onClose: () => void;
+  settlementBatchHref?: string;
 }
 
 // ─── Small copy-to-clipboard button, reused for id / hash / payload ───────────
@@ -107,7 +108,7 @@ function formatSorobanArg(value: unknown): string {
 
 // ─── Drawer ───────────────────────────────────────────────────────────────────
 
-export const TransactionDrawer = ({ transaction, isOpen, onClose }: TransactionDrawerProps) => {
+export const TransactionDrawer = ({ transaction, isOpen, onClose, settlementBatchHref }: TransactionDrawerProps) => {
   // Retain the last transaction while the closing slide-out animation plays,
   // since the parent clears `transaction` at the same moment it closes.
   const [tx, setTx] = useState<ApiPayment | null>(transaction);
@@ -431,6 +432,22 @@ export const TransactionDrawer = ({ transaction, isOpen, onClose }: TransactionD
                 <EmptySection message="Settlement details will appear once funds are settled." />
               )}
             </Section>
+
+            {tx.settlementBatch && <Section title="Settlement Batch">
+              <Row label="Batch ID" copyValue={tx.settlementBatch.id}>
+                <>{settlementBatchHref ? <a className="underline" href={settlementBatchHref}>{tx.settlementBatch.id}</a> : tx.settlementBatch.id}</>
+              </Row>
+              <Row label="Batch status">{tx.settlementBatch.status}</Row>
+              <Row label="Payments">{tx.settlementBatch.paymentCount}</Row>
+              <Row label="Batch total"><CurrencyDisplay amount={tx.settlementBatch.amountUsdc} currency="USDC" /></Row>
+              <Row label="Created">{formatDate(tx.settlementBatch.createdAt)}</Row>
+            </Section>}
+            {tx.feeSnapshot && <Section title="Fee Snapshot">
+              <Row label="Fee rate">{tx.feeSnapshot.feeBps} bps</Row>
+              <Row label="Fee"><CurrencyDisplay amount={tx.feeSnapshot.feeAmountUsdc} currency="USDC" /></Row>
+              <Row label="Net amount"><CurrencyDisplay amount={tx.feeSnapshot.netAmountUsdc} currency="USDC" /></Row>
+              {tx.feeSnapshot.source && <Row label="Rule source">{tx.feeSnapshot.source}</Row>}
+            </Section>}
 
             {/* Contract Invocation (issue #793) — only present for Soroban transactions */}
             {invocation && (

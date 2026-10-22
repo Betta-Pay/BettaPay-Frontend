@@ -16,6 +16,9 @@ import {
   ScrollText,
   PackageCheck,
   Fingerprint,
+  Webhook,
+  Coins,
+  BellRing,
   ShieldCheck,
   ChevronLeft,
   ChevronRight,
@@ -42,6 +45,9 @@ const navItems: NavItem[] = [
   { href: "/audit", label: "Audit Log", icon: ScrollText },
   { href: "/batches", label: "Batches", icon: PackageCheck },
   { href: "/security/ip-scores", label: "IP Scores", icon: Fingerprint },
+  { href: "/webhooks", label: "Webhooks", icon: Webhook },
+  { href: "/assets", label: "Assets", icon: Coins },
+  { href: "/alerts", label: "Alerts", icon: BellRing },
   { href: "/admin/settings", label: "Settings", icon: Settings },
 ];
 

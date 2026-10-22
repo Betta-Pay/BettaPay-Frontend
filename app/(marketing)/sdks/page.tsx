@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
-import { SDKCatalog } from "@/components/sdks/SDKCatalog";
+import { SDKPlayground } from "@/components/sdks/SDKPlayground";
+import { resolveAllSdkReleases } from "@/lib/sdks/registry";
 import { ExternalLink } from "lucide-react";
 
 export const metadata: Metadata = {
@@ -10,7 +11,12 @@ export const metadata: Metadata = {
     "Official client libraries for integrating BettaPay. Install for TypeScript, Python, PHP, Go, and Rust.",
 };
 
-export default function SdksPage() {
+// Versions are read from the package registries and cached for an hour.
+export const revalidate = 3600;
+
+export default async function SdksPage() {
+  const releases = await resolveAllSdkReleases();
+
   return (
     <div className="min-h-screen bg-card text-foreground flex flex-col">
       <Header />
@@ -21,12 +27,11 @@ export default function SdksPage() {
               Official SDKs
             </h1>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              Client libraries for your favorite languages. Get started with
-              BettaPay in minutes.
+              Pick a language, copy the quickstart, and run a live quote right here.
             </p>
           </div>
 
-          <SDKCatalog />
+          <SDKPlayground releases={releases} />
 
           <div className="text-center border-t pt-8">
             <p className="text-muted-foreground mb-3">

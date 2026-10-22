@@ -33,6 +33,11 @@ export interface ApiPayment {
   source: string | null;
   createdAt: string;
   stellarOpId?: string | null;
+  settlementBatch?: {
+    id: string; status: string; paymentCount: number; amountUsdc: number;
+    createdAt: string; txHash?: string | null;
+  } | null;
+  feeSnapshot?: { feeBps: number; feeAmountUsdc: number; netAmountUsdc: number; source?: string } | null;
   url?: string;
   clicks?: number;
   converted?: number;

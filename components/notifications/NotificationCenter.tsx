@@ -22,6 +22,8 @@ import {
 
 interface NotificationCenterProps {
   unreadNotificationCount?: number;
+  /** Unread admin alerts; counted in the badge and linked from the menu. */
+  alertUnreadCount?: number;
 }
 
 const typeIcons: Record<NotificationType, typeof Bell> = {
@@ -40,7 +42,7 @@ async function fetchNotifications(): Promise<{ notifications: NotificationItem[]
   return response.json();
 }
 
-export function NotificationCenter({ unreadNotificationCount = 0 }: NotificationCenterProps) {
+export function NotificationCenter({ unreadNotificationCount = 0, alertUnreadCount = 0 }: NotificationCenterProps) {
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [preferences, setPreferences] = useState<NotificationPreferences>(DEFAULT_NOTIFICATION_PREFERENCES);
@@ -95,10 +97,10 @@ export function NotificationCenter({ unreadNotificationCount = 0 }: Notification
   const unreadCount = useMemo(() => {
     const localUnread = notifications.filter((notification) => !notification.read).length;
     if (hasFetched) {
-      return localUnread;
+      return localUnread + alertUnreadCount;
     }
-    return Math.max(unreadNotificationCount, localUnread);
-  }, [hasFetched, notifications, unreadNotificationCount]);
+    return Math.max(unreadNotificationCount, localUnread) + alertUnreadCount;
+  }, [hasFetched, notifications, unreadNotificationCount, alertUnreadCount]);
 
   const handleMarkAllRead = useCallback(async () => {
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
@@ -169,6 +171,20 @@ export function NotificationCenter({ unreadNotificationCount = 0 }: Notification
           </Button>
         </div>
         <DropdownMenuSeparator className="bg-muted" />
+
+        {alertUnreadCount > 0 && (
+          <Link
+            href="/alerts"
+            onClick={() => setOpen(false)}
+            className="mx-2 mt-2 flex items-center justify-between rounded-xl border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm font-medium text-foreground"
+          >
+            <span className="inline-flex items-center gap-2">
+              <ShieldAlert className="h-4 w-4 text-destructive" aria-hidden="true" />
+              {alertUnreadCount} unread platform alert{alertUnreadCount === 1 ? '' : 's'}
+            </span>
+            <ChevronRight className="h-4 w-4" aria-hidden="true" />
+          </Link>
+        )}
 
         <div className="max-h-[360px] overflow-y-auto px-2 py-2">
           {loading && notifications.length === 0 ? (

@@ -34,15 +34,14 @@ const fxHistory: FxRatePoint[] = [
   { date: "Jan 13", rate: 1550 },
 ];
 
-const formatNgn = (value: number) => formatCurrency(value, 'NGN');
-
 export interface FxTooltipProps {
   active?: boolean;
   payload?: { value: number; name?: string; dataKey?: string }[];
   label?: string;
+  currency?: string;
 }
 
-export const FxTooltip = ({ active, payload, label }: FxTooltipProps) => {
+export const FxTooltip = ({ active, payload, label, currency = 'NGN' }: FxTooltipProps) => {
   if (active && payload && payload.length) {
     // Filter out empty / null secondary entries so tooltip doesn't show ghost values.
     const populated = payload.filter((p) => typeof p.value === 'number' && !Number.isNaN(p.value));
@@ -54,7 +53,7 @@ export const FxTooltip = ({ active, payload, label }: FxTooltipProps) => {
         <p className="font-semibold mb-1 text-foreground">{label}</p>
         {populated.map((entry, idx) => (
           <p key={idx} className="font-bold" style={{ color: entry.dataKey === 'secondaryRate' ? 'var(--chart-2, var(--secondary, var(--primary)))' : 'var(--primary)' }}>
-            {entry.name ?? (entry.dataKey === 'secondaryRate' ? 'XLM/NGN' : 'USDC/NGN')}: {formatNgn(entry.value)}
+            {entry.name ?? (entry.dataKey === 'secondaryRate' ? 'XLM/NGN' : 'USDC/NGN')}: {formatCurrency(entry.value, currency)}
           </p>
         ))}
       </div>
@@ -65,6 +64,8 @@ export const FxTooltip = ({ active, payload, label }: FxTooltipProps) => {
 
 interface FxRateChartProps {
   height?: number;
+  pairLabel?: string;
+  currency?: string;
   /** Live rate history. Falls back to 7 days of mock USDC/NGN data when omitted. Aligns with useRates primary semantics (USDC/NGN). */
   data?: FxRatePoint[];
   /** Set when the caller's rate fetch failed — renders an in-chart error state. */
@@ -74,10 +75,13 @@ interface FxRateChartProps {
 
 export default function FxRateChart({
   height = 240,
+  pairLabel = 'USDC/NGN',
+  currency = 'NGN',
   data,
   error = null,
   onRetry,
 }: FxRateChartProps) {
+  const formatRate = (value: number) => formatCurrency(value, currency);
   const [isMobile, setIsMobile] = useState(false);
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
@@ -131,7 +135,7 @@ export default function FxRateChart({
     return (
       <div
         role="region"
-        aria-label="USDC to NGN exchange rate chart"
+        aria-label={`${pairLabel.replace('/', ' to ')} exchange rate chart`}
         className="w-full flex items-center justify-center border border-dashed border-border rounded-xl bg-muted/20"
         style={{ height }}
       >
@@ -143,16 +147,16 @@ export default function FxRateChart({
   return (
     <div
       role="region"
-      aria-label="USDC to NGN exchange rate chart"
+      aria-label={`${pairLabel.replace('/', ' to ')} exchange rate chart`}
       className="w-full relative"
       style={{ height }}
     >
-      <table className="sr-only" aria-label="USDC to NGN exchange rate data table">
-        <caption>USDC to NGN exchange rate history</caption>
+      <table className="sr-only" aria-label={`${pairLabel.replace('/', ' to ')} exchange rate data table`}>
+        <caption>{pairLabel.replace('/', ' to ')} exchange rate history</caption>
         <thead>
           <tr>
             <th scope="col">Date</th>
-            <th scope="col">Exchange Rate (NGN)</th>
+            <th scope="col">Exchange Rate ({currency})</th>
             {hasSecondary && <th scope="col">Secondary Rate (NGN)</th>}
           </tr>
         </thead>
@@ -160,8 +164,8 @@ export default function FxRateChart({
           {chartData.map((row, index) => (
             <tr key={index}>
               <td>{row.date}</td>
-              <td>{formatNgn(row.rate)}</td>
-              {hasSecondary && <td>{row.secondaryRate != null ? formatNgn(row.secondaryRate) : '—'}</td>}
+              <td>{formatRate(row.rate)}</td>
+              {hasSecondary && <td>{row.secondaryRate != null ? formatRate(row.secondaryRate) : '—'}</td>}
             </tr>
           ))}
         </tbody>
@@ -200,13 +204,13 @@ export default function FxRateChart({
             fontSize={11}
             tickLine={false}
             axisLine={false}
-            tickFormatter={formatNgn}
+            tickFormatter={formatRate}
             tick={{ fill: "var(--muted-foreground)" }}
             domain={["auto", "auto"]}
             width={isMobile ? 52 : 64}
-            aria-label="Exchange Rate (NGN)"
+            aria-label={`Exchange Rate (${currency})`}
           />
-          <Tooltip content={<FxTooltip />} />
+          <Tooltip content={<FxTooltip currency={currency} />} />
           {/* Only render legend entries for populated series — missing secondary doesn't produce a ghost entry */}
           {(hasPrimary || hasSecondary) && (
             <Legend
@@ -218,7 +222,7 @@ export default function FxRateChart({
             <Area
               type="monotone"
               dataKey="rate"
-              name="USDC/NGN"
+              name={pairLabel}
               stroke="var(--primary)"
               strokeWidth={2.5}
               fillOpacity={1}

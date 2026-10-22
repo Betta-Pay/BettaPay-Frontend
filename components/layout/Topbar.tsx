@@ -36,9 +36,11 @@ interface TopbarProps {
   isMenuOpen?: boolean;
   title?: string;
   unreadNotificationCount?: number;
+  /** Unread admin alerts (admin shell only); adds to the bell badge. */
+  alertUnreadCount?: number;
 }
 
-export const Topbar = ({ onMenuClick, isMenuOpen, title, unreadNotificationCount = 0 }: TopbarProps) => {
+export const Topbar = ({ onMenuClick, isMenuOpen, title, unreadNotificationCount = 0, alertUnreadCount = 0 }: TopbarProps) => {
   const { user, logout } = useAuthStore();
   const notify = useNotify();
   const router = useRouter();
@@ -139,7 +141,7 @@ export const Topbar = ({ onMenuClick, isMenuOpen, title, unreadNotificationCount
         </div>
 
         {/* Notifications */}
-        <NotificationCenter unreadNotificationCount={unreadNotificationCount} />
+        <NotificationCenter unreadNotificationCount={unreadNotificationCount} alertUnreadCount={alertUnreadCount} />
 
         <ThemeToggle />
 

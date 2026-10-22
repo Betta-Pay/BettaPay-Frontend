@@ -2,7 +2,16 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "noEmit": true,
-    "incremental": false
+    "incremental": false,
+    "target": "es2022",
+    "paths": {
+      "@/*": [
+        "./*"
+      ],
+      "@bettapay/sdk": [
+        "./lib/sdks/sdk.d.ts"
+      ]
+    }
   },
   "include": [
     "next-env.d.ts",
@@ -10,7 +19,11 @@
     "lib/status/**/*.ts",
     "lib/a11y/**/*.ts",
     "components/developers/codeSnippets.ts",
-    "__tests__/status-contrast.test.ts"
+    "__tests__/status-contrast.test.ts",
+    "lib/sdks/**/*.ts",
+    ".snippet-check/**/*.ts"
   ],
-  "exclude": ["node_modules"]
+  "exclude": [
+    "node_modules"
+  ]
 }

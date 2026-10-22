@@ -1,3 +1,7 @@
+'use client';
+
+import { useMemo, useState } from 'react';
+import { Input } from '@/components/ui/input';
 import {
   Accordion,
   AccordionContent,
@@ -102,17 +106,67 @@ function FaqStructuredData() {
 }
 
 export function FAQ() {
+  const [query, setQuery] = useState('');
+  const normalizedQuery = query.trim();
+  const matchingEntries = useMemo(() => {
+    if (!normalizedQuery) return FAQ_ENTRIES;
+    const normalized = normalizedQuery.toLocaleLowerCase();
+    return FAQ_ENTRIES.filter(
+      ({ question, answer }) =>
+        question.toLocaleLowerCase().includes(normalized) ||
+        answer.toLocaleLowerCase().includes(normalized)
+    );
+  }, [normalizedQuery]);
+
+  const highlightAnswer = (answer: string) => {
+    if (!normalizedQuery) return answer;
+
+    const escapedQuery = normalizedQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return answer.split(new RegExp(`(${escapedQuery})`, 'gi')).map((part, index) =>
+      part.toLocaleLowerCase() === normalizedQuery.toLocaleLowerCase() ? (
+        <mark key={`${part}-${index}`} className="rounded bg-primary/15 px-0.5 text-foreground">
+          {part}
+        </mark>
+      ) : (
+        part
+      )
+    );
+  };
+
   return (
     <div className="max-w-3xl mx-auto">
       <FaqStructuredData />
-      <Accordion>
-        {FAQ_ENTRIES.map((entry) => (
-          <AccordionItem key={entry.question}>
-            <AccordionTrigger>{entry.question}</AccordionTrigger>
-            <AccordionContent>{entry.answer}</AccordionContent>
-          </AccordionItem>
-        ))}
-      </Accordion>
+      <div className="mb-5">
+        <label htmlFor="pricing-faq-search" className="sr-only">
+          Search frequently asked questions
+        </label>
+        <Input
+          id="pricing-faq-search"
+          type="search"
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder="Search FAQs..."
+          aria-controls="pricing-faq-results"
+        />
+        <p className="mt-2 text-sm text-muted-foreground" aria-live="polite">
+          {matchingEntries.length} {matchingEntries.length === 1 ? 'question' : 'questions'}
+          {normalizedQuery ? ' found' : ''}
+        </p>
+      </div>
+      {matchingEntries.length ? (
+        <Accordion id="pricing-faq-results" type="single" collapsible>
+          {matchingEntries.map((entry) => (
+            <AccordionItem key={entry.question} value={entry.question}>
+              <AccordionTrigger>{entry.question}</AccordionTrigger>
+              <AccordionContent>{highlightAnswer(entry.answer)}</AccordionContent>
+            </AccordionItem>
+          ))}
+        </Accordion>
+      ) : (
+        <p id="pricing-faq-results" className="py-6 text-sm text-muted-foreground" role="status">
+          No questions match “{normalizedQuery}”. Try another search.
+        </p>
+      )}
     </div>
   );
 }

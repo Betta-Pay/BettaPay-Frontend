@@ -8,7 +8,7 @@ import { codeSnippets, type Language, type Operation } from './codeSnippets';
 import { SyntaxHighlighter } from './SyntaxHighlighter';
 
 const LANGUAGES: Language[] = ['javascript', 'python', 'php', 'go'];
-const OPERATIONS: Operation[] = ['create-payment-link', 'list-transactions', 'initiate-settlement'];
+const OPERATIONS: Operation[] = ['create-payment-link', 'list-transactions', 'initiate-settlement', 'get-fx-quote'];
 
 interface CodeExampleProps {
   onCopy: (code: string) => void;
@@ -35,6 +35,7 @@ export function CodeExample({ onCopy }: CodeExampleProps) {
     'create-payment-link': 'Create Payment Link',
     'list-transactions': 'List Transactions',
     'initiate-settlement': 'Initiate Settlement',
+    'get-fx-quote': 'Get FX Quote',
   };
 
   return (

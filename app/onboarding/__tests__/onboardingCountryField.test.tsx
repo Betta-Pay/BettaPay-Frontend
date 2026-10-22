@@ -28,6 +28,14 @@ jest.mock("@/lib/api/axios", () => ({
 jest.mock("@/lib/api/hooks", () => ({
   useRates: () => ({ data: [], isLoading: false, primaryRate: null }),
 }));
+jest.mock("@/lib/assets/hooks", () => ({
+  useEnabledAssets: () => ({
+    data: [{ code: "USDC", name: "USD Coin", issuer: "CUSDC", decimals: 7, enabled: true, createdAt: null }],
+    codes: new Set(["USDC"]),
+    isError: false,
+    refetch: jest.fn(),
+  }),
+}));
 
 /**
  * The country Select is rendered by the real StepBusinessInfo here (no mocks),
