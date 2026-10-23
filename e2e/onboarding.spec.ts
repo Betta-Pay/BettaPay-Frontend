@@ -1,5 +1,5 @@
 import { test, expect } from './fixtures';
-import { mockLogin, gotoAuthed } from './helpers/auth';
+import { AUTH_STORAGE_STATE, gotoAuthed } from './helpers/auth';
 
 /**
  * E2E coverage for the onboarding webhook step — specifically the SSRF
@@ -36,8 +36,9 @@ function seedOnboardingStep(context: import('@playwright/test').BrowserContext, 
 }
 
 test.describe('Onboarding webhook SSRF validation', () => {
+  test.use({ storageState: AUTH_STORAGE_STATE });
+
   test.beforeEach(async ({ context, page }) => {
-    await mockLogin(context, 'merchant');
     await seedOnboardingStep(context, 3);
     await gotoAuthed(page, '/onboarding');
     await expect(page.getByRole('heading', { name: /webhook configuration/i })).toBeVisible();
