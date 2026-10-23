@@ -8,142 +8,26 @@
  * dynamic chunk the first time a code block requests it, so unused grammars
  * cost nothing.
  *
- * Two layers of caching, both module-scoped singletons:
- * - one highlighter instance for the whole app (`getSingletonHighlighterCore`),
- *   and
- * - one cached promise per language (`getHighlighterForLanguage`), so repeated
- *   renders, multiple code blocks on a page, and re-highlighting after a
- *   language switch never re-trigger a redundant load. Concurrent requests for
- *   the same language share the in-flight promise.
+ * Caching is delegated to the shared singleton in `lib/utils/highlighter.ts`,
+ * so the Shiki core, the JavaScript regex engine, the themes and the WASM-free
+ * highlighter instance are initialized exactly once per app, no matter how
+ * many code blocks are rendered on a page.
  *
  * Unknown or unsupported languages degrade gracefully to plain text.
  */
 
 import { useEffect, useRef, useState } from 'react';
-import type { LanguageRegistration } from 'shiki/core';
 import { type Language } from './codeSnippets';
 import { SafeHtmlRenderer } from '@/components/shared/SafeHtmlRenderer';
+import {
+  getHighlighterForLanguage,
+  hasLanguage,
+  resolveGrammarId,
+} from '@/lib/utils/highlighter';
 
 interface SyntaxHighlighterProps {
   code: string;
   language: Language;
-}
-
-/** App-facing language names → Shiki grammar ids/aliases. */
-const languageMap: Record<Language, string> = {
-  javascript: 'js',
-  python: 'py',
-  php: 'php',
-  go: 'go',
-};
-
-/**
- * Per-language grammar loaders. Each `import()` becomes a separate chunk, so
- * only grammars actually rendered are ever downloaded; the rest never reach
- * the app bundle. The ids are app-facing names here — resolved to grammar
- * module ids by `resolveGrammarId` below.
- */
-const languageLoaders: Record<
-  Language,
-  () => Promise<{ default: LanguageRegistration[] }>
-> = {
-  javascript: () => import('@shikijs/langs/js'),
-  python: () => import('@shikijs/langs/python'),
-  php: () => import('@shikijs/langs/php'),
-  go: () => import('@shikijs/langs/go'),
-};
-
-/**
- * Ids whose grammars are fetched eagerly alongside the engine, as a warm
- * cache for the doc pages' default tab (the codebase today only renders
- * these four languages; anything else added to `languageLoaders` would load
- * on demand exactly the same way).
- */
-const EAGER_LANGUAGES: readonly Language[] = ['javascript', 'python', 'php', 'go'];
-
-type ShikiCoreModule = typeof import('shiki/core');
-type ShikiEngineModule = typeof import('shiki/engine/javascript');
-
-// Lazy-loaded singleton — the core module (grammar host) is only fetched once,
-// on first use.
-let corePromise: Promise<ShikiCoreModule> | null = null;
-
-function loadShikiCore(): Promise<ShikiCoreModule> {
-  if (!corePromise) {
-    corePromise = import('shiki/core');
-  }
-  return corePromise;
-}
-
-// `shiki/core` only hosts grammars; the JavaScript regex engine lives in its
-// own module (`shiki/engine/javascript`), so it is loaded lazily too.
-let enginePromise: Promise<ShikiEngineModule> | null = null;
-
-function loadShikiEngine(): Promise<ShikiEngineModule> {
-  if (!enginePromise) {
-    enginePromise = import('shiki/engine/javascript');
-  }
-  return enginePromise;
-}
-
-// One highlighter for the whole app; one cached promise per language.
-type Highlighter = Awaited<
-  ReturnType<ShikiCoreModule['getSingletonHighlighterCore']>
->;
-let highlighterPromise: Promise<Highlighter> | null = null;
-const languagePromiseCache = new Map<Language, Promise<void>>();
-
-async function getHighlighterForLanguage(
-  language: Language,
-): Promise<Highlighter> {
-  const [shiki, shikiEngine] = await Promise.all([
-    loadShikiCore(),
-    loadShikiEngine(),
-  ]);
-
-  if (!highlighterPromise) {
-    // Warm the engine plus the grammars the docs currently use. Everything
-    // else a future caller adds to `languageLoaders` still loads on demand.
-    const themes = await Promise.all([
-      import('@shikijs/themes/github-light'),
-      import('@shikijs/themes/github-dark'),
-    ]);
-    highlighterPromise = shiki.getSingletonHighlighterCore({
-      engine: shikiEngine.createJavaScriptRegexEngine({ forgiving: true }),
-      themes: themes.map((theme) => theme.default),
-      langs: EAGER_LANGUAGES.map((language) => languageLoaders[language]),
-    });
-  }
-
-  const highlighter = await highlighterPromise;
-
-  // Deduplicate concurrent and repeated requests for the same language:
-  // `loadLanguage` is idempotent, but caching the promise avoids the call
-  // entirely for already-loaded (or in-flight) grammars.
-  let languagePromise = languagePromiseCache.get(language);
-  if (!languagePromise) {
-    const grammar = await languageLoaders[language]();
-    languagePromise = highlighter
-      .loadLanguage(grammar.default)
-      .catch((error) => {
-        // Don't cache failures: a transient chunk-load error can be retried.
-        languagePromiseCache.delete(language);
-        throw error;
-      });
-    languagePromiseCache.set(language, languagePromise);
-  }
-
-  await languagePromise;
-  return highlighter;
-}
-
-/**
- * Map an app-facing language to the grammar-module id used by
- * `languageLoaders`. Aliases collapse (`javascript` → `js`) so a later
- * contributor adding `typescript` → `ts` etc. shares the same mechanism.
- */
-function resolveGrammarId(language: Language): string {
-  return languageMap[language] ?? language;
 }
 
 export function SyntaxHighlighter({ code, language }: SyntaxHighlighterProps) {
@@ -160,10 +44,9 @@ export function SyntaxHighlighter({ code, language }: SyntaxHighlighterProps) {
 
     const highlight = async () => {
       try {
-        // Language the app doesn't know (not in `languageLoaders`): render as
-        // plain text instead of attempting (and failing) to load a grammar
-        // that doesn't exist.
-        if (!(language in languageLoaders)) {
+        // Language the app doesn't know: render as plain text instead of
+        // attempting (and failing) to load a grammar that doesn't exist.
+        if (!hasLanguage(language)) {
           if (!cancelled) setHtml(`<pre>${code}</pre>`);
           return;
         }
