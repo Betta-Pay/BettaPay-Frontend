@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { ArrowRight, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { docsNavigation } from '@/lib/docs/navigation';
@@ -14,6 +15,8 @@ interface NavTreeProps {
 
 /** The nested navigation list, shared by the desktop rail and the mobile drawer. */
 function NavTree({ activeSection, onNavigate }: NavTreeProps) {
+  const pathname = usePathname();
+
   return (
     <nav aria-label="Documentation" className="space-y-6">
       {docsNavigation.map((group) => (
@@ -23,22 +26,36 @@ function NavTree({ activeSection, onNavigate }: NavTreeProps) {
           </p>
           <ul className="space-y-0.5">
             {group.items.map((item) => {
-              const active = item.id === activeSection;
+              const active = item.href
+                ? pathname === item.href
+                : item.id === activeSection;
+              const itemClassName = cn(
+                'block rounded-md border-l-2 px-3 py-1.5 text-sm transition-colors',
+                active
+                  ? 'border-primary bg-primary/5 font-medium text-foreground'
+                  : 'border-transparent text-muted-foreground hover:bg-muted hover:text-foreground',
+              );
               return (
                 <li key={item.id}>
-                  <a
-                    href={`#${item.id}`}
-                    onClick={onNavigate}
-                    aria-current={active ? 'location' : undefined}
-                    className={cn(
-                      'block rounded-md border-l-2 px-3 py-1.5 text-sm transition-colors',
-                      active
-                        ? 'border-primary bg-primary/5 font-medium text-foreground'
-                        : 'border-transparent text-muted-foreground hover:bg-muted hover:text-foreground',
-                    )}
-                  >
-                    {item.title}
-                  </a>
+                  {item.href ? (
+                    <Link
+                      href={item.href}
+                      onClick={onNavigate}
+                      aria-current={active ? 'page' : undefined}
+                      className={itemClassName}
+                    >
+                      {item.title}
+                    </Link>
+                  ) : (
+                    <a
+                      href={`#${item.id}`}
+                      onClick={onNavigate}
+                      aria-current={active ? 'location' : undefined}
+                      className={itemClassName}
+                    >
+                      {item.title}
+                    </a>
+                  )}
                 </li>
               );
             })}

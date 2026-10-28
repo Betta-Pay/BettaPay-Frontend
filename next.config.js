@@ -40,6 +40,9 @@ const connectSrc = unique([
   "'self'",
   // Backend API — same fallback as lib/api/axios.ts DEFAULT_API_BASE_URL.
   originOf(process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"),
+  // Public gateway used by the docs explorer's "Try it" requests
+  // (lib/docs/navigation.ts DOCS_BASE_URL).
+  originOf(process.env.NEXT_PUBLIC_DOCS_API_URL || "https://bettapay-backend.onrender.com"),
   // Horizon + Soroban RPCs: configured endpoints plus the public SDF defaults.
   originOf(process.env.NEXT_PUBLIC_STELLAR_HORIZON_URL),
   "https://horizon-testnet.stellar.org",

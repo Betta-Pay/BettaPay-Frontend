@@ -7,6 +7,16 @@ if (typeof global.TextEncoder === 'undefined') {
   global.TextDecoder = TextDecoder;
 }
 
+// jsdom exposes getRandomValues but not SubtleCrypto; use Node's WebCrypto
+// implementation so HMAC signing/verification works in component tests.
+if (typeof globalThis.crypto === 'undefined' || !globalThis.crypto.subtle) {
+  const { webcrypto } = require('crypto');
+  Object.defineProperty(globalThis, 'crypto', { value: webcrypto, configurable: true });
+  if (typeof window !== 'undefined') {
+    Object.defineProperty(window, 'crypto', { value: webcrypto, configurable: true });
+  }
+}
+
 // Mock matchMedia
 if (typeof window !== 'undefined') {
   Object.defineProperty(window, 'matchMedia', {
