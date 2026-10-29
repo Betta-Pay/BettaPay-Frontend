@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { DocsLayout } from '@/components/docs/DocsLayout';
 import { Overview } from '@/components/docs/content/Overview';
 import { Authentication } from '@/components/docs/content/Authentication';
@@ -60,6 +61,12 @@ export default function DocsPage() {
           every endpoint, webhooks, and error handling, with copy-paste examples in cURL, Node.js
           and Python.
         </p>
+        <Link
+          href="/docs/api"
+          className="mt-4 inline-flex items-center rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+        >
+          Open the interactive API Explorer →
+        </Link>
       </header>
 
       {/* Getting Started */}

@@ -11,11 +11,13 @@ app.post(
   '/webhooks/bettapay',
   express.raw({ type: 'application/json' }),   // keep the raw bytes
   (req, res) => {
+    const timestamp = req.header('X-BettaPay-Timestamp') ?? '';
     const signature = req.header('X-BettaPay-Signature') ?? '';
     const expected =
       'sha256=' +
       crypto
         .createHmac('sha256', process.env.BETTAPAY_WEBHOOK_SECRET)
+        .update(\`\${timestamp}.\`)   // canonical string: \`\${timestamp}.\${rawBody}\`
         .update(req.body)
         .digest('hex');
 

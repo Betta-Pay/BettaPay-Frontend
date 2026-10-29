@@ -22,6 +22,7 @@ import {
 } from "@/components/ui";
 import { Badge } from "@/components/ui";
 import { useNotify } from "@/lib/hooks/useNotify";
+import { signPayload } from "@/lib/webhooks/hmac";
 import {
   Zap,
   Send,
@@ -29,10 +30,8 @@ import {
   CheckCircle2,
   AlertCircle,
   Copy,
-  ShieldCheck,
   Clock,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
 
 const EVENT_TYPES = [
   { value: "payment.completed", label: "payment.completed" },
@@ -92,40 +91,6 @@ interface DeliveryLogEntry {
   resultType?: string;
 }
 
-async function computeHmacSignature(secret: string, payloadStr: string): Promise<string> {
-  if (typeof window !== "undefined" && window.crypto?.subtle) {
-    try {
-      const encoder = new TextEncoder();
-      const key = await window.crypto.subtle.importKey(
-        "raw",
-        encoder.encode(secret),
-        { name: "HMAC", hash: "SHA-256" },
-        false,
-        ["sign"]
-      );
-      const signatureBytes = await window.crypto.subtle.sign(
-        "HMAC",
-        key,
-        encoder.encode(payloadStr)
-      );
-      const hex = Array.from(new Uint8Array(signatureBytes))
-        .map((b) => b.toString(16).padStart(2, "0"))
-        .join("");
-      return `sha256=${hex}`;
-    } catch {
-      // Fallback below
-    }
-  }
-
-  try {
-    const cryptoModule = await import("crypto");
-    const hex = cryptoModule.createHmac("sha256", secret).update(payloadStr).digest("hex");
-    return `sha256=${hex}`;
-  } catch {
-    throw new Error("Unable to compute webhook signature in this browser");
-  }
-}
-
 interface WebhookTesterProps {
   initialEndpointUrl?: string;
   initialWebhookSecret?: string;
@@ -147,14 +112,6 @@ export function WebhookTester({
     body: JsonValue;
   } | null>(null);
   const [deliveryLog, setDeliveryLog] = useState<DeliveryLogEntry[]>([]);
-  const [signaturePayload, setSignaturePayload] = useState("");
-  const [signatureSecret, setSignatureSecret] = useState("");
-  const [signatureResult, setSignatureResult] = useState<{
-    valid: boolean;
-    computedSignature?: string;
-    expectedSignature?: string;
-  } | null>(null);
-  const [isVerifying, setIsVerifying] = useState(false);
 
   const notify = useNotify();
 
@@ -183,7 +140,7 @@ export function WebhookTester({
     const eventId = (payload as { id?: string })?.id || `evt_${Date.now()}`;
 
     try {
-      const signature = await computeHmacSignature(webhookSecret, bodyString);
+      const signature = `sha256=${await signPayload(webhookSecret, timestamp, bodyString)}`;
 
       const res = await fetch(endpointUrl, {
         method: "POST",
@@ -276,52 +233,6 @@ export function WebhookTester({
     navigator.clipboard.writeText(JSON.stringify(SAMPLE_PAYLOADS[selectedEvent], null, 2));
     notify.success("Payload copied to clipboard");
   }, [selectedEvent, notify]);
-
-  const handleVerifySignature = useCallback(async () => {
-    if (!signaturePayload.trim() || !signatureSecret.trim()) {
-      notify.error("Please provide both the payload and the signing secret");
-      return;
-    }
-
-    setIsVerifying(true);
-    setSignatureResult(null);
-
-    try {
-      const encoder = new TextEncoder();
-      const key = await crypto.subtle.importKey(
-        "raw",
-        encoder.encode(signatureSecret),
-        { name: "HMAC", hash: "SHA-256" },
-        false,
-        ["sign"]
-      );
-      const signatureBytes = await crypto.subtle.sign("HMAC", key, encoder.encode(signaturePayload));
-      const computedSignature = Array.from(new Uint8Array(signatureBytes))
-        .map((b) => b.toString(16).padStart(2, "0"))
-        .join("");
-
-      const payloadLines = signaturePayload.split("\n");
-      const signatureLine = payloadLines.find((l) => l.includes("x-signature"));
-      const expectedSignature = signatureLine
-        ? signatureLine.split(":")[1]?.trim()
-        : null;
-
-      const isValid = expectedSignature
-        ? computedSignature === expectedSignature
-        : false;
-
-      setSignatureResult({
-        valid: isValid,
-        computedSignature,
-        expectedSignature: expectedSignature || undefined,
-      });
-    } catch {
-      setSignatureResult({ valid: false });
-      notify.error("Failed to verify signature");
-    } finally {
-      setIsVerifying(false);
-    }
-  }, [signaturePayload, signatureSecret, notify]);
 
   return (
     <div className="space-y-6">
@@ -499,86 +410,6 @@ export function WebhookTester({
         </CardContent>
       </Card>
 
-      {/* Signature Verification Helper */}
-      <Card className="border border-border bg-card shadow-sm">
-        <CardHeader>
-          <CardTitle className="text-base font-semibold text-foreground flex items-center gap-2">
-            <ShieldCheck className="w-4 h-4 text-primary" /> Signature Verification
-          </CardTitle>
-          <CardDescription>
-            Paste a webhook payload and your signing secret to test HMAC-SHA256 signature verification locally.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label>Webhook Payload</Label>
-            <textarea
-              value={signaturePayload}
-              onChange={(e) => setSignaturePayload(e.target.value)}
-              placeholder='{"id":"evt_123","type":"payment.completed",...}'
-              rows={5}
-              className="w-full rounded-xl border border-border bg-muted p-3 text-xs font-mono text-foreground resize-y focus:outline-none focus:ring-2 focus:ring-primary/50"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>Signing Secret</Label>
-            <Input
-              value={signatureSecret}
-              onChange={(e) => setSignatureSecret(e.target.value)}
-              placeholder="whsec_..."
-              className="h-10 border-border rounded-xl bg-muted font-mono text-sm"
-            />
-          </div>
-          <Button
-            onClick={handleVerifySignature}
-            disabled={isVerifying}
-            className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl h-10 px-6 text-sm font-semibold"
-          >
-            {isVerifying ? (
-              <><RefreshCcw className="w-3.5 h-3.5 mr-2 animate-spin" /> Verifying...</>
-            ) : (
-              <><ShieldCheck className="w-3.5 h-3.5 mr-2" /> Verify Signature</>
-            )}
-          </Button>
-
-          {signatureResult && (
-            <div
-              className={cn(
-                "p-4 rounded-xl border flex items-start gap-3",
-                signatureResult.valid
-                  ? "bg-success/10 border-success/20"
-                  : "bg-destructive/10 border-destructive/20"
-              )}
-            >
-              {signatureResult.valid ? (
-                <CheckCircle2 className="w-5 h-5 text-success shrink-0 mt-0.5" />
-              ) : (
-                <AlertCircle className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
-              )}
-              <div className="space-y-1 text-sm">
-                <p className={cn("font-semibold", signatureResult.valid ? "text-success" : "text-destructive")}>
-                  {signatureResult.valid ? "Signature Verified" : "Signature Mismatch"}
-                </p>
-                {signatureResult.computedSignature && (
-                  <div className="text-xs font-mono text-muted-foreground">
-                    <p>Computed: {signatureResult.computedSignature.slice(0, 32)}...</p>
-                  </div>
-                )}
-                {signatureResult.expectedSignature && (
-                  <div className="text-xs font-mono text-muted-foreground">
-                    <p>Expected: {signatureResult.expectedSignature.slice(0, 32)}...</p>
-                  </div>
-                )}
-                {!signatureResult.expectedSignature && (
-                  <p className="text-xs text-muted-foreground">
-                    Tip: Include an <code className="text-xs bg-muted px-1 rounded">x-signature</code> header line in your payload for comparison.
-                  </p>
-                )}
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
     </div>
   );
 }
