@@ -2,7 +2,9 @@
 
 **Live Deployment:** [https://betta-pay-frontend.vercel.app/](https://betta-pay-frontend.vercel.app/)
 
-BettaPay frontend — a Next.js 14 TypeScript app built as part of a Turborepo workspace. This package implements the merchant-facing UI for non-custodial payments (Stellar/Soroban integration) and is intended to be run as the frontend app inside a monorepo.
+BettaPay frontend — a standalone Next.js 14 TypeScript app implementing the merchant-facing UI for non-custodial payments (Stellar/Soroban integration), plus the admin back office.
+
+This repository is self-contained: it is not part of a Turborepo workspace and has no local workspace dependencies. The backend it talks to lives in the separate `BettaPay-Backend` repository, and the contracts in `BettaPay-Contract`.
 
 ---
 
@@ -12,44 +14,39 @@ Before you start, make sure you have the following installed;
 
 | Tool | Version | Notes |
 |------|---------|-------|
-| [Node.js](https://nodejs.org/) | 18+ | LTS recommended |
-| [pnpm](https://pnpm.io/installation) | 8+ | Used as the workspace package manager |
+| [Node.js](https://nodejs.org/) | 22.x | Matches the version used in CI |
+| [npm](https://docs.npmjs.com/) | 10+ | Ships with Node 22; this repo uses `package-lock.json` |
 | [git](https://git-scm.com/) | any recent | For cloning and branch management |
 
 Check your versions:
 
 ```bash
-node -v   # should be v18.x or higher
-pnpm -v   # should be 8.x or higher
+node -v   # should be v22.x
+npm -v    # should be 10.x or higher
 git --version
 ```
 
-Install pnpm if you don't have it:
+---
 
-```bash
-npm install -g pnpm@8
+## Repository structure
+
+This is a single Next.js application, not a monorepo:
+
+```
+BettaPay-Frontend/
+├── app/              ← App Router routes: (marketing) | (merchant) | (admin) | api/
+├── components/       ← UI (ui/, shared/, layout/) and feature components
+├── lib/              ← hooks, API clients, formatters, domain helpers
+├── e2e/              ← Playwright end-to-end specs
+├── scripts/          ← build-time helper scripts
+├── public/           ← static assets
+├── package.json      ← scripts and dependencies (npm)
+└── package-lock.json ← committed lockfile
 ```
 
 ---
 
-## Monorepo structure
-
-This repo is a **Turborepo** monorepo. The frontend lives alongside other packages (e.g. backend, shared types) under a single root. Here's where this package fits;
-
-```
-/                          ← monorepo root (pnpm-workspace.yaml here)
-├── packages/
-│   └── bettapay-frontend/ ← this package (Next.js app)
-├── apps/                  ← other apps if present
-├── turbo.json             ← Turborepo pipeline config
-└── package.json           ← root workspace manifest
-```
-
-When you run commands from the **monorepo root**, use `--filter bettapay-frontend` to target this package. When working directly inside `packages/bettapay-frontend`, you can use `npm run <script>` or `pnpm run <script>` directly.
-
----
-
-## Included in this package
+## Included in this app
 
 - Next.js 14 app (`app/`)
 - React 18, TypeScript
@@ -59,32 +56,27 @@ When you run commands from the **monorepo root**, use `--filter bettapay-fronten
 
 ---
 
-## Quick start (workspace)
+## Quick start
 
-**1. Clone the repo and install dependencies from the monorepo root:**
+**1. Clone the repo and install dependencies:**
 
 ```bash
-git clone <repo-url>
-cd <monorepo-root>
-pnpm install
+git clone https://github.com/Betta-Pay/BettaPay-Frontend.git
+cd BettaPay-Frontend
+npm ci
 ```
 
 **2. Copy the environment file:**
 
 ```bash
-cp packages/bettapay-frontend/.env.example packages/bettapay-frontend/.env.local
+cp .env.example .env.local
 # then fill in values — see Environment variables section below
 ```
 
 **3. Start the dev server:**
 
 ```bash
-# from monorepo root
-pnpm --filter bettapay-frontend dev
-
-# or from inside the package directory
-cd packages/bettapay-frontend
-pnpm dev
+npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) to view the app.
@@ -190,7 +182,7 @@ Stop the node with `stellar container stop` (Option A) or `docker stop stellar` 
 
 ### 2. Point the frontend at localhost
 
-Append the following to `.env.local`, then **restart `pnpm dev`** (Next.js does not hot-reload env changes):
+Append the following to `.env.local`, then **restart `npm run dev`** (Next.js does not hot-reload env changes):
 
 ```bash
 # Horizon + Soroban RPC served by the local node
@@ -234,7 +226,7 @@ Copy the printed contract ID into `NEXT_PUBLIC_SETTLEMENT_CONTRACT_ID`, and the 
 ### 4. Run the stack
 
 ```bash
-pnpm dev   # frontend → http://localhost:3000
+npm run dev   # frontend → http://localhost:3000
 ```
 
 Contract simulation and submission (`/pay/[linkId]`), health checks, and any other request built from `NEXT_PUBLIC_STELLAR_HORIZON_URL` / `NEXT_PUBLIC_SOROBAN_RPC_URL` now target `localhost:8000`. Friendbot on the local node funds accounts, so nothing needs to reach the public internet.
@@ -252,28 +244,22 @@ A typical dev loop looks like this:
 
 ```bash
 # 1. Start the dev server (hot reload enabled)
-pnpm dev
+npm run dev
 
 # 2. Lint — catch style and type issues early
-pnpm lint
-# or from monorepo root:
-pnpm --filter bettapay-frontend lint
+npm run lint
 
 # 3. Build — verify a production build compiles cleanly
-pnpm build
-# or from monorepo root:
-pnpm --filter bettapay-frontend build
+npm run build
 
 # 4. Run tests
-pnpm test
-# or from monorepo root:
-pnpm --filter bettapay-frontend test
+npm test
 ```
 
 **Before opening a PR**, run the full cycle to make sure nothing is broken:
 
 ```bash
-pnpm lint && pnpm build && pnpm test
+npm run lint && npm run typecheck && npm run build && npm test
 ```
 
 ---
@@ -332,7 +318,7 @@ kill -9 <PID>
 **Fix — option 2:** Run the dev server on a different port:
 
 ```bash
-pnpm dev -- -p 3001
+npm run dev -- -p 3001
 # or set in package.json scripts: "dev": "next dev -p 3001"
 ```
 
@@ -358,7 +344,7 @@ pnpm dev -- -p 3001
 **Fix:**
 1. Confirm a `stellar/quickstart` container is running (`docker ps`), then `curl -s http://localhost:8000/rpc -H 'Content-Type: application/json' -d '{"jsonrpc":"2.0","id":1,"method":"getHealth"}'`.
 2. Wait for the first boot to finish — it can take a minute or two; the container logs (`stellar container logs` or `docker logs <container>`) should end with `stellar-rpc: up and ready`.
-3. Make sure `.env.local` sets `NEXT_PUBLIC_SOROBAN_RPC_URL=http://localhost:8000/rpc` and `NEXT_PUBLIC_STELLAR_NETWORK_PASSPHRASE=Standalone Network ; February 2017`, then restart `pnpm dev`.
+3. Make sure `.env.local` sets `NEXT_PUBLIC_SOROBAN_RPC_URL=http://localhost:8000/rpc` and `NEXT_PUBLIC_STELLAR_NETWORK_PASSPHRASE=Standalone Network ; February 2017`, then restart `npm run dev`.
 
 See [Local Soroban node (offline development)](#local-soroban-node-offline-development) for the full setup.
 
@@ -374,8 +360,8 @@ See [Local Soroban node (offline development)](#local-soroban-node-offline-devel
 
 ## Contributing
 
-- This package is part of a monorepo — when creating PRs, scope changes to this package and update workspace build/test workflows as needed.
-- Dependabot is configured to open weekly updates for npm dependencies in this package.
+- Scope PRs to this application; backend and contract changes belong in their own repositories.
+- Dependabot is configured to open weekly updates for npm dependencies in this repo.
 
 ## Design system notes
 
@@ -400,26 +386,26 @@ This project keeps reusable UI, shared, and layout components in the `components
 
 | Component | Location | Purpose |
 |---|---|---|
-| StatusBadge | `components/StatusBadge.tsx` | Displays payment, account, or transaction status in a consistent format. |
-| CurrencyDisplay | `components/CurrencyDisplay.tsx` | Formats and displays currency values consistently across the app. |
-| CopyAddress | `components/CopyAddress.tsx` | Shows an address or text value with copy-to-clipboard support. |
+| StatusBadge | `components/shared/StatusBadge.tsx` | Displays payment, account, or transaction status in a consistent format. |
+| CurrencyDisplay | `components/shared/CurrencyDisplay.tsx` | Formats and displays currency values consistently across the app. |
+| CopyAddress | `components/shared/CopyAddress.tsx` | Shows an address or text value with copy-to-clipboard support. |
 
 ### Layout Components
 
 | Component | Location | Purpose |
 |---|---|---|
-| MerchantSidebar | `components/MerchantSidebar.tsx` | Sidebar navigation for merchant-facing pages. |
-| AdminSidebar | `components/AdminSidebar.tsx` | Sidebar navigation for admin-facing pages. |
-| Topbar | `components/Topbar.tsx` | Top navigation/header area used across dashboard pages. |
-| Header | `components/Header.tsx` | Page or app header component. |
-| Footer | `components/Footer.tsx` | Footer section used for common page layout. |
+| MerchantSidebar | `components/layout/MerchantSidebar.tsx` | Sidebar navigation for merchant-facing pages. |
+| AdminSidebar | `components/layout/AdminSidebar.tsx` | Sidebar navigation for admin-facing pages. |
+| Topbar | `components/layout/Topbar.tsx` | Top navigation/header area used across dashboard pages. |
+| Header | `components/layout/Header.tsx` | Page or app header component. |
+| Footer | `components/layout/Footer.tsx` | Footer section used for common page layout. |
 
 ### Usage Example
 
 ```tsx
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import StatusBadge from "@/components/StatusBadge";
+import StatusBadge from "@/components/shared/StatusBadge";
 
 export function ExampleComponent() {
   return (
