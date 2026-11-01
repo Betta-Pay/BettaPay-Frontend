@@ -4,7 +4,13 @@
  * arguments instead of a raw base64 blob (issue #793).
  */
 
-import { Address, Operation, TransactionBuilder, scValToNative } from '@stellar/stellar-sdk';
+import {
+  Address,
+  type OperationRecord,
+  Operation,
+  TransactionBuilder,
+  scValToNative,
+} from '@stellar/stellar-sdk';
 import { getHorizonUrl, getNetworkPassphrase, type StellarNetwork } from './config';
 
 export interface SorobanInvocation {
@@ -36,7 +42,7 @@ export async function fetchTransactionEnvelope(
   }
 }
 
-function isInvokeHostFunctionOp(op: Operation): op is Operation.InvokeHostFunction {
+function isInvokeHostFunctionOp(op: OperationRecord): op is Operation.InvokeHostFunction {
   return op.type === 'invokeHostFunction';
 }
 
