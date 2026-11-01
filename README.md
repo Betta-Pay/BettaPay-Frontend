@@ -202,7 +202,7 @@ NEXT_PUBLIC_API_URL=http://localhost:3001
 
 Things worth knowing:
 
-- **Leave `NEXT_PUBLIC_STELLAR_NETWORK=testnet`.** It is validated to `testnet | mainnet | public` (`lib/config.ts`) and the app refuses to boot on any other value. It does not switch endpoints — `NEXT_PUBLIC_STELLAR_HORIZON_URL` and `NEXT_PUBLIC_SOROBAN_RPC_URL` do that.
+- **Leave `NEXT_PUBLIC_STELLAR_NETWORK=testnet`.** It is validated to `testnet | mainnet | public` (`lib/config/index.ts`) and the app refuses to boot on any other value. It does not switch endpoints — `NEXT_PUBLIC_STELLAR_HORIZON_URL` and `NEXT_PUBLIC_SOROBAN_RPC_URL` do that.
 - The Content-Security-Policy in `next.config.js` builds `connect-src` from those two URL variables, so `http://localhost:8000` is allowed automatically — no CSP edits needed.
 - Use `http://localhost:8000/rpc` for the RPC. The older `/soroban/rpc` path is deprecated in current Quickstart images.
 

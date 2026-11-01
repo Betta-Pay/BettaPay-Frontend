@@ -5,13 +5,13 @@
  * (ReactDOM/server renderToString) contains the same key landmarks as the
  * client-side render produced by @testing-library/react.
  *
- * They also assert that lib/config.ts exports deterministic, build-time-baked
+ * They also assert that lib/config/index.ts exports deterministic, build-time-baked
  * values so there can never be a mismatch between prerendered HTML and the
  * values the client JavaScript sees.
  *
  * Acceptance criteria this covers:
  *  ✓ Marketing pages hydrate identically to their prerendered HTML.
- *  ✓ Env reads are centralised (all via lib/config.ts — no inline process.env
+ *  ✓ Env reads are centralised (all via lib/config/index.ts — no inline process.env
  *    reads in the page components themselves).
  */
 
@@ -140,7 +140,7 @@ function extractText(html: string): string {
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
-describe('Hydration Parity — lib/config.ts', () => {
+describe('Hydration Parity — lib/config/index.ts', () => {
   it('exports deterministic string values regardless of import order', () => {
     // Import twice (Node module cache ensures same object) and verify the
     // values are stable strings, not live process.env accessors.
