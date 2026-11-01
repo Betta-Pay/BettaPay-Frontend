@@ -44,9 +44,8 @@
     "react-dom": "18.3.1",
     "react-hook-form": "7.82.0",
     "react-i18next": "17.0.11",
-    "react-is": "19.2.8",
+    "react-is": "18.3.1",
     "recharts": "3.10.0",
-    "shadcn": "4.14.0",
     "shiki": "4.3.1",
     "sonner": "2.0.7",
     "tailwind-merge": "3.6.0",
@@ -57,7 +56,7 @@
     "zustand": "5.0.14"
   },
   "devDependencies": {
-    "@next/bundle-analyzer": "16.2.11",
+    "@next/bundle-analyzer": "14.2.35",
     "@playwright/test": "1.61.1",
     "@testing-library/jest-dom": "6.9.1",
     "@testing-library/react": "16.3.2",
@@ -70,6 +69,7 @@
     "eslint-config-next": "14.2.35",
     "jest": "30.4.2",
     "jest-environment-jsdom": "30.4.1",
+    "shadcn": "4.14.0",
     "postcss": "8.5.28",
     "stylelint": "17.15.0",
     "stylelint-config-standard": "40.0.0",
@@ -78,6 +78,6 @@
     "typescript": "5.9.3"
   },
   "optionalDependencies": {
-    "@next/swc-win32-x64-msvc": "14.2.33"
+    "@next/swc-win32-x64-msvc": "14.2.35"
   }
 }
