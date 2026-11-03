@@ -35,24 +35,28 @@ if (typeof window !== 'undefined') {
 }
 
 // jsdom does not implement canvas; QR rendering tests only need a drawing surface.
-HTMLCanvasElement.prototype.getContext = jest.fn(() => ({
-  clearRect: jest.fn(), fillRect: jest.fn(), drawImage: jest.fn(),
-  getImageData: jest.fn(), putImageData: jest.fn(), createImageData: jest.fn(),
-  setTransform: jest.fn(), resetTransform: jest.fn(), scale: jest.fn(),
-  save: jest.fn(), restore: jest.fn(), beginPath: jest.fn(), closePath: jest.fn(),
-  moveTo: jest.fn(), lineTo: jest.fn(), stroke: jest.fn(), fill: jest.fn(),
-  translate: jest.fn(), rotate: jest.fn(), arc: jest.fn(), rect: jest.fn(),
-  clip: jest.fn(), measureText: jest.fn(() => ({ width: 0 })), fillText: jest.fn(),
-}));
+// Skip in non-DOM environments (e.g. @jest-environment node suites) where the
+// HTMLCanvasElement global does not exist.
+if (typeof HTMLCanvasElement !== 'undefined') {
+  HTMLCanvasElement.prototype.getContext = jest.fn(() => ({
+    clearRect: jest.fn(), fillRect: jest.fn(), drawImage: jest.fn(),
+    getImageData: jest.fn(), putImageData: jest.fn(), createImageData: jest.fn(),
+    setTransform: jest.fn(), resetTransform: jest.fn(), scale: jest.fn(),
+    save: jest.fn(), restore: jest.fn(), beginPath: jest.fn(), closePath: jest.fn(),
+    moveTo: jest.fn(), lineTo: jest.fn(), stroke: jest.fn(), fill: jest.fn(),
+    translate: jest.fn(), rotate: jest.fn(), arc: jest.fn(), rect: jest.fn(),
+    clip: jest.fn(), measureText: jest.fn(() => ({ width: 0 })), fillText: jest.fn(),
+  }));
 
-// Canvas toDataURL is used by QRCode download/print flows; stub it.
-if (!HTMLCanvasElement.prototype.toDataURL) {
-  HTMLCanvasElement.prototype.toDataURL = jest.fn(() => 'data:image/png;base64,mock');
-} else {
-  const origToDataURL = HTMLCanvasElement.prototype.toDataURL;
-  HTMLCanvasElement.prototype.toDataURL = jest.fn(function(type) {
-    try { return origToDataURL.call(this, type); } catch { return 'data:image/png;base64,mock'; }
-  });
+  // Canvas toDataURL is used by QRCode download/print flows; stub it.
+  if (!HTMLCanvasElement.prototype.toDataURL) {
+    HTMLCanvasElement.prototype.toDataURL = jest.fn(() => 'data:image/png;base64,mock');
+  } else {
+    const origToDataURL = HTMLCanvasElement.prototype.toDataURL;
+    HTMLCanvasElement.prototype.toDataURL = jest.fn(function(type) {
+      try { return origToDataURL.call(this, type); } catch { return 'data:image/png;base64,mock'; }
+    });
+  }
 }
 
 // jsdom does not implement EventSource (used by NotificationCenter)

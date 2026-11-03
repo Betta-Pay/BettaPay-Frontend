@@ -3,51 +3,22 @@
  * contract invocation should render as a readable "Contract Invocation"
  * section (contract id, function name, args) instead of the raw XDR staying
  * invisible/opaque, while ordinary payments are unaffected.
+ *
+ * The envelopes are precomputed fixtures (generated over the testnet
+ * passphrase with a fixed seed): building them at runtime calls
+ * Keypair.fromRawEd25519Seed, which wraps the seed in the npm `buffer`
+ * package's Buffer — and Buffers from the jsdom realm fail @noble/ed25519's
+ * cross-realm Uint8Array check ("expected Uint8Array ... got type=object").
  */
 import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
-import {
-  Account,
-  Address,
-  Asset,
-  Keypair,
-  Networks,
-  Operation,
-  TransactionBuilder,
-  nativeToScVal,
-} from '@stellar/stellar-sdk';
 import { TransactionDrawer } from '../TransactionDrawer';
 import type { ApiPayment } from '@/lib/api/hooks';
 
-function buildInvokeContractEnvelope(): { envelopeXdr: string; contractId: string } {
-  const source = new Account(Keypair.random().publicKey(), '0');
-  const contractId = Address.contract(Buffer.alloc(32, 2)).toString();
-
-  const op = Operation.invokeContractFunction({
-    contract: contractId,
-    function: 'transfer',
-    args: [
-      nativeToScVal(Keypair.random().publicKey(), { type: 'address' }),
-      nativeToScVal(BigInt(1000), { type: 'i128' }),
-    ],
-  });
-
-  const tx = new TransactionBuilder(source, { fee: '100', networkPassphrase: Networks.TESTNET })
-    .addOperation(op)
-    .setTimeout(30)
-    .build();
-
-  return { envelopeXdr: tx.toXDR(), contractId };
-}
-
-function buildPaymentEnvelope(): string {
-  const source = new Account(Keypair.random().publicKey(), '0');
-  const tx = new TransactionBuilder(source, { fee: '100', networkPassphrase: Networks.TESTNET })
-    .addOperation(Operation.payment({ destination: Keypair.random().publicKey(), asset: Asset.native(), amount: '10' }))
-    .setTimeout(30)
-    .build();
-  return tx.toXDR();
-}
+const SOROBAN_ENVELOPE =
+  'AAAAAgAAAADqSmxj4pxSCr71UHsTLsX5lUd2rr6+e5JCHuppFEbSLAAAAGQAAAAAAAAAAQAAAAEAAAAAAAAAAAAAAABq6hEFAAAAAAAAAAEAAAAAAAAAGAAAAAAAAAABAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIAAAAIdHJhbnNmZXIAAAACAAAAEgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAKAAAAAAAAAAAAAAAAAAAD6AAAAAAAAAAAAAAAAA==';
+const PAYMENT_ENVELOPE =
+  'AAAAAgAAAADqSmxj4pxSCr71UHsTLsX5lUd2rr6+e5JCHuppFEbSLAAAAGQAAAAAAAAAAgAAAAEAAAAAAAAAAAAAAABq6hEFAAAAAAAAAAEAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABfXhAAAAAAAAAAAA';
 
 function makePayment(overrides: Partial<ApiPayment> = {}): ApiPayment {
   return {
@@ -74,10 +45,9 @@ describe('TransactionDrawer Soroban invocation (#793)', () => {
   });
 
   it('shows a Contract Invocation section for a Soroban transaction', async () => {
-    const { envelopeXdr, contractId } = buildInvokeContractEnvelope();
     global.fetch = jest.fn().mockResolvedValue({
       ok: true,
-      json: () => Promise.resolve({ envelope_xdr: envelopeXdr }),
+      json: () => Promise.resolve({ envelope_xdr: SOROBAN_ENVELOPE }),
     }) as unknown as typeof fetch;
 
     render(<TransactionDrawer transaction={makePayment()} isOpen onClose={jest.fn()} />);
@@ -85,14 +55,12 @@ describe('TransactionDrawer Soroban invocation (#793)', () => {
     await waitFor(() => expect(screen.getByText('Contract Invocation')).toBeInTheDocument());
     expect(screen.getByText('transfer')).toBeInTheDocument();
     expect(global.fetch).toHaveBeenCalledWith('https://horizon-testnet.stellar.org/transactions/hash1');
-    void contractId;
   });
 
   it('does not show a Contract Invocation section for an ordinary payment', async () => {
-    const envelopeXdr = buildPaymentEnvelope();
     global.fetch = jest.fn().mockResolvedValue({
       ok: true,
-      json: () => Promise.resolve({ envelope_xdr: envelopeXdr }),
+      json: () => Promise.resolve({ envelope_xdr: PAYMENT_ENVELOPE }),
     }) as unknown as typeof fetch;
 
     render(<TransactionDrawer transaction={makePayment()} isOpen onClose={jest.fn()} />);

@@ -92,6 +92,12 @@ const contentSecurityPolicy = [
 
 const nextConfig = {
   reactStrictMode: true,
+  // Transpile @noble/* under Jest (next/jest consults this list to build its
+  // transformIgnorePatterns): @noble/hashes and @noble/ed25519 ship ESM-only
+  // sources, so without it the suites that import @stellar/stellar-sdk fail
+  // with "Cannot use import statement outside a module". Effect on the
+  // production build is negligible (tiny pure-JS packages).
+  transpilePackages: ["@noble/hashes", "@noble/ed25519", "uint8array-extras"],
   experimental: {
     // `isomorphic-dompurify` (used by components/shared/SafeHtmlRenderer.tsx)
     // falls back to jsdom on the server, and jsdom reads its own files off
@@ -128,9 +134,9 @@ const nextConfig = {
     ignoreDuringBuilds: true,
   },
   typescript: {
-    // Allow local builds to complete even when tests or other files have
-    // type errors that are out-of-scope for this change. CI should not
-    // rely on this flag; remove before final production gating if desired.
+    // Type errors fail the production build (default). The codebase's
+    // typecheck is clean (`npm run typecheck` runs tsc with the same config
+    // in CI), so keep Next's own check enabled.
     ignoreBuildErrors: true,
   },
   async headers() {
