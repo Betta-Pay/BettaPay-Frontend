@@ -137,7 +137,7 @@ const nextConfig = {
     // Type errors fail the production build (default). The codebase's
     // typecheck is clean (`npm run typecheck` runs tsc with the same config
     // in CI), so keep Next's own check enabled.
-    ignoreBuildErrors: true,
+    ignoreBuildErrors: false,
   },
   async headers() {
     return [
