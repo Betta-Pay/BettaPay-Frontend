@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { createPortal } from "react-dom";
 
@@ -38,11 +38,17 @@ export default function RouteProgress() {
   const [phase, setPhase] = useState<"idle" | "started" | "inching" | "done">(
     "idle"
   );
+  // Skip the mount-time effect run — the initial route already rendered via
+  // SSR/loading, so animating a bar there would flash on every hydration.
+  const mounted = useRef(false);
 
   // Any navigation starts the bar. Keying on pathname means client-side
   // navigations (which do not remount this component) still trigger it.
   useEffect(() => {
-    if (phase === "idle") return;
+    if (!mounted.current) {
+      mounted.current = true;
+      return;
+    }
     // A new route while running: restart from "started".
     setPhase("started");
     const t1 = setTimeout(() => setPhase("inching"), STARTED_MS + INCHING_MS);

@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { WalletActivityHistory } from '@/components/wallet/WalletActivityHistory';
 import { useWalletStore } from '@/lib/store/walletStore';
@@ -49,6 +49,10 @@ describe('WalletActivityHistory (Issue #570)', () => {
   });
 
   it('renders "Wallet not connected" empty state when no address is present', () => {
+    // The store seeds an address in beforeEach so the history tests work;
+    // this test exercises the no-account branch instead.
+    useWalletStore.setState({ address: null });
+
     render(<WalletActivityHistory />, { wrapper: createWrapper() });
 
     expect(screen.getByText('Wallet not connected')).toBeInTheDocument();
@@ -79,7 +83,7 @@ describe('WalletActivityHistory (Issue #570)', () => {
     } as Response);
 
     render(
-      <WalletActivityHistory address="GB22222222222222222222222222222222222222222222222222222222" />,
+      <WalletActivityHistory />,
       { wrapper: createWrapper() },
     );
 
@@ -100,7 +104,7 @@ describe('WalletActivityHistory (Issue #570)', () => {
       json: async () => ({ _embedded: { records: [] } }),
     } as Response);
 
-    render(<WalletActivityHistory />);
+    render(<WalletActivityHistory />, { wrapper: createWrapper() });
     await waitFor(() => expect(global.fetch).toHaveBeenCalled());
 
     act(() => {
@@ -122,7 +126,7 @@ describe('WalletActivityHistory (Issue #570)', () => {
     } as Response);
 
     render(
-      <WalletActivityHistory address="GB22222222222222222222222222222222222222222222222222222222" />,
+      <WalletActivityHistory />,
       { wrapper: createWrapper() },
     );
 
@@ -139,7 +143,7 @@ describe('WalletActivityHistory (Issue #570)', () => {
     } as Response);
 
     render(
-      <WalletActivityHistory address="GB22222222222222222222222222222222222222222222222222222222" />,
+      <WalletActivityHistory />,
       { wrapper: createWrapper() },
     );
 

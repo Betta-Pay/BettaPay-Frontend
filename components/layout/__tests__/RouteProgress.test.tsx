@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import { usePathname } from "next/navigation";
 import RouteProgress from "@/components/layout/RouteProgress";
 
@@ -20,7 +20,9 @@ describe("RouteProgress", () => {
   });
 
   afterEach(() => {
-    jest.runOnlyPendingTimers();
+    act(() => {
+      jest.runOnlyPendingTimers();
+    });
     jest.useRealTimers();
   });
 
@@ -42,12 +44,13 @@ describe("RouteProgress", () => {
     expect(bar).toHaveAttribute("aria-hidden", "true");
     expect(bar?.getAttribute("data-phase")).toBe("started");
 
-    // Fast ramp then inching: the bar keeps moving on slow loads.
-    jest.advanceTimersByTime(2500);
+    // Fast ramp then inching: the bar keeps moving on slow loads. Timer
+    // callbacks run outside React's batching, so advance inside act().
+    act(() => jest.advanceTimersByTime(2500));
     expect(bar?.getAttribute("data-phase")).toBe("inching");
 
     // And it completes rather than sticking around forever.
-    jest.advanceTimersByTime(500);
+    act(() => jest.advanceTimersByTime(500));
     expect(bar?.getAttribute("data-phase")).toBe("done");
   });
 
@@ -55,7 +58,7 @@ describe("RouteProgress", () => {
     const { rerender } = render(<RouteProgress />);
     mockPathname.mockReturnValue("/payments");
     rerender(<RouteProgress />);
-    jest.advanceTimersByTime(1000);
+    act(() => jest.advanceTimersByTime(1000));
 
     mockPathname.mockReturnValue("/transactions");
     rerender(<RouteProgress />);
