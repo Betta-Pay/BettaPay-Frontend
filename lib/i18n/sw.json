@@ -40,9 +40,18 @@
     "featuresTitle": "Inaendeshwa na Stellar na Soroban",
     "featuresDescription": "Miundombinu ya malipo ya kiwango cha biashara iliyoundwa kwa kasi, ada nafuu, na uwazi kamili.",
     "features": {
-      "settlement": { "title": "Malipo ya papo hapo", "description": "Miamala hukamilika kwa sekunde 3 hadi 5. Hakuna tena kusubiri siku nyingi kwa uhamisho wa kimataifa." },
-      "offRamps": { "title": "Njia za kutoa fedha za SEP-24", "description": "Uelekezaji wa kiotomatiki kwa nanga za Stellar kwa malipo ya moja kwa moja ya Naira ya Nigeria benki." },
-      "fees": { "title": "Mgawanyo mahiri wa ada", "description": "Mikataba ya Soroban huhesabu na kugawa ada za jukwaa kiotomatiki kwa uaminifu on-chain." }
+      "settlement": {
+        "title": "Malipo ya papo hapo",
+        "description": "Miamala hukamilika kwa sekunde 3 hadi 5. Hakuna tena kusubiri siku nyingi kwa uhamisho wa kimataifa."
+      },
+      "offRamps": {
+        "title": "Njia za kutoa fedha za SEP-24",
+        "description": "Uelekezaji wa kiotomatiki kwa nanga za Stellar kwa malipo ya moja kwa moja ya Naira ya Nigeria benki."
+      },
+      "fees": {
+        "title": "Mgawanyo mahiri wa ada",
+        "description": "Mikataba ya Soroban huhesabu na kugawa ada za jukwaa kiotomatiki kwa uaminifu on-chain."
+      }
     }
   },
   "login": {
@@ -53,9 +62,18 @@
     "learnMore": "Jifunze zaidi kuhusu BettaPay",
     "forgotPassword": "Umesahau nywila?",
     "benefits": {
-      "settlement": { "title": "Malipo ya papo hapo", "description": "Miamala hukamilika kwa sekunde chache kwenye Stellar Soroban" },
-      "currency": { "title": "Sarafu nyingi", "description": "Pokea USDC, badilisha kiotomatiki kuwa sarafu ya ndani" },
-      "custody": { "title": "Bila udhamini", "description": "Wewe daima unadhibiti fedha na funguo zako" }
+      "settlement": {
+        "title": "Malipo ya papo hapo",
+        "description": "Miamala hukamilika kwa sekunde chache kwenye Stellar Soroban"
+      },
+      "currency": {
+        "title": "Sarafu nyingi",
+        "description": "Pokea USDC, badilisha kiotomatiki kuwa sarafu ya ndani"
+      },
+      "custody": {
+        "title": "Bila udhamini",
+        "description": "Wewe daima unadhibiti fedha na funguo zako"
+      }
     }
   },
   "forgotPassword": {
@@ -136,6 +154,90 @@
         "description": "Jaribu mazingira ya sandbox kuthibitisha muunganisho wako kabla ya kwenda moja kwa moja.",
         "cta": "Fungua sandbox"
       }
+    }
+  },
+  "walletConnect": {
+    "title": "Unganisha kwa WalletConnect",
+    "description": "Changanua msimbo wa QR au nakili URI ili kuunganisha pochi yako ya simu.",
+    "scanPrompt": "Changanua msimbo huu wa QR kwa pochi yako ya simu ili kuunganisha.",
+    "qrAriaLabel": "Msimbo wa QR wa WalletConnect",
+    "copyUri": "Nakili URI ya kiungo",
+    "copyAriaLabel": "Nakili URI ya WalletConnect kwenye ubao wa kunakili",
+    "copied": "URI imenakiliwa",
+    "tryAgain": "Jaribu tena",
+    "status": {
+      "connecting": "Inaunganisha…",
+      "reconnecting": "Inaunganisha tena…",
+      "approving": "Idhinisha ombi kwenye pochi yako…",
+      "connected": "Pochi imeunganishwa",
+      "signing": "Saini ombi kwenye pochi yako…",
+      "disconnected": "Pochi imeikatisha uunganisho",
+      "error": "Hitilafu ya uunganisho"
+    },
+    "notConfigured": {
+      "title": "WalletConnect haijasanidiwa",
+      "description": "Programu hii inakosekana kitambulisho cha mradi cha WalletConnect, hivyo kuunganisha pochi ya simu hakipatikani.",
+      "developerHintPrefix": "Weka",
+      "developerHintSuffix": "kwa kitambulisho cha mradi cha WalletConnect Cloud ili kuwezesha kipengele hiki."
+    },
+    "errors": {
+      "unknown": "Kuna kilichokosekana wakati wa kuunganisha.",
+      "startFailed": "Ilishindikana kuanzisha kipindi cha WalletConnect."
+    }
+  },
+  "validation": {
+    "paymentLink": {
+      "labelMin": "Lebo ya kiungo cha malipo lazima iwe na herufi angalau 2",
+      "amountCurrencyRequired": "Kiasi na sarafu vinahitajika"
+    },
+    "merchantProfile": {
+      "businessNameRequired": "Jina la biashara linahitajika",
+      "countryRequired": "Nchi inahitajika",
+      "industryRequired": "Sekta inahitajika",
+      "websiteHttps": "Tovuti lazima iwe URL halali ya HTTPS",
+      "emailInvalid": "Weka barua pepe halali"
+    },
+    "editPaymentLink": {
+      "labelRequired": "Lebo inahitajika",
+      "urlInvalid": "URL ya kuelekeza lazima iwe URL halali"
+    }
+  },
+  "zod": {
+    "errors": {
+      "invalidType": "Ingizo batili: ilitarajiwa {{expected}}, kupokea {{received}}",
+      "invalidTypeNoReceived": "Ingizo batili: ilitarajiwa {{expected}}",
+      "tooSmall": {
+        "string": "Herufi ni chache: ilitarajiwa angalau {{minimum}}",
+        "stringExclusive": "Herufi ni chache: ilitarajiwa zaidi ya {{minimum}}",
+        "number": "Imeonekana ni ndogo: ilitarajiwa {{minimum}} au zaidi",
+        "numberExclusive": "Ilikuwa ndogo: ilitarajiwa zaidi ya {{minimum}}",
+        "array": "Vipengele ni machache: ilitarajiwa angalau {{minimum}}",
+        "arrayExclusive": "Vipengele ni machache: ilitarajiwa zaidi ya {{minimum}}",
+        "default": "Imeonekana ni ndogo: ilitarajiwa {{minimum}} au zaidi",
+        "defaultExclusive": "Ilikuwa ndogo: ilitarajiwa zaidi ya {{minimum}}"
+      },
+      "tooBig": {
+        "string": "Herufi ni nyingi: ilitarajiwa zaidi ya {{maximum}} zisiwepo",
+        "stringExclusive": "Herufi ni nyingi: ilitarajiwa chini ya {{maximum}}",
+        "number": "Imeonekana ni kubwa: ilitarajiwa {{maximum}} au chini",
+        "numberExclusive": "Ilikuwa kubwa: ilitarajiwa chini ya {{maximum}}",
+        "array": "Vipengele ni mengi: ilitarajiwa zaidi ya {{maximum}} visiwepo",
+        "arrayExclusive": "Vipengele ni mengi: ilitarajiwa chini ya {{maximum}}",
+        "default": "Imeonekana ni kubwa: ilitarajiwa {{maximum}} au chini",
+        "defaultExclusive": "Ilikuwa kubwa: ilitarajiwa chini ya {{maximum}}"
+      },
+      "invalidFormat": {
+        "email": "Barua pepe batili",
+        "url": "URL batili",
+        "regex": "Mfuatano batili: lazima ulingane na umbizo lenyewe",
+        "default": "Umbizo batili"
+      },
+      "invalidValue": "Thamani batili: ilitarajiwa mojawapo ya {{values}}",
+      "notMultipleOf": "Ingizo batili: ilitarajiwa ni kizidishi cha {{divisor}}",
+      "unrecognizedKeys": "Funguo zisizotambuliwa kwenye kipengee: {{keys}}",
+      "invalidUnion": "Ingizo batili",
+      "invalidKey": "Funguo batili kwenye kipengee",
+      "invalidElement": "Kipengele batili kwenye mkusanyiko"
     }
   }
 }

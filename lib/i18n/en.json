@@ -40,9 +40,18 @@
     "featuresTitle": "Powered by Stellar & Soroban",
     "featuresDescription": "Enterprise-grade payment infrastructure designed for speed, low fees, and perfect transparency.",
     "features": {
-      "settlement": { "title": "Instant Settlement", "description": "Transactions settle in 3-5 seconds. No more waiting days for cross-border wires to clear." },
-      "offRamps": { "title": "SEP-24 Fiat Off-Ramps", "description": "Automated routing to Stellar Anchors for direct-to-bank Nigerian Naira payouts." },
-      "fees": { "title": "Smart Fee Splits", "description": "Soroban contracts automatically calculate and route platform fees trustlessly on-chain." }
+      "settlement": {
+        "title": "Instant Settlement",
+        "description": "Transactions settle in 3-5 seconds. No more waiting days for cross-border wires to clear."
+      },
+      "offRamps": {
+        "title": "SEP-24 Fiat Off-Ramps",
+        "description": "Automated routing to Stellar Anchors for direct-to-bank Nigerian Naira payouts."
+      },
+      "fees": {
+        "title": "Smart Fee Splits",
+        "description": "Soroban contracts automatically calculate and route platform fees trustlessly on-chain."
+      }
     }
   },
   "login": {
@@ -53,9 +62,18 @@
     "learnMore": "Learn more about BettaPay",
     "forgotPassword": "Forgot password?",
     "benefits": {
-      "settlement": { "title": "Instant settlement", "description": "Transactions settle in seconds on Stellar Soroban" },
-      "currency": { "title": "Multi-currency", "description": "Accept USDC, auto-convert to local fiat" },
-      "custody": { "title": "Non-custodial", "description": "You always control your funds and keys" }
+      "settlement": {
+        "title": "Instant settlement",
+        "description": "Transactions settle in seconds on Stellar Soroban"
+      },
+      "currency": {
+        "title": "Multi-currency",
+        "description": "Accept USDC, auto-convert to local fiat"
+      },
+      "custody": {
+        "title": "Non-custodial",
+        "description": "You always control your funds and keys"
+      }
     }
   },
   "forgotPassword": {
@@ -136,6 +154,90 @@
         "description": "Try the sandbox environment to verify your integration before going live.",
         "cta": "Open Sandbox"
       }
+    }
+  },
+  "walletConnect": {
+    "title": "Connect with WalletConnect",
+    "description": "Scan the QR code or copy the URI to pair your mobile wallet.",
+    "scanPrompt": "Scan this QR code with your mobile wallet to connect.",
+    "qrAriaLabel": "WalletConnect QR code",
+    "copyUri": "Copy link URI",
+    "copyAriaLabel": "Copy WalletConnect URI to clipboard",
+    "copied": "URI copied",
+    "tryAgain": "Try again",
+    "status": {
+      "connecting": "Connecting…",
+      "reconnecting": "Reconnecting…",
+      "approving": "Approve the request in your wallet…",
+      "connected": "Wallet connected",
+      "signing": "Sign the request in your wallet…",
+      "disconnected": "Wallet disconnected",
+      "error": "Connection error"
+    },
+    "notConfigured": {
+      "title": "WalletConnect is not configured",
+      "description": "This app is missing a WalletConnect project ID, so mobile wallet linking is unavailable.",
+      "developerHintPrefix": "Set",
+      "developerHintSuffix": "to a WalletConnect Cloud project ID to enable this feature."
+    },
+    "errors": {
+      "unknown": "Something went wrong while connecting.",
+      "startFailed": "Could not start the WalletConnect session."
+    }
+  },
+  "validation": {
+    "paymentLink": {
+      "labelMin": "Payment link label must be at least 2 characters",
+      "amountCurrencyRequired": "Amount and currency are required"
+    },
+    "merchantProfile": {
+      "businessNameRequired": "Business name is required",
+      "countryRequired": "Country is required",
+      "industryRequired": "Industry is required",
+      "websiteHttps": "Website must be a valid HTTPS URL",
+      "emailInvalid": "Enter a valid email address"
+    },
+    "editPaymentLink": {
+      "labelRequired": "Label is required",
+      "urlInvalid": "Redirect URL must be a valid URL"
+    }
+  },
+  "zod": {
+    "errors": {
+      "invalidType": "Invalid input: expected {{expected}}, received {{received}}",
+      "invalidTypeNoReceived": "Invalid input: expected {{expected}}",
+      "tooSmall": {
+        "string": "Too small: expected at least {{minimum}} characters",
+        "stringExclusive": "Too small: expected more than {{minimum}} characters",
+        "number": "Too small: expected {{minimum}} or larger",
+        "numberExclusive": "Too small: expected more than {{minimum}}",
+        "array": "Too small: expected at least {{minimum}} items",
+        "arrayExclusive": "Too small: expected more than {{minimum}} items",
+        "default": "Too small: expected {{minimum}} or larger",
+        "defaultExclusive": "Too small: expected more than {{minimum}}"
+      },
+      "tooBig": {
+        "string": "Too big: expected at most {{maximum}} characters",
+        "stringExclusive": "Too big: expected fewer than {{maximum}} characters",
+        "number": "Too big: expected {{maximum}} or smaller",
+        "numberExclusive": "Too big: expected less than {{maximum}}",
+        "array": "Too big: expected at most {{maximum}} items",
+        "arrayExclusive": "Too big: expected fewer than {{maximum}} items",
+        "default": "Too big: expected {{maximum}} or smaller",
+        "defaultExclusive": "Too big: expected less than {{maximum}}"
+      },
+      "invalidFormat": {
+        "email": "Invalid email address",
+        "url": "Invalid URL",
+        "regex": "Invalid string: must match the expected pattern",
+        "default": "Invalid format"
+      },
+      "invalidValue": "Invalid value: expected one of {{values}}",
+      "notMultipleOf": "Invalid input: expected a multiple of {{divisor}}",
+      "unrecognizedKeys": "Unrecognized key(s) in object: {{keys}}",
+      "invalidUnion": "Invalid input",
+      "invalidKey": "Invalid key in object",
+      "invalidElement": "Invalid element in array"
     }
   }
 }
