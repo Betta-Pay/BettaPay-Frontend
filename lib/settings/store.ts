@@ -18,8 +18,10 @@ export function getSettings(): SettingsSnapshot {
 
 /** Strip version metadata so only editable values are diffed/audited. */
 export function sectionValues<K extends SettingsSection>(section: K): SettingsValues[K] {
-  const { version: _v, updatedAt: _u, ...values } = getSettings()[section];
-  return values as unknown as SettingsValues[K];
+  const entries = Object.entries(getSettings()[section]).filter(
+    ([k]) => k !== "version" && k !== "updatedAt",
+  );
+  return Object.fromEntries(entries) as unknown as SettingsValues[K];
 }
 
 export function saveSection<K extends SettingsSection>(section: K, values: SettingsValues[K]) {

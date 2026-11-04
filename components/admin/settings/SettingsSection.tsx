@@ -121,8 +121,9 @@ export function SettingsSectionCard<K extends SectionKey>({
     setDraft((d) => ({ ...d, [key]: value }));
     setErrors((e) => {
       if (!(key in e)) return e;
-      const { [key]: _drop, ...rest } = e;
-      return rest;
+      // Same as omitting `key` from a spread, without an unused-binding leak.
+      const entries = Object.entries(e).filter(([k]) => k !== key);
+      return Object.fromEntries(entries) as typeof e;
     });
   };
 

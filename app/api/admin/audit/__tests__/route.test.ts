@@ -23,7 +23,9 @@ import { GET } from "../route";
 import { appendAudit, resetAuditStore } from "@/lib/audit/store";
 
 const req = (qs = "") => ({ url: `http://localhost/api/admin/audit${qs}` }) as unknown as Request;
-const body = async (res: unknown) => (res as { json(): Promise<any> }).json();
+type AuditApiJson = { data: Array<Record<string, unknown>>; total: number; nextCursor?: string };
+const body = async (res: unknown): Promise<AuditApiJson> =>
+  (res as { json(): Promise<AuditApiJson> }).json();
 
 beforeEach(() => {
   mockGuard.mockResolvedValue(null);
@@ -51,7 +53,7 @@ describe("GET /api/admin/audit", () => {
     const page1 = await body(await GET(req("?action=P&limit=2")));
     const page2 = await body(await GET(req(`?action=P&limit=2&cursor=${page1.nextCursor}`)));
     expect(page1.data).toHaveLength(2);
-    expect(page2.data.map((e: { id: string }) => e.id)).not.toEqual(expect.arrayContaining(page1.data.map((e: { id: string }) => e.id)));
+    expect(page2.data.map((e) => e.id)).not.toEqual(expect.arrayContaining(page1.data.map((e) => e.id)));
     expect((await GET(req("?limit=0"))).status).toBe(400);
     expect((await GET(req("?cursor=zzz"))).status).toBe(400);
     expect((await GET(req("?from=nope"))).status).toBe(400);

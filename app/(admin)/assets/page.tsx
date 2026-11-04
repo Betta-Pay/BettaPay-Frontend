@@ -305,7 +305,7 @@ export default function AdminAssetsPage() {
   // the dialog so its form always starts from the row that was opened.
   const [dialogAsset, setDialogAsset] = useState<SupportedAsset | null | undefined>(undefined);
 
-  const assets = data ?? [];
+  const assets = useMemo(() => data ?? [], [data]);
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return assets;

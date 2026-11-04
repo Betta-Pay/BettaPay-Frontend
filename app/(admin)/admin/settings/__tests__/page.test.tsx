@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, waitFor, within, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import AdminSettingsPage from '../page';
@@ -7,7 +7,7 @@ import { DEFAULT_SETTINGS } from '@/lib/settings/schema';
 
 const notify = { success: jest.fn(), error: jest.fn(), info: jest.fn() };
 jest.mock('@/lib/hooks/useNotify', () => ({ useNotify: () => notify }));
-jest.mock('next/link', () => ({ __esModule: true, default: ({ href, children, ...r }: any) => <a href={href} {...r}>{children}</a> }));
+jest.mock('next/link', () => ({ __esModule: true, default: ({ href, children, ...r }: React.ComponentPropsWithoutRef<'a'>) => <a href={href} {...r}>{children}</a> }));
 
 type Snapshot = Record<string, Record<string, unknown>>;
 let server: Snapshot;

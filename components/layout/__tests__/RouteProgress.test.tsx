@@ -1,4 +1,4 @@
-import { act, render, screen } from "@testing-library/react";
+import { act, render } from "@testing-library/react";
 import { usePathname } from "next/navigation";
 import RouteProgress from "@/components/layout/RouteProgress";
 
