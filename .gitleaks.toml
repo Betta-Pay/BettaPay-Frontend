@@ -1,0 +1,16 @@
+title = "BettaPay Frontend gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Mock stores and in-bloc doc snippets contain DOCUMENTED DEMO credentials only (no real keys)"
+paths = [
+  # Demo webhook-store seeds on .example hostnames (whsec_acme_4f9d2a7c1b8e etc.)
+  '''^lib/webhooks/store\.ts$''',
+  # SDK quickstart + endpoint snippets: example JWTs, placeholder signatures
+  '''^components/docs/content/''',
+  '''^lib/docs/endpoints\.ts$''',
+  # Auth-login-flow tests: mock id tokens
+  '''^app/auth/__tests__/loginFlow\.test\.tsx$''',
+]
