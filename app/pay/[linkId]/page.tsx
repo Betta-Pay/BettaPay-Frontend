@@ -18,7 +18,7 @@ import * as Icons from "lucide-react";
 
 // Safe icon renderer in case unit test suite mocks lucide-react with a subset
 function IconWrapper({ name, className, ...props }: { name: string; className?: string; [k: string]: unknown }) {
-  const Comp = (Icons as Record<string, React.ComponentType<{ className?: string }>>)[name];
+  const Comp = (Icons as unknown as Record<string, React.ComponentType<{ className?: string }>>)[name];
   if (!Comp) {
     return <span className={cn("inline-block", className)} aria-hidden="true" />;
   }
