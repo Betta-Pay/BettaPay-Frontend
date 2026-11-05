@@ -25,6 +25,8 @@ export interface UseKybDocumentUploadResult {
   pick: () => void;
   /** `onChange` handler for the file input. */
   onFileChange: (event: React.ChangeEvent<HTMLInputElement>) => Promise<void>;
+  /** Direct file processor (e.g. for drag-and-drop). */
+  uploadFile: (file: File) => Promise<void>;
   /** Client-side validation failure for the last picked file. */
   rejection: FileRejection | null;
   /** Data-URL thumbnail for image files, `null` otherwise. */
@@ -64,13 +66,8 @@ export function useKybDocumentUpload({
     inputRef.current?.click();
   }, []);
 
-  const onFileChange = useCallback(
-    async (event: React.ChangeEvent<HTMLInputElement>) => {
-      const file = event.target.files?.[0];
-      // Allow re-selecting the same filename later.
-      event.target.value = '';
-      if (!file) return;
-
+  const uploadFile = useCallback(
+    async (file: File) => {
       const problem = validateKybFile(file);
       if (problem) {
         setRejection(problem);
@@ -93,10 +90,22 @@ export function useKybDocumentUpload({
     [upload, type, simulateReject],
   );
 
+  const onFileChange = useCallback(
+    async (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      // Allow re-selecting the same filename later.
+      event.target.value = '';
+      if (!file) return;
+      await uploadFile(file);
+    },
+    [uploadFile],
+  );
+
   return {
     inputRef,
     pick,
     onFileChange,
+    uploadFile,
     rejection,
     previewUrl,
     previewName,

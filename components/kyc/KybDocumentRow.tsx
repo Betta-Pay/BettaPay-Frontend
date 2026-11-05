@@ -1,14 +1,12 @@
 'use client';
 
 /**
- * One KYB document slot: pick a file, validate it in the browser, preview it,
- * watch the upload progress, then see its review status. A rejected document
- * shows the reviewer's reason and a re-upload control. (Issue #458.)
- *
- * Presentational only — picking, validation, preview and upload state live in
- * `useKybDocumentUpload`.
+ * Visual Document Upload Zone:
+ * One KYB document slot with drag-and-drop file upload, client-side validation,
+ * thumbnail preview, and real-time verification status badges.
  */
 
+import { useState, useCallback } from 'react';
 import Image from 'next/image';
 import { Button } from '@/components/ui';
 import { Progress } from '@/components/ui';
@@ -18,7 +16,7 @@ import { useKybDocumentUpload } from '@/lib/kyc/useKybDocumentUpload';
 import { fileInputAccept, formatBytes } from '@/lib/kyc/validation';
 import type { KybDocTypeMeta, KybDocument } from '@/lib/kyc/types';
 import { KybDocStatusBadge } from './KybStatusBadge';
-import { FileText, Upload, RotateCcw, AlertTriangle } from 'lucide-react';
+import { FileText, Upload, RotateCcw, AlertTriangle, CloudUpload } from 'lucide-react';
 
 interface Props {
   merchantId: string;
@@ -40,6 +38,7 @@ export function KybDocumentRow({
     inputRef,
     pick,
     onFileChange,
+    uploadFile,
     rejection,
     previewUrl,
     previewName,
@@ -48,16 +47,64 @@ export function KybDocumentRow({
     error,
   } = useKybDocumentUpload({ merchantId, type: meta.type, simulateReject });
 
+  const [isDragging, setIsDragging] = useState(false);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!disabled && !isUploading) {
+      setIsDragging(true);
+    }
+  }, [disabled, isUploading]);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  }, []);
+
+  const handleDrop = useCallback(
+    async (e: React.DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDragging(false);
+      if (disabled || isUploading) return;
+
+      const file = e.dataTransfer.files?.[0];
+      if (file) {
+        await uploadFile(file);
+      }
+    },
+    [disabled, isUploading, uploadFile]
+  );
+
   const showRejectionBanner = document?.status === 'rejected';
   const isBusy = isUploading || Boolean(disabled);
 
   return (
-    <div className="rounded-xl border border-border p-4">
+    <div
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+      className={cn(
+        "rounded-2xl border p-4 transition-all duration-200",
+        isDragging
+          ? "border-primary border-dashed bg-primary/5 shadow-[0_0_15px_rgba(240,165,0,0.15)] ring-2 ring-primary/20"
+          : "border-border bg-card hover:border-border/80"
+      )}
+    >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             <p className="text-sm font-semibold text-foreground">{meta.label}</p>
-            <span className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+            <span
+              className={cn(
+                "text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full",
+                meta.required
+                  ? "bg-primary/10 text-primary border border-primary/20"
+                  : "bg-muted text-muted-foreground"
+              )}
+            >
               {meta.required ? 'Required' : 'Optional'}
             </span>
           </div>
@@ -66,30 +113,30 @@ export function KybDocumentRow({
         {document && <KybDocStatusBadge status={document.status} />}
       </div>
 
-      {/* Current file / preview */}
+      {/* Current file / preview thumbnail */}
       {(document || previewName) && (
-        <div className="mt-3 flex items-center gap-3 rounded-lg bg-muted/50 p-2.5">
+        <div className="mt-3 flex items-center gap-3 rounded-xl bg-muted/40 border border-border/60 p-3">
           {previewUrl ? (
             <Image
               src={previewUrl}
               alt={`Preview of ${meta.label}`}
-              width={40}
-              height={40}
-              className="h-10 w-10 rounded object-cover"
+              width={48}
+              height={48}
+              className="h-12 w-12 rounded-lg object-cover border border-border shadow-xs"
               unoptimized
             />
           ) : (
-            <span className="flex h-10 w-10 items-center justify-center rounded bg-background">
-              <FileText className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
+            <span className="flex h-12 w-12 items-center justify-center rounded-lg bg-card border border-border text-muted-foreground">
+              <FileText className="h-6 w-6 text-muted-foreground" aria-hidden="true" />
             </span>
           )}
           <div className="min-w-0 flex-1">
-            <p className="truncate text-xs font-medium text-foreground">
+            <p className="truncate text-xs font-semibold text-foreground">
               {document?.fileName ?? previewName}
             </p>
             {document && (
-              <p className="text-[11px] text-muted-foreground">
-                {formatBytes(document.sizeBytes)} · uploaded{' '}
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                {formatBytes(document.sizeBytes)} · Uploaded{' '}
                 {new Date(document.uploadedAt).toLocaleDateString()}
               </p>
             )}
@@ -101,7 +148,23 @@ export function KybDocumentRow({
       {isUploading && (
         <div className="mt-3 space-y-1">
           <Progress value={progress} label={`Uploading ${meta.label}`} />
-          <p className="text-[11px] text-muted-foreground">Uploading… {progress}%</p>
+          <p className="text-[11px] text-muted-foreground font-mono">Uploading… {progress}%</p>
+        </div>
+      )}
+
+      {/* Drag & drop helper indicator */}
+      {!document && !previewName && !isUploading && (
+        <div
+          onClick={pick}
+          className={cn(
+            "mt-3 border border-dashed rounded-xl p-3 flex items-center justify-center gap-2 cursor-pointer transition-colors text-xs font-medium",
+            isDragging
+              ? "border-primary text-primary bg-primary/10"
+              : "border-border/70 text-muted-foreground hover:bg-muted/30 hover:text-foreground"
+          )}
+        >
+          <CloudUpload className="w-4 h-4 text-primary" />
+          <span>Drag & drop PDF, JPG, PNG here or browse</span>
         </div>
       )}
 
@@ -121,7 +184,7 @@ export function KybDocumentRow({
         </p>
       )}
 
-      {/* Rejection reason from the reviewer */}
+      {/* Rejection reason from reviewer */}
       {showRejectionBanner && (
         <Alert variant="destructive" className="mt-3">
           <AlertTriangle aria-hidden="true" />
@@ -133,7 +196,7 @@ export function KybDocumentRow({
         </Alert>
       )}
 
-      <div className="mt-3">
+      <div className="mt-3 flex items-center gap-2">
         <input
           ref={inputRef}
           type="file"
@@ -148,16 +211,22 @@ export function KybDocumentRow({
           size="sm"
           disabled={isBusy}
           onClick={pick}
-          className={cn('gap-2', isBusy && 'opacity-60')}
+          className={cn(
+            'gap-1.5 rounded-xl h-8 text-xs font-semibold',
+            !document || showRejectionBanner
+              ? 'bg-primary hover:bg-primary-hover text-primary-foreground shadow-button'
+              : 'border-border',
+            isBusy && 'opacity-60'
+          )}
         >
           {document ? (
             <>
-              <RotateCcw className="h-4 w-4" aria-hidden="true" />
+              <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
               Replace file
             </>
           ) : (
             <>
-              <Upload className="h-4 w-4" aria-hidden="true" />
+              <Upload className="h-3.5 w-3.5" aria-hidden="true" />
               Upload
             </>
           )}

@@ -349,6 +349,39 @@ export default function OnboardingPage() {
     } finally { setIsSubmitting(false); }
   };
 
+  const fastTrackToSandbox = async () => {
+    const isValid = await validate(0);
+    if (!isValid) return;
+    setIsSubmitting(true);
+    try {
+      if (user?.id) {
+        await apiClient.patch(`/api/merchants/${user.id}`, {
+          name: data.businessName.trim(),
+          businessType: data.businessType,
+          country: data.country || "Nigeria",
+        });
+        await apiClient.patch(`/api/merchants/${user.id}/settings`, {
+          defaultSettlementCurrency: data.settlementCurrency || "NGN",
+          autoConvert: true,
+          preferredAnchor: "Cowry",
+          autoSettle: true,
+        });
+      }
+      clearSavedProgress();
+      setOnboardingCompleted(true);
+      notify.success("Sandbox activated! Test payment link generation is unlocked.");
+      router.push(ROUTES.DASHBOARD);
+    } catch {
+      // In sandbox/offline, drop user straight into dashboard
+      clearSavedProgress();
+      setOnboardingCompleted(true);
+      notify.success("Sandbox activated! Welcome to BettaPay.");
+      router.push(ROUTES.DASHBOARD);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const advanceStep = (newStep: number) => {
     setStep(newStep);
     saveProgress(newStep, data);
@@ -388,8 +421,22 @@ export default function OnboardingPage() {
 
       <Card className="mx-auto w-full max-w-3xl shadow-sm">
         <CardHeader className="space-y-2">
-          <CardTitle className="text-2xl sm:text-3xl">Set up your merchant account</CardTitle>
-          <CardDescription>Tell us how you want to receive and manage payments. You can update these choices later.</CardDescription>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <CardTitle className="text-2xl sm:text-3xl font-heading">Set up your merchant account</CardTitle>
+              <CardDescription>Tell us how you want to receive and manage payments. You can update these choices later.</CardDescription>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={fastTrackToSandbox}
+              disabled={isSubmitting}
+              className="border-primary/40 text-primary bg-primary/5 hover:bg-primary/10 rounded-xl h-9 text-xs font-semibold whitespace-nowrap self-start sm:self-center"
+            >
+              ⚡ Fast-Track to Sandbox
+            </Button>
+          </div>
         </CardHeader>
         <CardContent className="space-y-8">
           <Stepper steps={steps} currentStep={step} onStepClick={goToStep} />

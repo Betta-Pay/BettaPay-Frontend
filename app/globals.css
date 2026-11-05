@@ -46,15 +46,21 @@
     --shadow-nav-bottom: 0 -4px 10px rgb(0 0 0 / 0.04);
     --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
 
-    --background: #FFFFFF;
+    /* ── Surface tokens (redesign spec §4) ──
+       Background is an anti-glare off-white; cards sit on pure white with a
+       hairline border so elevation reads without heavy shadows. */
+    --background: #FAFAFC;
     --foreground: #0F172A;
     --card: #FFFFFF;
     --card-foreground: #0F172A;
     --popover: #FFFFFF;
     --popover-foreground: #0F172A;
+    /* Brand amber. Text on primary MUST be Slate-950 (#020617): white on
+       #F0A500 is ~2.1:1 and fails WCAG AA, Slate-950 is ~10:1. */
     --primary: #F0A500;
-    --primary-foreground: #FFFFFF;
-    --secondary: #F8FAFC;
+    --primary-hover: #D97706;
+    --primary-foreground: #020617;
+    --secondary: #F1F5F9;
     --secondary-foreground: #0F172A;
     --muted: #F1F5F9;
     --muted-foreground: #64748B;
@@ -63,11 +69,19 @@
     --destructive: #EF4444;
     --destructive-foreground: #FFFFFF;
     --success: #10B981;
-    --success-foreground: #FFFFFF;
+    --success-foreground: #022C22;
     --warning: #F59E0B;
-    --warning-foreground: #FFFFFF;
+    --warning-foreground: #020617;
     --info: #3B82F6;
     --info-foreground: #FFFFFF;
+
+    /* ── Environment indicators (Topbar network pill) ──
+       Amber = Testnet/Sandbox, Emerald = Mainnet. Used for the border glow
+       that guards against accidental live-contract execution. */
+    --env-testnet: #F59E0B;
+    --env-testnet-glow: rgb(245 158 11 / 0.35);
+    --env-mainnet: #10B981;
+    --env-mainnet-glow: rgb(16 185 129 / 0.35);
 
     /* ── Status palette (see components/status, StatusBadge, SystemHealthCard) ──
        Opaque foreground/background pairs rather than alpha tints, so the
@@ -93,8 +107,10 @@
     --status-neutral-fg: #334155;
     --status-neutral-bg: #F1F5F9;
     --status-neutral-border: #CBD5E1;
-    --border: #E2E8F0;
-    --input: #F8FAFC;
+    --border: rgb(15 23 42 / 0.08);
+    /* Form-control boundary. Kept opaque and darker than --border so input
+       outlines clear the 3:1 non-text contrast minimum (WCAG 1.4.11). */
+    --input: #8592A6;
     --ring: #F0A500;
     --radius: 0.75rem;
     --chart-1: #F0A500;
@@ -106,10 +122,10 @@
     --sidebar: #FFFFFF;
     --sidebar-foreground: #0F172A;
     --sidebar-primary: #F0A500;
-    --sidebar-primary-foreground: #FFFFFF;
+    --sidebar-primary-foreground: #020617;
     --sidebar-accent: #F1F5F9;
     --sidebar-accent-foreground: #0F172A;
-    --sidebar-border: #E2E8F0;
+    --sidebar-border: rgb(15 23 42 / 0.08);
     --sidebar-ring: #F0A500;
   }
 
@@ -124,19 +140,20 @@
     --shadow-nav-bottom: 0 -4px 10px rgb(0 0 0 / 0.15);
     --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.4), 0 8px 10px -6px rgb(0 0 0 / 0.35);
 
-    --background: #0F172A;
+    --background: #090D16;
     --foreground: #F8FAFC;
-    --card: #1E293B;
+    --card: #111827;
     --card-foreground: #F8FAFC;
-    --popover: #1E293B;
+    --popover: #111827;
     --popover-foreground: #F8FAFC;
-    --primary: #FBBF24;
-    --primary-foreground: #0F172A;
-    --secondary: #334155;
+    --primary: #F0A500;
+    --primary-hover: #D97706;
+    --primary-foreground: #020617;
+    --secondary: #1E293B;
     --secondary-foreground: #F8FAFC;
-    --muted: #334155;
-    --muted-foreground: #CBD5E1;
-    --accent: #334155;
+    --muted: #1E293B;
+    --muted-foreground: #94A3B8;
+    --accent: #1E293B;
     --accent-foreground: #F8FAFC;
     --destructive: #F87171;
     --destructive-foreground: #0F172A;
@@ -146,6 +163,11 @@
     --warning-foreground: #0F172A;
     --info: #60A5FA;
     --info-foreground: #0F172A;
+
+    --env-testnet: #FBBF24;
+    --env-testnet-glow: rgb(251 191 36 / 0.3);
+    --env-mainnet: #34D399;
+    --env-mainnet-glow: rgb(52 211 153 / 0.3);
 
     /* ── Status palette (dark) — all fg/bg pairs verified >= 4.5:1 (WCAG AA, issue #460) ── */
     --status-ok-fg: #6EE7B7;
@@ -166,23 +188,23 @@
     --status-neutral-fg: #CBD5E1;
     --status-neutral-bg: #293548;
     --status-neutral-border: #475569;
-    --border: #334155;
-    --input: #1E293B;
-    --ring: #FBBF24;
-    --chart-1: #FBBF24;
+    --border: rgb(255 255 255 / 0.08);
+    --input: #64748B;
+    --ring: #F0A500;
+    --chart-1: #F0A500;
     --chart-2: #60A5FA;
     --chart-3: #34D399;
     --chart-4: #A78BFA;
     --chart-5: #F87171;
 
-    --sidebar: #0F172A;
+    --sidebar: #0B1120;
     --sidebar-foreground: #F8FAFC;
-    --sidebar-primary: #FBBF24;
-    --sidebar-primary-foreground: #0F172A;
+    --sidebar-primary: #F0A500;
+    --sidebar-primary-foreground: #020617;
     --sidebar-accent: #1E293B;
     --sidebar-accent-foreground: #F8FAFC;
-    --sidebar-border: #334155;
-    --sidebar-ring: #FBBF24;
+    --sidebar-border: rgb(255 255 255 / 0.08);
+    --sidebar-ring: #F0A500;
   }
 
   html {
