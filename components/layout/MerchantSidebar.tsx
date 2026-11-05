@@ -182,7 +182,7 @@ export const MerchantSidebar = () => {
                   "group relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 outline-none focus-visible:ring-2 focus-visible:ring-primary",
                   collapsed && "justify-center px-2",
                   isActive
-                    ? "bg-primary/10 text-primary font-semibold border border-primary/25 shadow-[0_0_12px_rgba(240,165,0,0.12)]"
+                    ? "bg-primary/10 text-primary text-amber-500 font-semibold border border-primary/25 border-amber-500/25 shadow-[0_0_12px_rgba(240,165,0,0.12)]"
                     : "text-muted-foreground hover:bg-muted/70 hover:text-foreground border border-transparent"
                 )}
               >

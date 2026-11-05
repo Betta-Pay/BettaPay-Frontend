@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, memo } from "react";
+import { useState, useMemo } from "react";
 import {
   Card,
   CardContent,
@@ -25,10 +25,7 @@ import {
   Zap,
   CalendarClock,
   SlidersHorizontal,
-  ArrowRight,
   ShieldCheck,
-  Download,
-  Filter,
 } from "lucide-react";
 import { getStellarExplorerTxUrl } from "@/lib/utils/explorer";
 import { useWalletStore } from "@/lib/store/walletStore";
@@ -40,11 +37,9 @@ import {
   InvoiceDownloadButton,
   BatchInvoiceDownload,
 } from "@/components/settlement/InvoiceGenerator";
-import { StatCard } from "@/components/shared";
 import {
   useSettlements,
   useMerchantBankAccount,
-  type ApiSettlement,
 } from "@/lib/api/hooks";
 import { useNotify } from "@/lib/hooks/useNotify";
 import { cn } from "@/lib/utils";

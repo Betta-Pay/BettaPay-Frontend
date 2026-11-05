@@ -3,26 +3,22 @@
 import { useState, useEffect, useMemo, Suspense, useCallback } from "react";
 import { useRouter, useParams } from "next/navigation";
 import dynamic from "next/dynamic";
-import { motion, AnimatePresence } from "framer-motion";
 import {
   Card,
   CardContent,
   CardFooter,
   CardHeader,
-  CardTitle,
-  CardDescription,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { useWalletStore, WalletState } from "@/lib/store/walletStore";
 import { CurrencyDisplay } from "@/components/shared";
 import { CurrencySelector } from "@/components/payments/CurrencySelector";
 import * as Icons from "lucide-react";
 
 // Safe icon renderer in case unit test suite mocks lucide-react with a subset
-function IconWrapper({ name, className, ...props }: { name: string; className?: string; [k: string]: any }) {
-  const Comp = (Icons as Record<string, any>)[name];
+function IconWrapper({ name, className, ...props }: { name: string; className?: string; [k: string]: unknown }) {
+  const Comp = (Icons as Record<string, React.ComponentType<{ className?: string }>>)[name];
   if (!Comp) {
     return <span className={cn("inline-block", className)} aria-hidden="true" />;
   }
@@ -45,8 +41,6 @@ import {
 } from "@/components/payments/InvalidPaymentLinkState";
 import {
   MULTI_CURRENCY_ASSETS,
-  MOCK_RATES,
-  USE_MOCK_RATE_DATA,
 } from "@/lib/utils/constants";
 import {
   SOROBAN_RPC_URL,
@@ -109,14 +103,13 @@ export default function PaymentLinkPage() {
   const setWalletModalOpen = useWalletStore((s: WalletState) => s.setWalletModalOpen);
   const [walletModalRetryKey, setWalletModalRetryKey] = useState(0);
 
-  const WalletModal = useMemo(
-    () =>
-      dynamic(
-        () => import("@/components/wallet/WalletModal").then((m) => m.WalletModal),
-        { ssr: false }
-      ),
-    [walletModalRetryKey]
-  );
+  const WalletModal = useMemo(() => {
+    void walletModalRetryKey;
+    return dynamic(
+      () => import("@/components/wallet/WalletModal").then((m) => m.WalletModal),
+      { ssr: false }
+    );
+  }, [walletModalRetryKey]);
 
   // ── Payment link resolution ────────────────────────────────────────────────
   const [linkData, setLinkData] = useState<PaymentLink | null>(null);

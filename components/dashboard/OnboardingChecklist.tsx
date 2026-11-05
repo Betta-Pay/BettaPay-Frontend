@@ -133,7 +133,6 @@ export function OnboardingChecklist() {
                 badge: "Required",
                 icon: CheckCircle2,
               };
-              const StepIcon = meta.icon;
 
               return (
                 <div

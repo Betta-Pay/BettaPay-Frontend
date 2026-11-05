@@ -17,7 +17,6 @@ import {
   RefreshCcw,
   TrendingUp,
   TrendingDown,
-  Info,
   Bell,
   BellRing,
   Trash2,
@@ -26,10 +25,6 @@ import {
   ArrowRight,
   CheckCircle2,
   Zap,
-  Sliders,
-  DollarSign,
-  Clock,
-  Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useNotify } from "@/lib/hooks/useNotify";
@@ -41,7 +36,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useRates } from "@/lib/api/hooks";
-import { USE_MOCK_RATE_DATA } from "@/lib/utils/constants";
 import {
   useRateAlertStore,
   type RateAlertChannel,
@@ -68,10 +62,8 @@ const FxRateChart = dynamic(() => import("@/components/charts/FxRateChart"), {
 
 export default function FxRatesPage() {
   const {
-    data: pairs,
     primaryRate,
     isLoading: ratesLoading,
-    error: ratesError,
     refetch,
   } = useRates();
   const [lastRefresh] = useState("Just now");
@@ -139,9 +131,6 @@ export default function FxRatesPage() {
   const [newTarget, setNewTarget] = useState("1650");
   const [newRecurrence, setNewRecurrence] = useState<"once" | "recurring">("once");
   const [newChannels, setNewChannels] = useState<RateAlertChannel[]>(["in_app"]);
-  const [useWindow, setUseWindow] = useState(false);
-  const [windowStart, setWindowStart] = useState("09:00");
-  const [windowEnd, setWindowEnd] = useState("17:00");
 
   // Auto-Execute Trigger Feature
   const [autoExecute, setAutoExecute] = useState(false);
@@ -190,7 +179,6 @@ export default function FxRatesPage() {
       target: Number(newTarget),
       recurrence: newRecurrence,
       channels: newChannels,
-      window: useWindow ? { start: windowStart, end: windowEnd } : undefined,
     });
 
     if (autoExecute) {
