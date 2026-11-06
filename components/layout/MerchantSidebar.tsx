@@ -106,7 +106,7 @@ export const MerchantSidebar = () => {
           "h-full flex-col bg-card border-r border-border hidden md:flex flex-shrink-0 transition-all duration-300 ease-in-out select-none relative",
           collapsed ? "w-16" : "w-64"
         )}
-        aria-label="Main navigation"
+        aria-label="Sidebar"
       >
         {/* Logo + collapse toggle */}
         <div
@@ -163,7 +163,7 @@ export const MerchantSidebar = () => {
         {/* Navigation list */}
         <nav
           className="flex-1 px-2.5 py-4 space-y-1 overflow-y-auto"
-          aria-label="Merchant menu"
+          aria-label="Main navigation"
         >
           {merchantNavItems.map((item) => {
             const isActive =

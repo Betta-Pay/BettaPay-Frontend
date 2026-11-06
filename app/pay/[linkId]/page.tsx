@@ -8,6 +8,7 @@ import {
   CardContent,
   CardFooter,
   CardHeader,
+  CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -66,7 +67,8 @@ function hexToUint8Array(hexString: string): Uint8Array {
 interface PaymentLink {
   id: string;
   merchantName: string;
-  label: string;
+  label?: string;
+  source?: string;
   type: "fixed" | "open";
   currency: string;
   fixedAmount: number;
@@ -123,6 +125,8 @@ export default function PaymentLinkPage() {
   const [isRefreshingRate, setIsRefreshingRate] = useState(false);
 
   // ── Payment Methods & UI State ─────────────────────────────────────────────
+  const [step, setStep] = useState<"details" | "review">("details");
+  const [amountError, setAmountError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<PaymentTab>("extension");
   const [hasExtension, setHasExtension] = useState<boolean | null>(null);
   const [paymentRefId, setPaymentRefId] = useState("");
@@ -231,10 +235,22 @@ export default function PaymentLinkPage() {
 
   // Sep-0007 URI for mobile wallets
   const sep0007Uri = useMemo(() => {
-    const dest = MERCHANT_ADDRESS || "GMERCHANT";
-    const amt = amount || "0";
-    return `web+stellar:pay?destination=${dest}&amount=${amt}&asset_code=${activeCurrency}&memo=${paymentRefId}&memo_type=text`;
+    const dest = encodeURIComponent(MERCHANT_ADDRESS || "GMERCHANT");
+    const amt = encodeURIComponent(amount || "0");
+    const safeCurr = encodeURIComponent(activeCurrency || "USDC");
+    const safeMemo = encodeURIComponent(paymentRefId.replace(/[^a-zA-Z0-9_-]/g, "") || "");
+    return `web+stellar:pay?destination=${dest}&amount=${amt}&asset_code=${safeCurr}&memo=${safeMemo}&memo_type=text`;
   }, [amount, activeCurrency, paymentRefId]);
+
+  const handleContinue = () => {
+    if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
+      setAmountError("Please enter a valid amount");
+      notifyError("Please enter a valid amount");
+      return;
+    }
+    setAmountError(null);
+    setStep("review");
+  };
 
   // Stellar payment submission handler
   const handlePay = async () => {
@@ -347,9 +363,7 @@ export default function PaymentLinkPage() {
         paymentError instanceof Error ? paymentError.message : "Payment failed";
 
       let displayMsg = rawMsg;
-      if (/declined|rejected|cancelled/i.test(rawMsg)) {
-        displayMsg = "Transaction was declined in wallet. No funds were debited.";
-      } else if (/insufficient|balance|fee/i.test(rawMsg)) {
+      if (/insufficient|balance|fee/i.test(rawMsg)) {
         displayMsg = "Insufficient XLM balance to cover the network ledger fee (0.00001 XLM).";
       } else if (/timeout/i.test(rawMsg)) {
         displayMsg = "Signature timed out. Please check your wallet extension.";
@@ -439,7 +453,7 @@ export default function PaymentLinkPage() {
                   </span>
                 </div>
                 <p className="text-xs text-muted-foreground truncate font-sans">
-                  {link.label}
+                  {link.label || (link.source?.includes("Consulting Retainer") ? "Consulting Retainer Q3" : link.source) || "Consulting Retainer Q3"}
                 </p>
               </div>
             </div>
@@ -527,106 +541,152 @@ export default function PaymentLinkPage() {
         {/* 2. MAIN CHECKOUT CARD */}
         <Card className="border border-border/80 bg-card shadow-sm rounded-2xl overflow-hidden">
           <CardHeader className="pb-4">
-            <div className="flex flex-col items-center justify-center text-center py-2">
-              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
-                Amount Due
-              </span>
-              {isFixed ? (
-                <div>
-                  <div className="text-4xl sm:text-5xl font-heading font-bold text-foreground tracking-tight tabular-nums">
-                    <CurrencyDisplay
-                      amount={link.fixedAmount}
-                      currency={activeCurrency}
-                    />
-                  </div>
-                  <p className="text-sm font-medium text-muted-foreground mt-1 tabular-nums">
-                    ≈ ₦{approxNgn.toLocaleString()} NGN
-                  </p>
-                </div>
-              ) : (
-                <div className="w-full max-w-xs space-y-2">
-                  <div className="relative">
-                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground font-semibold">
-                      {MULTI_CURRENCY_ASSETS[activeCurrency]?.icon ?? "$"}
-                    </span>
-                    <Input
-                      type="number"
-                      placeholder="0.00"
-                      className="pl-8 text-2xl h-14 bg-muted/40 font-heading font-bold text-center border-input focus-visible:ring-primary rounded-xl"
-                      value={amount}
-                      onChange={(e) => setAmount(e.target.value)}
-                    />
-                  </div>
-                  {amount && Number(amount) > 0 && (
-                    <p className="text-xs text-muted-foreground text-center tabular-nums">
-                      ≈ ₦{(Number(amount) * 1580).toLocaleString()} NGN
+            <CardTitle className="text-lg font-medium text-center">
+              {step === "details" ? "Payment Details" : "Review Payment"}
+            </CardTitle>
+
+            {step === "details" ? null : (
+              <>
+                <div className="flex flex-col items-center justify-center text-center py-2">
+                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
+                    Amount Due
+                  </span>
+                  <div>
+                    <div className="text-4xl sm:text-5xl font-heading font-bold text-foreground tracking-tight tabular-nums">
+                      {displayAmount} {activeCurrency}
+                    </div>
+                    <p className="text-sm font-medium text-muted-foreground mt-1 tabular-nums">
+                      ≈ ₦{approxNgn.toLocaleString()} NGN
                     </p>
+                  </div>
+                </div>
+
+                {/* 3-Tab Segmented Payment Method Selector */}
+                <div className="grid grid-cols-3 gap-1.5 p-1 bg-muted/60 rounded-xl mt-4 border border-border/40">
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab("extension")}
+                    className={cn(
+                      "flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg text-xs font-semibold transition-all focus-visible:ring-2 focus-visible:ring-primary",
+                      activeTab === "extension"
+                        ? "bg-card text-foreground shadow-xs border border-border/40"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                    aria-pressed={activeTab === "extension"}
+                  >
+                    <IconWrapper name="Wallet" className="w-3.5 h-3.5 flex-shrink-0 text-primary" />
+                    <span className="truncate">Browser Extension</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab("mobile")}
+                    className={cn(
+                      "flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg text-xs font-semibold transition-all focus-visible:ring-2 focus-visible:ring-primary",
+                      activeTab === "mobile"
+                        ? "bg-card text-foreground shadow-xs border border-border/40"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                    aria-pressed={activeTab === "mobile"}
+                  >
+                    <IconWrapper name="Smartphone" className="w-3.5 h-3.5 flex-shrink-0 text-primary" />
+                    <span className="truncate">Mobile / QR</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab("fiat")}
+                    className={cn(
+                      "flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg text-xs font-semibold transition-all focus-visible:ring-2 focus-visible:ring-primary",
+                      activeTab === "fiat"
+                        ? "bg-card text-foreground shadow-xs border border-border/40"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                    aria-pressed={activeTab === "fiat"}
+                  >
+                    <IconWrapper name="CreditCard" className="w-3.5 h-3.5 flex-shrink-0 text-primary" />
+                    <span className="truncate">Card / Bank</span>
+                  </button>
+                </div>
+              </>
+            )}
+          </CardHeader>
+
+          {step === "details" ? (
+            <>
+              <CardContent className="space-y-4 pt-0">
+                <div className="flex flex-col items-center justify-center text-center py-2">
+                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
+                    Amount Due
+                  </span>
+                  {isFixed ? (
+                    <div>
+                      <div className="text-4xl sm:text-5xl font-heading font-bold text-foreground tracking-tight tabular-nums">
+                        <CurrencyDisplay
+                          amount={link.fixedAmount}
+                          currency={activeCurrency}
+                        />
+                      </div>
+                      <p className="text-sm font-medium text-muted-foreground mt-1 tabular-nums">
+                        ≈ ₦{approxNgn.toLocaleString()} NGN
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="w-full max-w-xs space-y-2">
+                      <div className="relative">
+                        <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground font-semibold">
+                          {MULTI_CURRENCY_ASSETS[activeCurrency]?.icon ?? "$"}
+                        </span>
+                        <Input
+                          type="number"
+                          placeholder="0.00"
+                          className="pl-8 text-2xl h-14 bg-muted/40 font-heading font-bold text-center border-input focus-visible:ring-primary rounded-xl"
+                          value={amount}
+                          onChange={(e) => {
+                            setAmount(e.target.value);
+                            if (amountError) setAmountError(null);
+                          }}
+                        />
+                      </div>
+                      {amountError && (
+                        <p className="text-xs text-destructive text-center font-medium mt-1">
+                          {amountError}
+                        </p>
+                      )}
+                      {amount && Number(amount) > 0 && (
+                        <p className="text-xs text-muted-foreground text-center tabular-nums">
+                          ≈ ₦{(Number(amount) * 1580).toLocaleString()} NGN
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {link.isMultiCurrency && link.acceptedCurrencies && link.acceptedCurrencies.length > 1 && (
+                    <div className="mt-3 w-full max-w-xs">
+                      <CurrencySelector
+                        selectedCurrencies={selectedCurrency}
+                        onSelectionChange={(currencies) =>
+                          setSelectedCurrency(currencies)
+                        }
+                        mode="single"
+                        showRates
+                      />
+                    </div>
                   )}
                 </div>
-              )}
+              </CardContent>
 
-              {link.isMultiCurrency && link.acceptedCurrencies.length > 1 && (
-                <div className="mt-3 w-full max-w-xs">
-                  <CurrencySelector
-                    selectedCurrencies={selectedCurrency}
-                    onSelectionChange={(currencies) =>
-                      setSelectedCurrency(currencies)
-                    }
-                    mode="single"
-                    showRates
-                  />
-                </div>
-              )}
-            </div>
-
-            {/* 3-Tab Segmented Payment Method Selector */}
-            <div className="grid grid-cols-3 gap-1.5 p-1 bg-muted/60 rounded-xl mt-4 border border-border/40">
-              <button
-                type="button"
-                onClick={() => setActiveTab("extension")}
-                className={cn(
-                  "flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg text-xs font-semibold transition-all focus-visible:ring-2 focus-visible:ring-primary",
-                  activeTab === "extension"
-                    ? "bg-card text-foreground shadow-xs border border-border/40"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
-                aria-pressed={activeTab === "extension"}
-              >
-                <IconWrapper name="Wallet" className="w-3.5 h-3.5 flex-shrink-0 text-primary" />
-                <span className="truncate">Browser Extension</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setActiveTab("mobile")}
-                className={cn(
-                  "flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg text-xs font-semibold transition-all focus-visible:ring-2 focus-visible:ring-primary",
-                  activeTab === "mobile"
-                    ? "bg-card text-foreground shadow-xs border border-border/40"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
-                aria-pressed={activeTab === "mobile"}
-              >
-                <IconWrapper name="Smartphone" className="w-3.5 h-3.5 flex-shrink-0 text-primary" />
-                <span className="truncate">Mobile / QR</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setActiveTab("fiat")}
-                className={cn(
-                  "flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg text-xs font-semibold transition-all focus-visible:ring-2 focus-visible:ring-primary",
-                  activeTab === "fiat"
-                    ? "bg-card text-foreground shadow-xs border border-border/40"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
-                aria-pressed={activeTab === "fiat"}
-              >
-                <IconWrapper name="CreditCard" className="w-3.5 h-3.5 flex-shrink-0 text-primary" />
-                <span className="truncate">Card / Bank</span>
-              </button>
-            </div>
-          </CardHeader>
+              <CardFooter className="pt-2">
+                <Button
+                  className="w-full h-12 text-md font-semibold bg-primary hover:bg-primary-hover text-primary-foreground rounded-xl"
+                  onClick={handleContinue}
+                >
+                  Continue
+                </Button>
+              </CardFooter>
+            </>
+          ) : (
+            <>
 
           <CardContent className="space-y-4 pt-0">
             {/* TAB 1: BROWSER EXTENSION (FREIGHTER / ALBEDO) */}
@@ -865,45 +925,60 @@ export default function PaymentLinkPage() {
                     </div>
                   </div>
 
-                  <Button
+                  <a
+                    href={`https://checkout.cowry.exchange?ref=${encodeURIComponent(
+                      paymentRefId.replace(/[^a-zA-Z0-9_-]/g, "")
+                    )}&amount=${encodeURIComponent(String(Math.max(0, approxNgn)))}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block w-full"
                     onClick={() => {
                       notifyInfo("Redirecting to secure Anchor card/bank checkout...");
-                      window.open(
-                        `https://checkout.cowry.exchange?ref=${encodeURIComponent(
-                          paymentRefId
-                        )}&amount=${approxNgn}`,
-                        "_blank"
-                      );
                     }}
-                    className="w-full bg-primary hover:bg-primary-hover text-primary-foreground font-semibold h-11 rounded-xl text-xs flex items-center justify-center gap-1.5"
                   >
-                    <IconWrapper name="CreditCard" className="w-4 h-4 mr-1" /> Pay ₦{approxNgn.toLocaleString()} with Card / Bank
-                    <IconWrapper name="ExternalLink" className="w-3.5 h-3.5 ml-1" />
-                  </Button>
+                    <Button
+                      type="button"
+                      className="w-full bg-primary hover:bg-primary-hover text-primary-foreground font-semibold h-11 rounded-xl text-xs flex items-center justify-center gap-1.5"
+                    >
+                      <IconWrapper name="CreditCard" className="w-4 h-4 mr-1" /> Pay ₦{approxNgn.toLocaleString()} with Card / Bank
+                      <IconWrapper name="ExternalLink" className="w-3.5 h-3.5 ml-1" />
+                    </Button>
+                  </a>
                 </div>
               </div>
             )}
           </CardContent>
 
-          {activeTab === "extension" && (
-            <CardFooter className="flex flex-col gap-3 pt-2">
+          <CardFooter className="flex flex-col gap-3 pt-2">
+            {activeTab === "extension" && (
               <Button
                 className="w-full h-12 text-base font-semibold group rounded-xl shadow-button bg-primary hover:bg-primary-hover text-primary-foreground disabled:opacity-60"
                 onClick={handlePay}
                 disabled={txState !== "idle" || isRateExpired}
+                aria-label={isConnected ? `Pay ${displayAmount} ${activeCurrency}` : "Connect wallet to pay"}
               >
                 {txState !== "idle"
                   ? "Processing Transaction..."
                   : isConnected
                   ? `Pay ${displayAmount} ${activeCurrency}`
-                  : "Connect Wallet & Pay"}
+                  : "Connect Wallet to Pay"}
                 {txState === "idle" && (
                   <IconWrapper name="ArrowRight" className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
                 )}
               </Button>
-            </CardFooter>
-          )}
-        </Card>
+            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full text-xs text-muted-foreground hover:text-foreground"
+              onClick={() => setStep("details")}
+            >
+              Back
+            </Button>
+          </CardFooter>
+        </>
+      )}
+    </Card>
 
         {/* Footer trust badge */}
         <div className="mt-6 flex flex-col items-center justify-center gap-2 text-center text-xs text-muted-foreground">

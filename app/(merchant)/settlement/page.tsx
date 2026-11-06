@@ -131,10 +131,10 @@ export default function SettlementPage() {
             </span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-heading font-bold text-foreground mt-1">
-            Settlement Hub & FX Engine
+            Settlement
           </h1>
           <p className="text-muted-foreground text-xs sm:text-sm mt-1 max-w-2xl">
-            Non-custodial automated conversion of USDC to Nigerian Naira (NGN) with
+            Settlement Hub & FX Engine: Non-custodial automated conversion of USDC to Nigerian Naira (NGN) with
             direct disbursement into CBN/NIBSS commercial bank accounts.
           </p>
         </div>
@@ -144,11 +144,12 @@ export default function SettlementPage() {
             <Button
               disabled={!isOnline}
               aria-disabled={!isOnline}
+              aria-label="Initiate settlement"
               onClick={() => setSettlementOpen(true)}
               className="bg-primary hover:bg-primary-hover text-primary-foreground font-semibold rounded-xl h-10 px-4 text-xs sm:text-sm shadow-button transition-transform active:scale-95"
             >
               <Banknote className="w-4 h-4 mr-1.5" />
-              Initiate Payout
+              Initiate Settlement
             </Button>
           </NetworkTooltip>
         </div>
@@ -167,7 +168,7 @@ export default function SettlementPage() {
             <div className="md:col-span-7 space-y-2">
               <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5 font-mono">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                Available for Payout (USDC)
+                Available to Settle / Payout (USDC)
               </span>
               <div className="flex flex-wrap items-baseline gap-3">
                 <span className="text-3xl sm:text-4xl font-heading font-bold text-foreground tabular-nums">
@@ -177,16 +178,21 @@ export default function SettlementPage() {
                   ≈ ₦{availableNgn.toLocaleString(undefined, { maximumFractionDigits: 0 })} NGN
                 </span>
               </div>
-              <p className="text-xs text-muted-foreground">
-                Locked on Stellar non-custodial smart contracts · Rate guaranteed at ₦1,600 / USDC
-              </p>
+              <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
+                <p>
+                  Locked on Stellar non-custodial smart contracts · Rate guaranteed at ₦1,600 / USDC
+                </p>
+                <span className="font-semibold text-foreground">
+                  Total Settled: $54,200.00 USDC
+                </span>
+              </div>
             </div>
 
             {/* Right Balance Segment: In-Transit to Bank */}
             <div className="md:col-span-5 md:border-l md:border-border/70 md:pl-6 space-y-2">
               <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5 font-mono">
                 <Clock className="w-3.5 h-3.5 text-amber-500" />
-                In-Transit to Commercial Bank
+                Pending Settlement (In-Transit to Bank)
               </span>
               <div>
                 <span className="text-2xl sm:text-3xl font-heading font-bold text-foreground tabular-nums">
@@ -345,7 +351,7 @@ export default function SettlementPage() {
         <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4">
           <div>
             <CardTitle className="text-base font-semibold text-foreground">
-              Settlement Audit Ledger
+              Settlement History
             </CardTitle>
             <CardDescription>
               Complete cryptographic audit trail of all USDC → NGN anchor disbursements.
