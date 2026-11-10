@@ -304,4 +304,42 @@ test.describe('Payment flow — error states', () => {
     await expect(page.getByText('The network is taking longer than expected')).toBeVisible();
     await expect(page.getByRole('button', { name: /check again/i })).toBeVisible();
   });
+
+  test('renders expired payment link error state, explanation, and redirect action without uncaught errors', async ({
+    context,
+    page,
+  }) => {
+    const uncaughtErrors: Error[] = [];
+    page.on('pageerror', (err) => uncaughtErrors.push(err));
+
+    const EXPIRED_LINK_ID = 'pl_e2e_expired';
+    await mockStellarNetwork(context);
+    await context.route(`**/api/payment-links/${EXPIRED_LINK_ID}`, (route) =>
+      fulfillJson(
+        route,
+        {
+          error: 'expired_link',
+          message: 'This payment link has expired',
+        },
+        410,
+      ),
+    );
+
+    await page.goto(`/pay/${EXPIRED_LINK_ID}`);
+
+    const invalidState = page.getByTestId('invalid-link-state');
+    await expect(invalidState).toBeVisible();
+    await expect(page.getByText(/this payment link has expired/i)).toBeVisible();
+    await expect(
+      page.getByText(/this payment request is no longer open for payment/i),
+    ).toBeVisible();
+    await expect(page.getByText(EXPIRED_LINK_ID)).toBeVisible();
+
+    const homeButton = page.getByRole('button', { name: /go to homepage/i });
+    await expect(homeButton).toBeVisible();
+    await homeButton.click();
+    await expect(page).toHaveURL(/\/$/);
+
+    expect(uncaughtErrors).toEqual([]);
+  });
 });
