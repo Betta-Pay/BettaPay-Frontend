@@ -36,6 +36,15 @@ function themeLabel(t: string | undefined): string {
  * - No light-flash: the trigger renders null before hydration; the
  *   suppressHydrationWarning on <html> prevents the mismatch warning.
  */
+export const SYSTEM_COLOR_SCHEME_QUERY = "(prefers-color-scheme: dark)";
+
+export function applySystemColorScheme(isDark: boolean): void {
+  if (typeof document === "undefined") return;
+  document.documentElement.classList.toggle("dark", isDark);
+  document.documentElement.classList.toggle("light", !isDark);
+  document.documentElement.style.colorScheme = isDark ? "dark" : "light";
+}
+
 export function ThemeToggle() {
   const { theme, setTheme } = useTheme();
   const [isMounted, setIsMounted] = useState(false);
@@ -43,6 +52,40 @@ export function ThemeToggle() {
   useEffect(() => {
     setIsMounted(true);
   }, []);
+
+  useEffect(() => {
+    const activeTheme = theme ?? "system";
+    if (
+      activeTheme !== "system" ||
+      typeof window === "undefined" ||
+      typeof window.matchMedia !== "function"
+    ) {
+      return;
+    }
+
+    const mediaQuery = window.matchMedia(SYSTEM_COLOR_SCHEME_QUERY);
+    if (!mediaQuery) return;
+
+    const handleChange = (
+      event: MediaQueryListEvent | { matches: boolean }
+    ) => {
+      applySystemColorScheme(Boolean(event.matches));
+    };
+
+    if (typeof mediaQuery.addEventListener === "function") {
+      mediaQuery.addEventListener("change", handleChange);
+      return () => {
+        mediaQuery.removeEventListener("change", handleChange);
+      };
+    }
+
+    if (typeof mediaQuery.addListener === "function") {
+      mediaQuery.addListener(handleChange);
+      return () => {
+        mediaQuery.removeListener(handleChange);
+      };
+    }
+  }, [theme]);
 
   const current = THEME_OPTIONS.find((o) => o.value === theme) ?? THEME_OPTIONS[2];
   const CurrentIcon = current.Icon;
