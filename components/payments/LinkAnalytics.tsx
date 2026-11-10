@@ -1,17 +1,17 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useCallback } from "react";
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Eye, Users, TrendingUp, DollarSign, Globe, ExternalLink } from "lucide-react";
+import { Eye, Users, TrendingUp, DollarSign, Globe, ExternalLink, Download } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/utils/format";
 import dynamic from "next/dynamic";
-import { Skeleton } from "@/components/ui";
+import { Skeleton, Button } from "@/components/ui";
 import { subDays, format } from "date-fns";
 import { ErrorBoundary } from '@/components/shared';
 
@@ -35,18 +35,103 @@ export interface ReferrerData {
   percentage: number;
 }
 
+export interface ViewsTimelinePoint {
+  date: string;
+  clicks: number;
+  conversions?: number;
+  volume?: number;
+}
+
 export interface LinkAnalyticsData {
   totalViews: number;
   uniqueVisitors: number;
   conversionRate: number;
   revenue: number;
   currency: string;
-  viewsTimeline: { date: string; clicks: number }[];
+  viewsTimeline: ViewsTimelinePoint[];
   geographicBreakdown: GeoData[];
   referrerList: ReferrerData[];
 }
 
-function generateViewsTimeline(): { date: string; clicks: number }[] {
+const FORMULA_INJECTION_REGEX = /^[=+\-@\t\r]/;
+const NEGATIVE_NUMBER_REGEX = /^-\d+(\.\d+)?$/;
+
+/**
+ * Escapes a single CSV field according to RFC 4180 and neutralizes
+ * spreadsheet formula injection prefixes.
+ */
+export function escapeCsvCell(value: unknown): string {
+  if (value === null || value === undefined) {
+    return "";
+  }
+  let str = String(value);
+  if (
+    typeof value === "string" &&
+    FORMULA_INJECTION_REGEX.test(str) &&
+    !NEGATIVE_NUMBER_REGEX.test(str)
+  ) {
+    str = `'${str}`;
+  }
+  if (
+    str.includes(",") ||
+    str.includes('"') ||
+    str.includes("\n") ||
+    str.includes("\r")
+  ) {
+    return `"${str.replace(/"/g, '""')}"`;
+  }
+  return str;
+}
+
+/**
+ * Transforms link analytics timeseries and summary metrics into an
+ * RFC 4180 compliant CSV string.
+ */
+export function buildLinkAnalyticsCsv(data: LinkAnalyticsData): string {
+  const headers = [
+    "Date",
+    "Clicks",
+    "Conversions",
+    "Volume",
+    "Currency",
+    "Total Views",
+    "Unique Visitors",
+    "Conversion Rate (%)",
+  ];
+
+  const totalClicks = data.viewsTimeline.reduce((sum, pt) => sum + pt.clicks, 0);
+
+  const rows = data.viewsTimeline.map((pt) => {
+    const conversions =
+      pt.conversions ?? Math.round((pt.clicks * data.conversionRate) / 100);
+    const volume =
+      pt.volume ??
+      Number(
+        (
+          totalClicks > 0
+            ? (data.revenue / totalClicks) * pt.clicks
+            : 0
+        ).toFixed(2)
+      );
+
+    return [
+      pt.date,
+      pt.clicks,
+      conversions,
+      volume,
+      data.currency,
+      data.totalViews,
+      data.uniqueVisitors,
+      data.conversionRate,
+    ]
+      .map(escapeCsvCell)
+      .join(",");
+  });
+
+  return [headers.map(escapeCsvCell).join(","), ...rows].join("\r\n");
+}
+
+function generateViewsTimeline(): ViewsTimelinePoint[] {
   return Array.from({ length: 30 }, (_, i) => ({
     date: format(subDays(new Date(), 29 - i), "MMM d"),
     clicks: Math.floor(Math.random() * 15 + 1),
@@ -69,18 +154,19 @@ function generateReferrerData(): ReferrerData[] {
     { source: "Direct", visits: 156, percentage: 41 },
     { source: "Twitter / X", visits: 89, percentage: 23 },
     { source: "WhatsApp", visits: 67, percentage: 17 },
-    { source: "Telegram", visits: 42, percentage: 11 },
+    { country: undefined, source: "Telegram", visits: 42, percentage: 11 },
     { source: "Google", visits: 28, percentage: 7 },
     { source: "Other", visits: 12, percentage: 4 },
-  ];
+  ].map(({ source, visits, percentage }) => ({ source, visits, percentage }));
 }
 
-interface LinkAnalyticsProps {
+export interface LinkAnalyticsProps {
   views: number;
   uniquePayers: number;
   conversionRate: number;
   revenue: number;
   currency: string;
+  timeline?: ViewsTimelinePoint[];
 }
 
 export function LinkAnalytics({
@@ -88,6 +174,7 @@ export function LinkAnalytics({
   conversionRate,
   revenue,
   currency,
+  timeline,
 }: LinkAnalyticsProps) {
   const analyticsData = useMemo<LinkAnalyticsData>(
     () => ({
@@ -96,12 +183,25 @@ export function LinkAnalytics({
       conversionRate,
       revenue,
       currency,
-      viewsTimeline: generateViewsTimeline(),
+      viewsTimeline: timeline ?? generateViewsTimeline(),
       geographicBreakdown: generateGeoData(),
       referrerList: generateReferrerData(),
     }),
-    [views, conversionRate, revenue, currency]
+    [views, conversionRate, revenue, currency, timeline]
   );
+
+  const handleExportCsv = useCallback(() => {
+    const csv = buildLinkAnalyticsCsv(analyticsData);
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `link-analytics-${format(new Date(), "yyyy-MM-dd")}.csv`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    document.body.removeChild(anchor);
+    URL.revokeObjectURL(url);
+  }, [analyticsData]);
 
   const kpiCards = [
     {
@@ -141,10 +241,20 @@ export function LinkAnalytics({
   return (
     <div className="space-y-6">
       <Card className="border border-border bg-card shadow-sm">
-        <CardHeader className="pb-3">
+        <CardHeader className="pb-3 flex flex-row items-center justify-between space-y-0">
           <CardTitle className="text-base font-semibold text-foreground">
             Analytics Overview
           </CardTitle>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleExportCsv}
+            className="gap-1.5 text-xs"
+          >
+            <Download className="w-3.5 h-3.5" />
+            Export CSV
+          </Button>
         </CardHeader>
         <CardContent className="pt-0">
           <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
