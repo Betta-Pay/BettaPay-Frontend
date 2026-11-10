@@ -1,5 +1,5 @@
 'use client';
-import { Suspense, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
@@ -11,9 +11,27 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 
+function highlightMatch(text: string, query: string): ReactNode {
+  const trimmed = query.trim();
+  if (!trimmed) return text;
+  const escaped = trimmed.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const regex = new RegExp(`(${escaped})`, 'gi');
+  const parts = text.split(regex);
+  return parts.map((part, idx) =>
+    part.toLowerCase() === trimmed.toLowerCase() ? (
+      <mark key={idx} className="rounded bg-amber-300/60 px-0.5 text-foreground dark:bg-amber-500/40">
+        {part}
+      </mark>
+    ) : (
+      part
+    ),
+  );
+}
+
 function MerchantsConsole() {
   const params = useSearchParams();
   const [filters, setFilters] = useState({ search: '', status: '', kycStatus: '' });
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selected, setSelected] = useState<string[]>([]);
   const [detailId, setDetailId] = useState<string | null>(params.get('merchantId'));
   const [reviewerId, setReviewerId] = useState('');
@@ -21,7 +39,26 @@ function MerchantsConsole() {
   const [message, setMessage] = useState('');
   const allowed = useAdminAccess();
   const online = useAdminOnline();
-  const query = useMerchants(filters);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(filters.search.trim());
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [filters.search]);
+
+  const isDebouncing = filters.search.trim() !== debouncedSearch;
+  const query = useMerchants({ ...filters, search: debouncedSearch });
+  const filteredMerchants = useMemo(() => {
+    const q = debouncedSearch.toLowerCase();
+    if (!q) return query.merchants;
+    return query.merchants.filter(
+      (m) =>
+        m.businessName.toLowerCase().includes(q) ||
+        m.contactEmail.toLowerCase().includes(q) ||
+        (m.publicKey ?? '').toLowerCase().includes(q),
+    );
+  }, [query.merchants, debouncedSearch]);
   const detail = useQuery({
     queryKey: ['admin', 'merchant', detailId], enabled: allowed && !!detailId,
     queryFn: ({ signal }) => adminGet<{ data: AdminMerchant }>(`/api/admin/merchants/${encodeURIComponent(detailId!)}`, signal),
@@ -45,12 +82,18 @@ function MerchantsConsole() {
     <h1 className="text-2xl font-bold">Merchants</h1>
     <Link className="underline" href="/merchants/kyb">Review KYB submissions</Link>
     <div className="flex flex-wrap gap-3">
-      <Input aria-label="Search merchants" placeholder="Search name or email" value={filters.search} onChange={e => filter('search', e.target.value)} />
+      <Input aria-label="Search merchants" placeholder="Search name, email, or G... public key" value={filters.search} onChange={e => filter('search', e.target.value)} />
       <label>Status <select className="rounded border bg-background p-2" value={filters.status} onChange={e => filter('status', e.target.value)}><option value="">All</option>{['active', 'suspended', 'pending'].map(s => <option key={s}>{s}</option>)}</select></label>
       <label>KYC status <select className="rounded border bg-background p-2" value={filters.kycStatus} onChange={e => filter('kycStatus', e.target.value)}><option value="">All</option>{['unverified', 'pending', 'approved', 'rejected'].map(s => <option key={s}>{s}</option>)}</select></label>
       <Button variant="outline" onClick={() => void query.refetch()} disabled={!online}>Refresh</Button>
     </div>
-    <AdminState loading={query.isLoading} error={query.error} empty={!query.merchants.length} retry={() => void query.refetch()} />
+    {(isDebouncing || query.isLoading) && (
+      <div data-testid="merchants-search-skeleton" role="status" aria-label="Searching merchants" className="space-y-2 py-2">
+        <div className="h-8 w-full animate-pulse rounded bg-muted" />
+        <div className="h-8 w-full animate-pulse rounded bg-muted" />
+      </div>
+    )}
+    <AdminState loading={query.isLoading} error={query.error} empty={!filteredMerchants.length} retry={() => void query.refetch()} />
     <div className="flex flex-wrap items-center gap-3">
       <span>{selected.length} selected</span>
       <Button disabled={!online || !selected.length || query.action.isPending} onClick={() => { query.action.reset(); setConfirm('suspend'); }}>Suspend</Button>
@@ -60,9 +103,13 @@ function MerchantsConsole() {
     </div>
     <p role="status">{message}</p>
     <div className="overflow-x-auto"><table className="w-full text-left"><caption className="sr-only">Merchant management</caption><thead><tr>{['Select', 'Merchant', 'Status', 'KYC', 'Last activity'].map(h => <th className="p-3" key={h}>{h}</th>)}</tr></thead><tbody>
-      {query.merchants.map(m => <tr key={m.id} className="border-t">
+      {filteredMerchants.map(m => <tr key={m.id} className="border-t">
         <td className="p-3"><input type="checkbox" aria-label={`Select ${m.businessName}`} disabled={query.action.isPending || (!selected.includes(m.id) && selected.length >= 100)} checked={selected.includes(m.id)} onChange={e => setSelected(prev => e.target.checked ? [...prev, m.id] : prev.filter(id => id !== m.id))} /></td>
-        <td className="p-3"><button className="text-primary underline" onClick={() => setDetailId(m.id)}>{m.businessName}</button><p>{m.contactEmail}</p></td>
+        <td className="p-3">
+          <button className="text-primary underline" onClick={() => setDetailId(m.id)}>{highlightMatch(m.businessName, debouncedSearch)}</button>
+          <p>{highlightMatch(m.contactEmail, debouncedSearch)}</p>
+          {m.publicKey && <p className="font-mono text-xs text-muted-foreground">{highlightMatch(m.publicKey, debouncedSearch)}</p>}
+        </td>
         <td className="p-3">{m.status}</td><td className="p-3">{m.kycStatus}</td><td className="p-3">{m.lastActivity ? new Date(m.lastActivity).toLocaleString() : 'No activity'}</td>
       </tr>)}
     </tbody></table></div>

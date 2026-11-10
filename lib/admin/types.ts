@@ -5,6 +5,7 @@ export interface AdminAuditEntry {
 }
 export interface AdminMerchant {
   id: string; businessName: string; contactEmail: string; country: string;
+  publicKey?: string;
   status: string; kycStatus: string; reviewerId: string | null;
   paymentCount: number; settlementCount: number; lastActivity: string | null;
   auditLog?: AdminAuditEntry[];
