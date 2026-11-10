@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { KybDocumentsPanel } from '../KybDocumentsPanel';
+import { KybDocumentsPanel, getKybDraftStorageKey } from '../KybDocumentsPanel';
 
 /**
  * KybDocumentsPanel fetches via the React Query hook `useMerchantKyb`. The
@@ -11,11 +11,18 @@ import { KybDocumentsPanel } from '../KybDocumentsPanel';
  * via the fallback's Retry action.
  */
 
+type KybDocStub = {
+  id?: string;
+  type: string;
+  fileName?: string;
+  status?: string;
+};
+
 type KybData = {
   merchantId: string;
   kybStatus: string;
   rejectionReason: string | null;
-  documents: Array<{ type: string }>;
+  documents: KybDocStub[];
 };
 
 type MerchantKybResult = {
@@ -44,9 +51,24 @@ jest.mock('@/lib/errorReporting', () => ({
 let shouldThrow = false;
 
 jest.mock('../KybDocumentRow', () => ({
-  KybDocumentRow: () => {
+  KybDocumentRow: ({
+    meta,
+    document,
+  }: {
+    meta?: { type: string };
+    document?: KybDocStub | null;
+  }) => {
     if (shouldThrow) throw new Error('malformed KYB payload');
-    return <div data-testid="doc-row" />;
+    return (
+      <div
+        data-testid="doc-row"
+        data-doc-type={meta?.type}
+        data-doc-id={document?.id ?? ''}
+        data-doc-status={document?.status ?? 'none'}
+      >
+        {document?.fileName ?? null}
+      </div>
+    );
   },
 }));
 
@@ -136,6 +158,7 @@ describe('KybDocumentsPanel error boundary', () => {
 
   beforeEach(() => {
     shouldThrow = false;
+    window.sessionStorage.clear();
     mockUseMerchantKyb.mockReset();
     consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
   });
@@ -237,5 +260,114 @@ describe('KybDocumentsPanel error boundary', () => {
       hookCallsBeforeError
     );
     expect(mockUseMerchantKyb).toHaveBeenLastCalledWith('m-1');
+  });
+});
+
+describe('KybDocumentsPanel draft persistence across page reload', () => {
+  beforeEach(() => {
+    shouldThrow = false;
+    window.sessionStorage.clear();
+    mockUseMerchantKyb.mockReset();
+  });
+
+  it('persists uploaded documents to sessionStorage and rehydrates them after page reload', () => {
+    mockUseMerchantKyb.mockReturnValue({
+      data: {
+        merchantId: 'm-draft-1',
+        kybStatus: 'unverified',
+        rejectionReason: null,
+        documents: [
+          {
+            id: 'doc-inc-1',
+            type: 'certificate_of_incorporation',
+            fileName: 'incorporation-cert.pdf',
+            status: 'uploaded',
+          },
+          {
+            id: 'doc-poa-2',
+            type: 'proof_of_address',
+            fileName: 'utility-bill.png',
+            status: 'under_review',
+          },
+        ],
+      },
+      isLoading: false,
+      error: null,
+      refetch: jest.fn(),
+    });
+
+    const firstRender = renderPanel('m-draft-1');
+
+    expect(screen.getByText('incorporation-cert.pdf')).toBeInTheDocument();
+    expect(screen.getByText('utility-bill.png')).toBeInTheDocument();
+    expect(screen.getByText('2/3 required documents')).toBeInTheDocument();
+
+    const rawDraft = window.sessionStorage.getItem(getKybDraftStorageKey('m-draft-1'));
+    expect(rawDraft).not.toBeNull();
+    expect(JSON.parse(rawDraft!)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: 'doc-inc-1', fileName: 'incorporation-cert.pdf' }),
+        expect.objectContaining({ id: 'doc-poa-2', fileName: 'utility-bill.png' }),
+      ]),
+    );
+
+    // Unmount and remount with an empty in-memory response to simulate browser reload
+    firstRender.unmount();
+
+    mockUseMerchantKyb.mockReturnValue({
+      data: {
+        merchantId: 'm-draft-1',
+        kybStatus: 'unverified',
+        rejectionReason: null,
+        documents: [],
+      },
+      isLoading: false,
+      error: null,
+      refetch: jest.fn(),
+    });
+
+    renderPanel('m-draft-1');
+
+    expect(screen.getByText('incorporation-cert.pdf')).toBeInTheDocument();
+    expect(screen.getByText('utility-bill.png')).toBeInTheDocument();
+    expect(screen.getByText('2/3 required documents')).toBeInTheDocument();
+  });
+
+  it('clears draft storage once KYB verification status is approved', () => {
+    const storageKey = getKybDraftStorageKey('m-approved');
+    window.sessionStorage.setItem(
+      storageKey,
+      JSON.stringify([
+        {
+          id: 'doc-1',
+          type: 'certificate_of_incorporation',
+          fileName: 'cert.pdf',
+          status: 'verified',
+        },
+      ]),
+    );
+
+    mockUseMerchantKyb.mockReturnValue({
+      data: {
+        merchantId: 'm-approved',
+        kybStatus: 'approved',
+        rejectionReason: null,
+        documents: [
+          {
+            id: 'doc-1',
+            type: 'certificate_of_incorporation',
+            fileName: 'cert.pdf',
+            status: 'verified',
+          },
+        ],
+      },
+      isLoading: false,
+      error: null,
+      refetch: jest.fn(),
+    });
+
+    renderPanel('m-approved');
+
+    expect(window.sessionStorage.getItem(storageKey)).toBeNull();
   });
 });

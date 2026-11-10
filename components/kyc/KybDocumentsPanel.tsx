@@ -15,7 +15,7 @@
  * invalidates the cached query and remounts the body.
  */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui';
@@ -23,17 +23,54 @@ import { Skeleton } from '@/components/ui';
 import { cn } from '@/lib/utils';
 import { kybQueryKeys, useMerchantKyb } from '@/lib/kyc/api';
 import { KYB_STATUS_META } from '@/lib/kyc/status';
-import { KYB_DOC_TYPES, REQUIRED_KYB_DOC_TYPES } from '@/lib/kyc/types';
+import { KYB_DOC_TYPES, REQUIRED_KYB_DOC_TYPES, type KybDocument } from '@/lib/kyc/types';
 import { ErrorBoundary, ErrorDisplay } from '@/components/shared';
 import { KybDocumentRow } from './KybDocumentRow';
 import { KybStatusBadge } from './KybStatusBadge';
 import { AlertTriangle, ShieldCheck } from 'lucide-react';
+
+export const KYB_DRAFT_STORAGE_PREFIX = 'bettapay_kyb_documents_draft';
+
+export function getKybDraftStorageKey(merchantId: string): string {
+  return `${KYB_DRAFT_STORAGE_PREFIX}:${merchantId}`;
+}
+
+function readDraftDocuments(storageKey: string): KybDocument[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = window.sessionStorage.getItem(storageKey);
+    if (!raw) return [];
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(
+      (item): item is KybDocument =>
+        Boolean(item && typeof item === 'object' && typeof (item as KybDocument).type === 'string'),
+    );
+  } catch {
+    return [];
+  }
+}
+
+function writeDraftDocuments(storageKey: string, documents: KybDocument[]): void {
+  if (typeof window === 'undefined') return;
+  try {
+    if (documents.length === 0) {
+      window.sessionStorage.removeItem(storageKey);
+    } else {
+      window.sessionStorage.setItem(storageKey, JSON.stringify(documents));
+    }
+  } catch {
+    // Ignore storage quota or private-mode restrictions.
+  }
+}
 
 interface Props {
   merchantId: string;
   variant?: 'onboarding' | 'settings';
   /** Render the "simulate reviewer rejection" testing control. */
   allowSimulatedReview?: boolean;
+  /** Optional custom sessionStorage key for draft document persistence. */
+  draftStorageKey?: string;
 }
 
 /**
@@ -44,14 +81,50 @@ interface Props {
 function KybDocumentsPanelBody({
   merchantId,
   allowSimulatedReview,
+  draftStorageKey,
 }: {
   merchantId: string;
   allowSimulatedReview: boolean;
+  draftStorageKey?: string;
 }) {
+  const storageKey = draftStorageKey ?? getKybDraftStorageKey(merchantId);
   const { data: kyb, isLoading, error } = useMerchantKyb(merchantId);
   const [simulateReject, setSimulateReject] = useState(false);
+  const [draftDocuments, setDraftDocuments] = useState<KybDocument[]>(() =>
+    readDraftDocuments(storageKey),
+  );
 
-  const byType = new Map(kyb.documents.map((d) => [d.type, d]));
+  useEffect(() => {
+    setDraftDocuments(readDraftDocuments(storageKey));
+  }, [storageKey]);
+
+  const serverEntries = kyb.documents.map((d) => [d.type, d] as const);
+  const byType = new Map<KybDocument['type'], KybDocument>();
+  for (const draftDoc of draftDocuments) {
+    byType.set(draftDoc.type, draftDoc);
+  }
+  for (const [docType, serverDoc] of serverEntries) {
+    byType.set(docType, serverDoc);
+  }
+
+  useEffect(() => {
+    if (isLoading) return;
+    if (kyb.kybStatus === 'approved') {
+      writeDraftDocuments(storageKey, []);
+      return;
+    }
+    if (kyb.documents.length > 0) {
+      const merged = new Map<KybDocument['type'], KybDocument>();
+      for (const draftDoc of readDraftDocuments(storageKey)) {
+        merged.set(draftDoc.type, draftDoc);
+      }
+      for (const serverDoc of kyb.documents) {
+        merged.set(serverDoc.type, serverDoc);
+      }
+      writeDraftDocuments(storageKey, Array.from(merged.values()));
+    }
+  }, [isLoading, kyb.kybStatus, kyb.documents, storageKey]);
+
   const requiredUploaded = REQUIRED_KYB_DOC_TYPES.filter((t) => byType.has(t)).length;
   const statusMeta = KYB_STATUS_META[kyb.kybStatus];
 
@@ -132,6 +205,7 @@ export function KybDocumentsPanel({
   merchantId,
   variant = 'settings',
   allowSimulatedReview = false,
+  draftStorageKey,
 }: Props) {
   const queryClient = useQueryClient();
   const [retryAttempt, setRetryAttempt] = useState(0);
@@ -162,6 +236,7 @@ export function KybDocumentsPanel({
       <KybDocumentsPanelBody
         merchantId={merchantId}
         allowSimulatedReview={allowSimulatedReview}
+        draftStorageKey={draftStorageKey}
       />
     </ErrorBoundary>
   );
