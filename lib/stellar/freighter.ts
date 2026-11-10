@@ -13,10 +13,25 @@ const TESTNET_PASSPHRASE = 'Test SDF Network ; September 2015';
 const PUBLIC_PASSPHRASE = 'Public Global Stellar Network ; September 2015';
 const getPassphrase = () => STELLAR_NETWORK.toUpperCase() === 'PUBLIC' ? PUBLIC_PASSPHRASE : TESTNET_PASSPHRASE;
 
+export const FREIGHTER_LOCKED_PROMPT = 'Please unlock your Freighter wallet';
+
+export type FreighterExtensionState =
+  | 'not_installed'
+  | 'not_allowed'
+  | 'locked'
+  | 'unlocked';
+
 export class FreighterNotInstalledError extends Error {
   constructor() {
     super('Freighter browser extension is not installed');
     this.name = 'FreighterNotInstalledError';
+  }
+}
+
+export class FreighterLockedError extends Error {
+  constructor(message = `${FREIGHTER_LOCKED_PROMPT} to continue.`) {
+    super(message);
+    this.name = 'FreighterLockedError';
   }
 }
 
@@ -55,6 +70,19 @@ const FREIGHTER_NOT_INSTALLED_MSGS = [
   'freighter api is not available',
 ];
 
+const FREIGHTER_LOCKED_MSGS = [
+  'freighter is locked',
+  'wallet is locked',
+  'extension is locked',
+  'account is locked',
+  'please unlock',
+  'unlock your freighter',
+  'unlock your wallet',
+  'locked',
+  'no public key',
+  'user has no key',
+];
+
 // Freighter rejects sign requests with these strings when the user declines
 // in the popup (4.x wording included).
 const SIGNING_DECLINED_MSGS = [
@@ -84,6 +112,7 @@ function classifyFreighterError(error: unknown): Error {
   // specific error (e.g. a signing decline) for a broader match.
   if (
     error instanceof FreighterNotInstalledError ||
+    error instanceof FreighterLockedError ||
     error instanceof FreighterCancelledError ||
     error instanceof FreighterNetworkMismatchError ||
     error instanceof FreighterSigningDeclinedError
@@ -95,6 +124,10 @@ function classifyFreighterError(error: unknown): Error {
 
   if (FREIGHTER_NOT_INSTALLED_MSGS.some((k) => msg.includes(k))) {
     return new FreighterNotInstalledError();
+  }
+
+  if (FREIGHTER_LOCKED_MSGS.some((k) => msg.includes(k))) {
+    return new FreighterLockedError();
   }
 
   if (SIGNING_DECLINED_MSGS.some((k) => msg.includes(k))) {
@@ -119,10 +152,44 @@ function throwFreighterError(raw: string): never {
 // Detect whether Freighter is available. This tries a lightweight call and falls back safely.
 export const isFreighterAvailable = async (): Promise<boolean> => {
   try {
-    await isAllowed();
+    const resp = (await isAllowed()) as { isAllowed?: boolean; error?: string } | undefined;
+    if (resp?.error && FREIGHTER_NOT_INSTALLED_MSGS.some((k) => resp.error!.toLowerCase().includes(k))) {
+      return false;
+    }
     return true;
   } catch {
     return false;
+  }
+};
+
+/**
+ * Inspects Freighter extension installation, permission, and lock status (#899).
+ */
+export const detectFreighterState = async (): Promise<FreighterExtensionState> => {
+  try {
+    const allowedResp = (await isAllowed()) as { isAllowed?: boolean; error?: string } | undefined;
+    if (allowedResp?.error) {
+      const classified = classifyFreighterError(allowedResp.error);
+      if (classified instanceof FreighterNotInstalledError) return 'not_installed';
+      if (classified instanceof FreighterLockedError) return 'locked';
+    }
+    if (!allowedResp?.isAllowed) {
+      return 'not_allowed';
+    }
+    const addressResp = await getAddress();
+    if (addressResp?.error) {
+      const classified = classifyFreighterError(addressResp.error);
+      if (classified instanceof FreighterLockedError) return 'locked';
+      if (classified instanceof FreighterNotInstalledError) return 'not_installed';
+    }
+    if (!addressResp?.address) {
+      return 'locked';
+    }
+    return 'unlocked';
+  } catch (error) {
+    const classified = classifyFreighterError(error);
+    if (classified instanceof FreighterLockedError) return 'locked';
+    return 'not_installed';
   }
 };
 
@@ -144,11 +211,14 @@ async function checkNetworkMismatch(): Promise<void> {
 
 export const connectFreighter = async (): Promise<string | null> => {
   try {
-    let allowedResp = await isAllowed();
+    let allowedResp = (await isAllowed()) as { isAllowed?: boolean; error?: string } | undefined;
+    if (allowedResp?.error) {
+      throw classifyFreighterError(allowedResp.error);
+    }
     if (!allowedResp || !allowedResp.isAllowed) {
       try {
         await setAllowed();
-        allowedResp = await isAllowed();
+        allowedResp = (await isAllowed()) as { isAllowed?: boolean; error?: string } | undefined;
       } catch (err) {
         throw classifyFreighterError(err);
       }
@@ -168,7 +238,9 @@ export const connectFreighter = async (): Promise<string | null> => {
       return accessResp.address;
     }
 
-    throw new FreighterCancelledError();
+    // When the extension is allowed (`isAllowed: true`) but `requestAccess()`
+    // returns an empty address without a cancellation error, the wallet is locked.
+    throw new FreighterLockedError();
   } catch (error) {
     console.error('Failed to connect Freighter', error);
     const classified = classifyFreighterError(error);

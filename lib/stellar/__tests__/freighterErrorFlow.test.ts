@@ -1,9 +1,12 @@
 import {
   connectFreighter,
   restoreFreighterSession,
+  detectFreighterState,
   FreighterNotInstalledError,
+  FreighterLockedError,
   FreighterCancelledError,
   FreighterNetworkMismatchError,
+  FREIGHTER_LOCKED_PROMPT,
 } from '../freighter';
 import * as freighterApi from '@stellar/freighter-api';
 
@@ -99,5 +102,45 @@ describe('Freighter network mismatch (#791)', () => {
     });
 
     await expect(restoreFreighterSession()).resolves.toBe(mockAddress);
+  });
+});
+
+describe('Freighter locked state detection (#899)', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('distinguishes between uninstalled extension and locked wallet via detectFreighterState', async () => {
+    (freighterApi.isAllowed as jest.Mock).mockRejectedValueOnce(
+      new Error('Freighter is not installed'),
+    );
+    await expect(detectFreighterState()).resolves.toBe('not_installed');
+
+    (freighterApi.isAllowed as jest.Mock).mockResolvedValueOnce({ isAllowed: true });
+    (freighterApi.getAddress as jest.Mock).mockResolvedValueOnce({ address: '' });
+    await expect(detectFreighterState()).resolves.toBe('locked');
+
+    (freighterApi.isAllowed as jest.Mock).mockResolvedValueOnce({ isAllowed: true });
+    (freighterApi.getAddress as jest.Mock).mockResolvedValueOnce({
+      address: 'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF',
+    });
+    await expect(detectFreighterState()).resolves.toBe('unlocked');
+  });
+
+  it('prompts user to unlock Freighter wallet when requestAccess returns locked error or empty address', async () => {
+    (freighterApi.isAllowed as jest.Mock).mockResolvedValue({ isAllowed: true });
+    (freighterApi.requestAccess as jest.Mock).mockResolvedValueOnce({
+      error: 'Freighter is locked',
+    });
+
+    await expect(connectFreighter()).rejects.toThrow(FreighterLockedError);
+
+    (freighterApi.requestAccess as jest.Mock).mockResolvedValueOnce({
+      address: '',
+    });
+
+    const err = await connectFreighter().catch((e) => e);
+    expect(err).toBeInstanceOf(FreighterLockedError);
+    expect((err as Error).message).toContain(FREIGHTER_LOCKED_PROMPT);
   });
 });
