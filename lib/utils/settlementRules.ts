@@ -93,3 +93,100 @@ export function formatDelay(delayMinutes: number): string {
 export function formatAutoSettle(autoSettle: boolean): string {
   return autoSettle ? 'on' : 'off';
 }
+
+export interface AnchorThresholdRules {
+  min_amount?: number | string | null;
+  max_amount?: number | string | null;
+  minAmount?: number | string | null;
+  maxAmount?: number | string | null;
+}
+
+export type SettlementThresholdViolationReason =
+  | 'INVALID_AMOUNT'
+  | 'BELOW_MINIMUM'
+  | 'ABOVE_MAXIMUM';
+
+export interface SettlementValidationResult {
+  isValid: boolean;
+  error?: string;
+  reason?: SettlementThresholdViolationReason;
+  minAmount?: number;
+  maxAmount?: number;
+}
+
+function toFiniteNonNegativeNumber(value: number | string | null | undefined): number | undefined {
+  if (value === null || value === undefined || value === '') return undefined;
+  const parsed = typeof value === 'number' ? value : Number(value);
+  if (!Number.isFinite(parsed) || parsed < 0) return undefined;
+  return parsed;
+}
+
+/**
+ * Validates a deposit or withdrawal amount against Stellar Anchor (SEP-0024 / SEP-0006)
+ * `min_amount` and `max_amount` limits.
+ */
+export function validateSettlementThreshold(
+  amount: number | string,
+  rules: AnchorThresholdRules = {},
+  options?: { assetCode?: string; operation?: 'deposit' | 'withdrawal' },
+): SettlementValidationResult {
+  const numericAmount = typeof amount === 'number' ? amount : Number(amount);
+  const assetLabel = options?.assetCode ? ` ${options.assetCode}` : '';
+  const operationLabel = options?.operation ?? 'settlement';
+
+  if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
+    return {
+      isValid: false,
+      reason: 'INVALID_AMOUNT',
+      error: `Enter a valid ${operationLabel} amount greater than 0${assetLabel}.`,
+    };
+  }
+
+  const minAmount = toFiniteNonNegativeNumber(rules.min_amount ?? rules.minAmount);
+  const maxAmount = toFiniteNonNegativeNumber(rules.max_amount ?? rules.maxAmount);
+
+  if (minAmount !== undefined && numericAmount < minAmount) {
+    return {
+      isValid: false,
+      reason: 'BELOW_MINIMUM',
+      minAmount,
+      maxAmount,
+      error: `Minimum ${operationLabel} amount is ${minAmount}${assetLabel}.`,
+    };
+  }
+
+  if (maxAmount !== undefined && maxAmount > 0 && numericAmount > maxAmount) {
+    return {
+      isValid: false,
+      reason: 'ABOVE_MAXIMUM',
+      minAmount,
+      maxAmount,
+      error: `Maximum ${operationLabel} amount is ${maxAmount}${assetLabel}.`,
+    };
+  }
+
+  return {
+    isValid: true,
+    minAmount,
+    maxAmount,
+  };
+}
+
+/**
+ * Formats anchor `min_amount` and `max_amount` thresholds for UI display.
+ */
+export function formatAnchorLimits(rules: AnchorThresholdRules, assetCode = 'USDC'): string {
+  const minAmount = toFiniteNonNegativeNumber(rules.min_amount ?? rules.minAmount);
+  const maxAmount = toFiniteNonNegativeNumber(rules.max_amount ?? rules.maxAmount);
+
+  if (minAmount !== undefined && maxAmount !== undefined && maxAmount > 0) {
+    return `${minAmount} - ${maxAmount} ${assetCode}`;
+  }
+  if (minAmount !== undefined) {
+    return `Min ${minAmount} ${assetCode}`;
+  }
+  if (maxAmount !== undefined && maxAmount > 0) {
+    return `Max ${maxAmount} ${assetCode}`;
+  }
+  return 'No anchor limits';
+}
