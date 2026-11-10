@@ -12,7 +12,8 @@
 
 import type { RumEvent, RumMetricName } from './types';
 
-const MAX_EVENTS = 10_000;
+export const MAX_EVENTS = 50;
+export const MAX_ERROR_BUFFER_SIZE = MAX_EVENTS;
 
 // Use a global to survive hot-reload in development
 const globalForRumStore = global as unknown as {
@@ -26,10 +27,10 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 /**
- * Store a validated RUM event. Drops the oldest event if at capacity.
+ * Store a validated RUM event. Drops the oldest events (FIFO) if at capacity.
  */
 export function storeEvent(event: RumEvent): void {
-  if (events.length >= MAX_EVENTS) {
+  while (events.length >= MAX_EVENTS) {
     events.shift();
   }
   events.push(event);

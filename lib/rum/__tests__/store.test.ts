@@ -1,4 +1,13 @@
-import { storeEvent, storeEvents, queryEvents, getRoutes, getEventCount, clearEvents } from '../store';
+import {
+  storeEvent,
+  storeEvents,
+  queryEvents,
+  getRoutes,
+  getEventCount,
+  clearEvents,
+  MAX_EVENTS,
+  MAX_ERROR_BUFFER_SIZE,
+} from '../store';
 import type { RumEvent } from '../types';
 
 function makeEvent(overrides?: Partial<RumEvent>): RumEvent {
@@ -70,11 +79,20 @@ describe('RUM event store', () => {
   });
 
   it('drops oldest events when at capacity', () => {
-    // This is a basic test for the ring buffer behavior
-    for (let i = 0; i < 5; i++) {
+    expect(MAX_EVENTS).toBe(50);
+    expect(MAX_ERROR_BUFFER_SIZE).toBe(50);
+
+    for (let i = 0; i < 100; i++) {
       storeEvent(makeEvent({ value: i }));
     }
-    expect(getEventCount()).toBe(5);
+
+    expect(getEventCount()).toBe(50);
+
+    const results = queryEvents({ limit: 100 });
+    expect(results).toHaveLength(50);
+    // queryEvents returns most recent first
+    expect(results[0].value).toBe(99);
+    expect(results[results.length - 1].value).toBe(50);
   });
 
   it('clears all events', () => {
