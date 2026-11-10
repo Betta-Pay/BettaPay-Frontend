@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { KybDocumentRow } from '../KybDocumentRow';
 import { useUploadKybDocument } from '@/lib/kyc/api';
 
@@ -94,5 +94,75 @@ describe('KybDocumentRow', () => {
     );
 
     expect(screen.getByText('Upload')).toBeInTheDocument();
+  });
+
+  it('blocks upload and displays inline validation error when an unsupported file format is selected', () => {
+    const mockUpload = jest.fn();
+    (useUploadKybDocument as jest.Mock).mockReturnValue({
+      upload: mockUpload,
+      isUploading: false,
+      progress: 0,
+      error: null,
+    });
+
+    render(
+      <KybDocumentRow
+        merchantId="m1"
+        meta={defaultMeta}
+        document={null}
+      />
+    );
+
+    const fileInput = screen.getByTestId('kyb-file-input-certificate_of_incorporation');
+    const invalidFile = new File(['archive-bytes'], 'documents.zip', {
+      type: 'application/zip',
+    });
+
+    fireEvent.change(fileInput, { target: { files: [invalidFile] } });
+
+    expect(mockUpload).not.toHaveBeenCalled();
+    const alert = screen.getByRole('alert');
+    expect(alert).toHaveTextContent(/Unsupported file format/i);
+    expect(alert).toHaveTextContent(/\.pdf, \.png, or \.jpg/i);
+  });
+
+  it('blocks drag-and-drop of unsupported files and clears inline error when a valid PDF is uploaded', async () => {
+    const mockUpload = jest.fn().mockResolvedValue({});
+    (useUploadKybDocument as jest.Mock).mockReturnValue({
+      upload: mockUpload,
+      isUploading: false,
+      progress: 0,
+      error: null,
+    });
+
+    render(
+      <KybDocumentRow
+        merchantId="m1"
+        meta={defaultMeta}
+        document={null}
+      />
+    );
+
+    const fileInput = screen.getByTestId('kyb-file-input-certificate_of_incorporation');
+    const badExe = new File(['binary'], 'installer.exe', {
+      type: 'application/x-msdownload',
+    });
+
+    fireEvent.drop(fileInput.closest('div')!.parentElement!, {
+      dataTransfer: { files: [badExe] },
+    });
+
+    expect(mockUpload).not.toHaveBeenCalled();
+    expect(screen.getByRole('alert')).toHaveTextContent(/Unsupported file format/i);
+
+    const validPdf = new File(['%PDF-1.4'], 'incorporation.pdf', {
+      type: 'application/pdf',
+    });
+    fireEvent.change(fileInput, { target: { files: [validPdf] } });
+
+    await waitFor(() => {
+      expect(mockUpload).toHaveBeenCalledTimes(1);
+    });
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 });

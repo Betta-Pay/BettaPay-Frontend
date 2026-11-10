@@ -18,6 +18,18 @@ import type { KybDocTypeMeta, KybDocument } from '@/lib/kyc/types';
 import { KybDocStatusBadge } from './KybStatusBadge';
 import { FileText, Upload, RotateCcw, AlertTriangle, CloudUpload } from 'lucide-react';
 
+const ALLOWED_EXTENSIONS = ['.pdf', '.png', '.jpg', '.jpeg'] as const;
+const ALLOWED_MIME_TYPES = ['application/pdf', 'image/png', 'image/jpeg'] as const;
+
+export function isSupportedKybFile(file: File): boolean {
+  const lowerName = file.name.toLowerCase();
+  const hasAllowedExt = ALLOWED_EXTENSIONS.some((ext) => lowerName.endsWith(ext));
+  const lowerMime = file.type.toLowerCase();
+  const hasAllowedMime =
+    lowerMime === '' ? hasAllowedExt : (ALLOWED_MIME_TYPES as readonly string[]).includes(lowerMime);
+  return hasAllowedExt && hasAllowedMime;
+}
+
 interface Props {
   merchantId: string;
   meta: KybDocTypeMeta;
@@ -48,6 +60,31 @@ export function KybDocumentRow({
   } = useKybDocumentUpload({ merchantId, type: meta.type, simulateReject });
 
   const [isDragging, setIsDragging] = useState(false);
+  const [inlineError, setInlineError] = useState<string | null>(null);
+
+  const handlePick = useCallback(() => {
+    setInlineError(null);
+    pick();
+  }, [pick]);
+
+  const handleFileInputChange = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      if (!isSupportedKybFile(file)) {
+        e.target.value = '';
+        setInlineError(
+          'Unsupported file format. Please upload a .pdf, .png, or .jpg file.'
+        );
+        return;
+      }
+
+      setInlineError(null);
+      await onFileChange(e);
+    },
+    [onFileChange]
+  );
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -72,6 +109,13 @@ export function KybDocumentRow({
 
       const file = e.dataTransfer.files?.[0];
       if (file) {
+        if (!isSupportedKybFile(file)) {
+          setInlineError(
+            'Unsupported file format. Please upload a .pdf, .png, or .jpg file.'
+          );
+          return;
+        }
+        setInlineError(null);
         await uploadFile(file);
       }
     },
@@ -80,6 +124,7 @@ export function KybDocumentRow({
 
   const showRejectionBanner = document?.status === 'rejected';
   const isBusy = isUploading || Boolean(disabled);
+  const validationErrorMessage = inlineError ?? rejection?.message ?? null;
 
   return (
     <div
@@ -88,9 +133,11 @@ export function KybDocumentRow({
       onDrop={handleDrop}
       className={cn(
         "rounded-2xl border p-4 transition-all duration-200",
-        isDragging
-          ? "border-primary border-dashed bg-primary/5 shadow-[0_0_15px_rgba(240,165,0,0.15)] ring-2 ring-primary/20"
-          : "border-border bg-card hover:border-border/80"
+        validationErrorMessage
+          ? "border-destructive bg-destructive/5"
+          : isDragging
+            ? "border-primary border-dashed bg-primary/5 shadow-[0_0_15px_rgba(240,165,0,0.15)] ring-2 ring-primary/20"
+            : "border-border bg-card hover:border-border/80"
       )}
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -155,7 +202,7 @@ export function KybDocumentRow({
       {/* Drag & drop helper indicator */}
       {!document && !previewName && !isUploading && (
         <div
-          onClick={pick}
+          onClick={handlePick}
           className={cn(
             "mt-3 border border-dashed rounded-xl p-3 flex items-center justify-center gap-2 cursor-pointer transition-colors text-xs font-medium",
             isDragging
@@ -168,16 +215,8 @@ export function KybDocumentRow({
         </div>
       )}
 
-      {/* Client-side validation error */}
-      {rejection && (
-        <p className="mt-2 flex items-center gap-1.5 text-xs text-destructive">
-          <AlertTriangle className="h-3.5 w-3.5" aria-hidden="true" />
-          {rejection.message}
-        </p>
-      )}
-
       {/* Server error */}
-      {error && !rejection && (
+      {error && !validationErrorMessage && (
         <p className="mt-2 flex items-center gap-1.5 text-xs text-destructive">
           <AlertTriangle className="h-3.5 w-3.5" aria-hidden="true" />
           {error}
@@ -202,7 +241,11 @@ export function KybDocumentRow({
           type="file"
           accept={fileInputAccept()}
           className="hidden"
-          onChange={onFileChange}
+          onChange={handleFileInputChange}
+          aria-invalid={Boolean(validationErrorMessage)}
+          aria-describedby={
+            validationErrorMessage ? `kyb-file-error-${meta.type}` : undefined
+          }
           data-testid={`kyb-file-input-${meta.type}`}
         />
         <Button
@@ -210,7 +253,7 @@ export function KybDocumentRow({
           variant={document && !showRejectionBanner ? 'outline' : 'default'}
           size="sm"
           disabled={isBusy}
-          onClick={pick}
+          onClick={handlePick}
           className={cn(
             'gap-1.5 rounded-xl h-8 text-xs font-semibold',
             !document || showRejectionBanner
@@ -232,6 +275,19 @@ export function KybDocumentRow({
           )}
         </Button>
       </div>
+
+      {/* Inline client-side file validation error rendered directly beneath file input */}
+      {validationErrorMessage && (
+        <p
+          id={`kyb-file-error-${meta.type}`}
+          role="alert"
+          data-testid={`kyb-file-error-${meta.type}`}
+          className="mt-2 flex items-center gap-1.5 text-xs font-medium text-destructive"
+        >
+          <AlertTriangle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+          <span>{validationErrorMessage}</span>
+        </p>
+      )}
     </div>
   );
 }
