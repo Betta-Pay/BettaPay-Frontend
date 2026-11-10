@@ -195,6 +195,7 @@ export default function TransactionsPage() {
     [],
   );
   const [debouncedSearch] = useDebounceValue(searchTerm, 300);
+  const [memoFilter, setMemoFilter] = useState(() => searchParams?.get('memo') ?? '');
   const [statusFilter, setStatusFilter] = useState(() => searchParams?.get('status') ?? 'all');
   const [assetFilter, setAssetFilter] = useState(() => searchParams?.get('asset') ?? 'all');
   const [dateRangeFilter, setDateRangeFilter] = useState(() => searchParams?.get('date') ?? 'all');
@@ -207,6 +208,7 @@ export default function TransactionsPage() {
   // Keep local state in sync when URL search params change externally
   useEffect(() => {
     setSearchTerm(searchParams?.get('q') ?? '');
+    setMemoFilter(searchParams?.get('memo') ?? '');
     setStatusFilter(searchParams?.get('status') ?? 'all');
     setAssetFilter(searchParams?.get('asset') ?? 'all');
     setDateRangeFilter(searchParams?.get('date') ?? 'all');
@@ -243,20 +245,29 @@ export default function TransactionsPage() {
 
   const filteredTransactions = useMemo(() => {
     const now = new Date();
+    const normalizedMemo = memoFilter.trim().toLowerCase();
     return payments.filter((tx) => {
       const matchesSearch =
         (tx.txHash ?? '').toLowerCase().includes(debouncedSearch.toLowerCase()) ||
         (tx.payerAddress ?? '').toLowerCase().includes(debouncedSearch.toLowerCase()) ||
         (tx.source ?? '').toLowerCase().includes(debouncedSearch.toLowerCase());
 
+      const matchesMemo =
+        !normalizedMemo ||
+        (tx.memo ?? '').toLowerCase().includes(normalizedMemo) ||
+        (tx.source ?? '').toLowerCase().includes(normalizedMemo);
+
       const matchesStatus =
         statusFilter === 'all' ||
         tx.status.toLowerCase() === statusFilter.toLowerCase();
 
+      const txAsset = (tx.asset ?? '').toUpperCase();
       const matchesAsset =
         assetFilter === 'all' ||
-        (assetFilter === 'USDC' && tx.amountUsdc > 0) ||
-        (assetFilter === 'NGN' && (tx.amountNgn ?? 0) > 0);
+        (txAsset ? txAsset === assetFilter.toUpperCase() : (
+          (assetFilter === 'USDC' && tx.amountUsdc > 0) ||
+          (assetFilter === 'NGN' && (tx.amountNgn ?? 0) > 0)
+        ));
 
       let matchesDate = true;
       if (dateRangeFilter !== 'all') {
@@ -266,9 +277,14 @@ export default function TransactionsPage() {
         if (dateRangeFilter === '30d') matchesDate = diffDays <= 30;
       }
 
-      return matchesSearch && matchesStatus && matchesAsset && matchesDate;
+      return matchesSearch && matchesMemo && matchesStatus && matchesAsset && matchesDate;
     });
-  }, [payments, debouncedSearch, statusFilter, assetFilter, dateRangeFilter]);
+  }, [payments, debouncedSearch, memoFilter, statusFilter, assetFilter, dateRangeFilter]);
+
+  const totalMatchingVolumeUsdc = useMemo(
+    () => filteredTransactions.reduce((sum, tx) => sum + (tx.amountUsdc || 0), 0),
+    [filteredTransactions],
+  );
 
   const columns = useMemo<ColumnDef<Transaction>[]>(
     () => [
@@ -331,12 +347,17 @@ export default function TransactionsPage() {
 
   const sortedRows = table.getRowModel().rows;
 
-  const activeFilterCount = (statusFilter !== 'all' ? 1 : 0) + (assetFilter !== 'all' ? 1 : 0) + (dateRangeFilter !== 'all' ? 1 : 0);
+  const activeFilterCount =
+    (statusFilter !== 'all' ? 1 : 0) +
+    (assetFilter !== 'all' ? 1 : 0) +
+    (dateRangeFilter !== 'all' ? 1 : 0) +
+    (memoFilter.trim() !== '' ? 1 : 0);
 
   const handleClearFilters = () => {
     setStatusFilter('all');
     setAssetFilter('all');
     setDateRangeFilter('all');
+    setMemoFilter('');
   };
 
   const handleSelectTx = useCallback((tx: Transaction) => {
@@ -355,9 +376,10 @@ export default function TransactionsPage() {
       status: statusFilter !== 'all' ? statusFilter : null,
       asset: assetFilter !== 'all' ? assetFilter : null,
       date: dateRangeFilter !== 'all' ? dateRangeFilter : null,
+      memo: memoFilter.trim() ? memoFilter.trim() : null,
       page: page && page > 1 ? page : null,
     });
-  }, [statusFilter, assetFilter, dateRangeFilter, page, pushParams]);
+  }, [statusFilter, assetFilter, dateRangeFilter, memoFilter, page, pushParams]);
 
   // Resolve selection from the latest payments array so drawer content stays fresh
   // after refetch without losing which row was open.
@@ -463,6 +485,17 @@ export default function TransactionsPage() {
                 />
               </div>
 
+              <div className="relative sm:w-56">
+                <Input
+                  type="search"
+                  aria-label="Filter by memo"
+                  placeholder="Filter by memo..."
+                  className="w-full bg-background/50 border-border/50 focus-visible:ring-ring"
+                  value={memoFilter}
+                  onChange={(e) => setMemoFilter(sanitizeSearchQuery(e.target.value))}
+                />
+              </div>
+
               <div className="flex flex-wrap items-center gap-2">
                 <Select value={statusFilter} onValueChange={(val) => val && setStatusFilter(val)}>
                   <SelectTrigger className="w-[120px] bg-card border-border/50">
@@ -485,6 +518,8 @@ export default function TransactionsPage() {
                   <SelectContent>
                     <SelectItem value="all">All Assets</SelectItem>
                     <SelectItem value="USDC">USDC</SelectItem>
+                    <SelectItem value="XLM">XLM</SelectItem>
+                    <SelectItem value="EURC">EURC</SelectItem>
                     <SelectItem value="NGN">NGN</SelectItem>
                   </SelectContent>
                 </Select>
@@ -529,6 +564,17 @@ export default function TransactionsPage() {
                   {txError ? "Reset API" : "Simulate Error"}
                 </Button>
               </div>
+            </div>
+            <div
+              data-testid="transactions-summary-bar"
+              className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/50 bg-muted/30 px-4 py-2 text-xs text-muted-foreground"
+            >
+              <span>
+                Showing <strong className="text-foreground">{filteredTransactions.length}</strong> matching transaction{filteredTransactions.length === 1 ? '' : 's'}
+              </span>
+              <span>
+                Total Volume: <strong className="font-mono text-foreground">${totalMatchingVolumeUsdc.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDC</strong>
+              </span>
             </div>
           </div>
 

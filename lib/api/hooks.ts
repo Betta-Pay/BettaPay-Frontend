@@ -31,6 +31,8 @@ export interface ApiPayment {
   fxRate: number | null;
   status: string;
   source: string | null;
+  memo?: string | null;
+  asset?: string | null;
   createdAt: string;
   stellarOpId?: string | null;
   settlementBatch?: {
