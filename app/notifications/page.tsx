@@ -5,6 +5,7 @@ import { Bell, CheckCheck, ShieldAlert, TrendingUp, Wallet } from 'lucide-react'
 import { Button } from '@/components/ui';
 import { NotificationPreferencesPanel } from '@/components/notifications/NotificationCenter';
 import { NOTIFICATION_TYPE_LABELS, type NotificationItem, type NotificationType } from '@/lib/notifications';
+import { useNotify } from '@/lib/hooks/useNotify';
 
 const typeIcons: Record<NotificationType, typeof Bell> = {
   settlement: Wallet,
@@ -16,6 +17,8 @@ const typeIcons: Record<NotificationType, typeof Bell> = {
 export default function NotificationsPage() {
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const notify = useNotify();
 
   const refresh = useCallback(async () => {
     try {
@@ -32,22 +35,54 @@ export default function NotificationsPage() {
   }, [refresh]);
 
   const handleMarkAllRead = useCallback(async () => {
-    await fetch('/api/notifications', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'mark_all_read' }),
+    let previousSnapshot: NotificationItem[] = [];
+    setActionError(null);
+    setNotifications((current) => {
+      previousSnapshot = current;
+      return current.map((item) => ({ ...item, read: true }));
     });
-    await refresh();
-  }, [refresh]);
+
+    try {
+      const response = await fetch('/api/notifications', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'mark_all_read' }),
+      });
+      if (!response.ok) {
+        throw new Error('Failed to mark all notifications as read');
+      }
+    } catch {
+      setNotifications(previousSnapshot);
+      const message = 'Failed to mark all notifications as read. Changes have been reverted.';
+      setActionError(message);
+      notify.error(message);
+    }
+  }, [notify]);
 
   const handleMarkRead = useCallback(async (id: string) => {
-    await fetch('/api/notifications', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'mark_read', id }),
+    let previousSnapshot: NotificationItem[] = [];
+    setActionError(null);
+    setNotifications((current) => {
+      previousSnapshot = current;
+      return current.map((item) => (item.id === id ? { ...item, read: true } : item));
     });
-    await refresh();
-  }, [refresh]);
+
+    try {
+      const response = await fetch('/api/notifications', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'mark_read', id }),
+      });
+      if (!response.ok) {
+        throw new Error('Failed to mark notification as read');
+      }
+    } catch {
+      setNotifications(previousSnapshot);
+      const message = 'Failed to update notification read status.';
+      setActionError(message);
+      notify.error(message);
+    }
+  }, [notify]);
 
   return (
     <div className="space-y-8 pb-10">
@@ -61,6 +96,12 @@ export default function NotificationsPage() {
           Mark all read
         </Button>
       </div>
+
+      {actionError && (
+        <div role="alert" className="rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+          {actionError}
+        </div>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
         <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
