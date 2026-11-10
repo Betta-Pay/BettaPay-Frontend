@@ -27,6 +27,55 @@ export interface QRCodeProps {
   filename?: string;
 }
 
+export interface RasterizeQrOptions {
+  svgElement?: SVGSVGElement | null;
+  sourceCanvas?: HTMLCanvasElement | null;
+  size?: number;
+  scale?: number;
+  padding?: number;
+  bgColor?: string;
+}
+
+/**
+ * Rasterizes a QR code (SVG or Canvas) onto a high-resolution HTML5 Canvas
+ * with contrast padding and background fill, returning a PNG data URL.
+ */
+export function rasterizeQrToPngDataUrl({
+  svgElement,
+  sourceCanvas,
+  size = 200,
+  scale = 4,
+  padding = 24,
+  bgColor = "#FFFFFF",
+}: RasterizeQrOptions): string | null {
+  if (typeof document === "undefined") return null;
+
+  if (svgElement && typeof XMLSerializer !== "undefined") {
+    new XMLSerializer().serializeToString(svgElement);
+  }
+
+  const baseSize = sourceCanvas?.width || size;
+  const qrDisplaySize = baseSize * scale;
+  const totalSize = qrDisplaySize + padding * 2;
+
+  const exportCanvas = document.createElement("canvas");
+  exportCanvas.width = totalSize;
+  exportCanvas.height = totalSize;
+
+  const ctx = exportCanvas.getContext("2d");
+  if (!ctx) return null;
+
+  ctx.imageSmoothingEnabled = false;
+  ctx.fillStyle = bgColor;
+  ctx.fillRect(0, 0, totalSize, totalSize);
+
+  if (sourceCanvas) {
+    ctx.drawImage(sourceCanvas, padding, padding, qrDisplaySize, qrDisplaySize);
+  }
+
+  return exportCanvas.toDataURL("image/png");
+}
+
 /**
  * Reusable QRCode Component
  * Renders a high-contrast, accessible QR code using qrcode.react
@@ -40,7 +89,9 @@ export const QRCode = memo(function QRCode({
   bgColor = "#FFFFFF",
   fgColor = "#000000",
   title,
+  filename,
 }: QRCodeProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
   const notify = useNotify();
   const [copied, setCopied] = useState(false);
 
@@ -54,6 +105,41 @@ export const QRCode = memo(function QRCode({
       notify.error("Failed to copy link");
     }
   }, [value, notify]);
+
+  const handleDownloadPng = useCallback(() => {
+    try {
+      const svgElement = containerRef.current?.querySelector("svg") ?? null;
+      const sourceCanvas = containerRef.current?.querySelector("canvas") ?? null;
+      const dataUrl = rasterizeQrToPngDataUrl({
+        svgElement,
+        sourceCanvas,
+        size,
+        bgColor,
+      });
+
+      if (!dataUrl) {
+        notify.error("Unable to generate QR image");
+        return;
+      }
+
+      const sanitizedBase = (filename || title || "payment-qr")
+        .toLowerCase()
+        .replace(/\.png$/i, "")
+        .replace(/[^a-z0-9]/g, "-")
+        .replace(/-+/g, "-")
+        .replace(/^-|-$/g, "");
+
+      const anchor = document.createElement("a");
+      anchor.href = dataUrl;
+      anchor.download = `${sanitizedBase || "payment-qr"}.png`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      document.body.removeChild(anchor);
+      notify.success("QR Code downloaded as PNG");
+    } catch {
+      notify.error("Failed to download QR code");
+    }
+  }, [size, bgColor, filename, title, notify]);
 
   if (!value) {
     return (
@@ -73,7 +159,10 @@ export const QRCode = memo(function QRCode({
   }
 
   return (
-    <div className={cn("flex w-full max-w-[220px] flex-col items-center justify-center gap-2 text-center", className)}>
+    <div
+      ref={containerRef}
+      className={cn("flex w-full max-w-[220px] flex-col items-center justify-center gap-2 text-center", className)}
+    >
       {title && <p className="text-sm font-semibold text-foreground">{title}</p>}
       <div
         className="inline-flex w-full items-center justify-center overflow-hidden rounded-xl border border-border bg-white p-3 shadow-sm"
@@ -92,6 +181,16 @@ export const QRCode = memo(function QRCode({
           className="h-auto w-full"
           style={{ width: "100%", height: "auto", maxWidth: `${size}px` }}
         />
+        <div className="hidden" aria-hidden="true">
+          <QRCodeSVG
+            value={value}
+            size={size}
+            level={level}
+            includeMargin={includeMargin}
+            bgColor={bgColor}
+            fgColor={fgColor}
+          />
+        </div>
       </div>
       <div className="flex w-full items-center justify-center gap-2">
         <p className="text-xs text-muted-foreground">Scan to pay with crypto</p>
@@ -108,6 +207,17 @@ export const QRCode = memo(function QRCode({
           {copied ? "Copied" : "Copy"}
         </Button>
       </div>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        onClick={handleDownloadPng}
+        className="h-8 w-full gap-1.5 text-xs"
+        aria-label="Download PNG"
+      >
+        <Download className="h-3.5 w-3.5" />
+        Download PNG
+      </Button>
     </div>
   );
 });

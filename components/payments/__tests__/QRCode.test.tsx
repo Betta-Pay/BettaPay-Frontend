@@ -12,6 +12,10 @@ jest.mock('@/lib/hooks/useNotify', () => ({
 describe('QRCode Component', () => {
   const testUrl = 'https://betta.pay/pay/link_123';
 
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
   it('renders QR code canvas when value is provided', () => {
     const { container } = render(<QRCode value={testUrl} size={250} className="custom-qr" />);
     
@@ -35,6 +39,64 @@ describe('QRCode Component', () => {
     
     expect(screen.getByText('No link provided')).toBeInTheDocument();
     expect(screen.getByRole('img')).toHaveAttribute('aria-label', 'Empty QR Code');
+  });
+
+  it('rasterizes QR code onto canvas with padding and background color and triggers a PNG download when "Download PNG" is clicked', () => {
+    const mockSuccess = jest.fn();
+    (useNotify as jest.Mock).mockReturnValue({ success: mockSuccess, error: jest.fn() });
+
+    render(
+      <QRCode
+        value={testUrl}
+        size={200}
+        bgColor="#FFFFFF"
+        title="Checkout Link"
+      />
+    );
+
+    const fillRectMock = jest.fn();
+    const drawImageMock = jest.fn();
+    const mockCtx = {
+      imageSmoothingEnabled: true,
+      fillStyle: '',
+      fillRect: fillRectMock,
+      drawImage: drawImageMock,
+      scale: jest.fn(),
+      clearRect: jest.fn(),
+    };
+
+    jest
+      .spyOn(HTMLCanvasElement.prototype, 'getContext')
+      .mockReturnValue(mockCtx as unknown as CanvasRenderingContext2D);
+    jest
+      .spyOn(HTMLCanvasElement.prototype, 'toDataURL')
+      .mockReturnValue('data:image/png;base64,iVBORw0KGgoAAAANSUhEUg==');
+    const clickSpy = jest
+      .spyOn(HTMLAnchorElement.prototype, 'click')
+      .mockImplementation(() => {});
+    const appendSpy = jest.spyOn(document.body, 'appendChild');
+
+    const downloadBtn = screen.getByRole('button', { name: /Download PNG/i });
+    fireEvent.click(downloadBtn);
+
+    expect(mockCtx.fillStyle).toBe('#FFFFFF');
+    expect(fillRectMock).toHaveBeenCalledWith(0, 0, expect.any(Number), expect.any(Number));
+    expect(drawImageMock).toHaveBeenCalledWith(
+      expect.any(HTMLCanvasElement),
+      24,
+      24,
+      expect.any(Number),
+      expect.any(Number)
+    );
+    expect(clickSpy).toHaveBeenCalledTimes(1);
+
+    const anchorEl = appendSpy.mock.calls.find(
+      ([node]) => (node as HTMLElement).tagName === 'A'
+    )?.[0] as HTMLAnchorElement;
+    expect(anchorEl).toBeDefined();
+    expect(anchorEl.download).toBe('checkout-link.png');
+    expect(anchorEl.href).toContain('data:image/png;base64');
+    expect(mockSuccess).toHaveBeenCalledWith('QR Code downloaded as PNG');
   });
 });
 
