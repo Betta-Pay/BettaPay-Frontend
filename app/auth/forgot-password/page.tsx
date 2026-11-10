@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useId, useRef } from 'react';
+import { useState, useId, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { Loader2, MailCheck, ArrowLeft } from 'lucide-react';
 
@@ -9,6 +9,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAppTranslation } from '@/lib/i18n/useAppTranslation';
 import { ROUTES } from '@/lib/navigation/routes';
+
+const COOLDOWN_DURATION_SECONDS = 60;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -29,19 +31,30 @@ export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
   const [submitError, setSubmitError] = useState<SubmitError>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [cooldownSeconds, setCooldownSeconds] = useState(0);
 
   const emailInputRef = useRef<HTMLInputElement>(null);
   const emailId = useId();
   const errorId = useId();
 
+  useEffect(() => {
+    if (cooldownSeconds <= 0) return;
+    const timer = setInterval(() => {
+      setCooldownSeconds((prev) => (prev <= 1 ? 0 : prev - 1));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [cooldownSeconds]);
+
   // ── Basic client-side email format check ──────────────────────────────────
   const isEmailValid = (value: string) =>
     /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
 
-  // ── Form submission ───────────────────────────────────────────────────────
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
+  async function requestPasswordReset() {
     setSubmitError(null);
+
+    if (cooldownSeconds > 0) {
+      return;
+    }
 
     if (!isEmailValid(email)) {
       setSubmitError('invalidEmail');
@@ -60,6 +73,7 @@ export default function ForgotPasswordPage() {
 
       if (res.status === 429) {
         setSubmitError('tooManyRequests');
+        setCooldownSeconds(COOLDOWN_DURATION_SECONDS);
         return;
       }
 
@@ -68,13 +82,20 @@ export default function ForgotPasswordPage() {
         return;
       }
 
-      // Always show confirmation — never reveal whether the email exists.
+      // Start 60-second cooldown and show confirmation screen.
+      setCooldownSeconds(COOLDOWN_DURATION_SECONDS);
       setPageState('confirmation');
     } catch {
       setSubmitError('generic');
     } finally {
       setIsSubmitting(false);
     }
+  }
+
+  // ── Form submission ───────────────────────────────────────────────────────
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    await requestPasswordReset();
   }
 
   // ── Confirmation screen ───────────────────────────────────────────────────
@@ -99,6 +120,19 @@ export default function ForgotPasswordPage() {
               {t('forgotPassword.confirmation.description')}
             </p>
           </div>
+
+          {/* Resend button with 60s cooldown */}
+          <Button
+            type="button"
+            variant="outline"
+            disabled={isSubmitting || cooldownSeconds > 0}
+            onClick={() => void requestPasswordReset()}
+            className="w-full max-w-xs"
+          >
+            {cooldownSeconds > 0
+              ? `Resend in ${cooldownSeconds}s`
+              : 'Resend reset link'}
+          </Button>
 
           {/* Back link */}
           <Link
@@ -169,7 +203,7 @@ export default function ForgotPasswordPage() {
           {/* Submit */}
           <Button
             type="submit"
-            disabled={isSubmitting}
+            disabled={isSubmitting || cooldownSeconds > 0}
             className="w-full h-12"
           >
             {isSubmitting ? (
@@ -177,6 +211,8 @@ export default function ForgotPasswordPage() {
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
                 {t('forgotPassword.submitting')}
               </>
+            ) : cooldownSeconds > 0 ? (
+              `${t('forgotPassword.submit')} (${cooldownSeconds}s)`
             ) : (
               t('forgotPassword.submit')
             )}
