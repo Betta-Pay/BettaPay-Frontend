@@ -1,5 +1,5 @@
 import { test, expect } from './fixtures';
-import { AUTH_STORAGE_STATE, gotoAuthed } from './helpers/auth';
+import { AUTH_STORAGE_STATE, gotoAuthed, mockLogin } from './helpers/auth';
 import { mockMerchantApi } from './helpers/api';
 
 /**
@@ -130,5 +130,38 @@ test.describe('Security', () => {
 
     await page.getByRole('button', { name: /update password/i }).click();
     await expect(page.getByText(/password updated/i)).toBeVisible();
+  });
+});
+
+test.describe('Theme preference persistence across logout', () => {
+  test('preserves dark theme class on html and localStorage across logout and re-login', async ({
+    context,
+    page,
+  }) => {
+    // 1. Toggle dark theme from the header ThemeToggle while on /settings
+    await page.getByRole('button', { name: /change theme/i }).click();
+    await page.getByRole('menuitemradio', { name: /^dark$/i }).click();
+
+    await expect(page.locator('html')).toHaveClass(/dark/);
+    const storedBeforeLogout = await page.evaluate(() => window.localStorage.getItem('theme'));
+    expect(storedBeforeLogout).toBe('dark');
+
+    // 2. Log out via session endpoint and navigate to login page
+    await context.request.delete('/api/auth/session');
+    await page.evaluate(() => window.localStorage.removeItem('bp-session'));
+    await page.goto('/auth/login');
+
+    // Verify `dark` class on <html> and localStorage `theme` value remain intact after logout
+    await expect(page.locator('html')).toHaveClass(/dark/);
+    const storedAfterLogout = await page.evaluate(() => window.localStorage.getItem('theme'));
+    expect(storedAfterLogout).toBe('dark');
+
+    // 3. Log back in and confirm dark theme is preserved on /settings
+    await mockLogin(context, 'merchant');
+    await gotoAuthed(page, '/settings');
+    await expect(page.getByRole('heading', { name: /^settings$/i })).toBeVisible();
+    await expect(page.locator('html')).toHaveClass(/dark/);
+    const storedAfterRelogin = await page.evaluate(() => window.localStorage.getItem('theme'));
+    expect(storedAfterRelogin).toBe('dark');
   });
 });
