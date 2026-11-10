@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { createPortal } from "react-dom";
 
@@ -33,6 +33,21 @@ const STARTED_MS = 200;
 const INCHING_MS = 2000;
 const DONE_MS = 400;
 
+export const ROUTE_PROGRESS_START_EVENT = "route-progress:start";
+export const ROUTE_PROGRESS_ABORT_EVENT = "route-progress:abort";
+
+export function startRouteProgress(): void {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent(ROUTE_PROGRESS_START_EVENT));
+  }
+}
+
+export function abortRouteProgress(): void {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent(ROUTE_PROGRESS_ABORT_EVENT));
+  }
+}
+
 export default function RouteProgress() {
   const pathname = usePathname();
   const [phase, setPhase] = useState<"idle" | "started" | "inching" | "done">(
@@ -41,6 +56,37 @@ export default function RouteProgress() {
   // Skip the mount-time effect run — the initial route already rendered via
   // SSR/loading, so animating a bar there would flash on every hydration.
   const mounted = useRef(false);
+  const inchingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const doneTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearTimers = useCallback(() => {
+    if (inchingTimerRef.current !== null) {
+      clearTimeout(inchingTimerRef.current);
+      inchingTimerRef.current = null;
+    }
+    if (doneTimerRef.current !== null) {
+      clearTimeout(doneTimerRef.current);
+      doneTimerRef.current = null;
+    }
+  }, []);
+
+  const beginProgress = useCallback(() => {
+    clearTimers();
+    setPhase("started");
+    inchingTimerRef.current = setTimeout(
+      () => setPhase("inching"),
+      STARTED_MS + INCHING_MS
+    );
+    doneTimerRef.current = setTimeout(
+      () => setPhase("done"),
+      STARTED_MS + INCHING_MS + DONE_MS
+    );
+  }, [clearTimers]);
+
+  const completeAndHide = useCallback(() => {
+    clearTimers();
+    setPhase((current) => (current === "idle" ? "idle" : "done"));
+  }, [clearTimers]);
 
   // Any navigation starts the bar. Keying on pathname means client-side
   // navigations (which do not remount this component) still trigger it.
@@ -50,15 +96,45 @@ export default function RouteProgress() {
       return;
     }
     // A new route while running: restart from "started".
-    setPhase("started");
-    const t1 = setTimeout(() => setPhase("inching"), STARTED_MS + INCHING_MS);
-    const t2 = setTimeout(() => setPhase("done"), STARTED_MS + INCHING_MS + DONE_MS);
+    beginProgress();
     return () => {
-      clearTimeout(t1);
-      clearTimeout(t2);
+      clearTimers();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pathname]);
+  }, [pathname, beginProgress, clearTimers]);
+
+  // Listen for explicit start/abort signals, browser stop (Escape), or
+  // aborted route fetches so the bar always reaches 100% and fades out.
+  useEffect(() => {
+    const handleStart = () => beginProgress();
+    const handleAbort = () => completeAndHide();
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        completeAndHide();
+      }
+    };
+    const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
+      const reason = event.reason;
+      if (
+        reason &&
+        typeof reason === "object" &&
+        ("name" in reason && (reason as { name?: string }).name === "AbortError")
+      ) {
+        completeAndHide();
+      }
+    };
+
+    window.addEventListener(ROUTE_PROGRESS_START_EVENT, handleStart);
+    window.addEventListener(ROUTE_PROGRESS_ABORT_EVENT, handleAbort);
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("unhandledrejection", handleUnhandledRejection);
+
+    return () => {
+      window.removeEventListener(ROUTE_PROGRESS_START_EVENT, handleStart);
+      window.removeEventListener(ROUTE_PROGRESS_ABORT_EVENT, handleAbort);
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("unhandledrejection", handleUnhandledRejection);
+    };
+  }, [beginProgress, completeAndHide]);
 
   // "idle" renders nothing at all — not even the container — so the bar can
   // never affect layout or paint while no navigation is in flight.
