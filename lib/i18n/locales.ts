@@ -7,8 +7,11 @@
  * bootstrapping the whole i18n runtime.
  */
 
+import en from "./en.json";
+
 export const supportedLocales = ["en", "fr", "pt", "sw"] as const;
 export type Locale = (typeof supportedLocales)[number];
+export type LocaleDictionary = Record<string, unknown>;
 
 /** Hard fallback used when nothing else resolves. */
 export const FALLBACK_LOCALE: Locale = "en";
@@ -112,4 +115,65 @@ export function resolveLocale(value: string | null | undefined): Locale {
   if (!value) return defaultLocale;
   const base = value.toLowerCase().split("-")[0];
   return isSupportedLocale(base) ? base : defaultLocale;
+}
+
+const localeDictionaryCache = new Map<Locale, LocaleDictionary>([
+  ["en", en as LocaleDictionary],
+]);
+
+/**
+ * Return the in-memory cached dictionary for `locale` if already loaded.
+ * English (`en`) is always available synchronously by default.
+ */
+export function getCachedLocaleDictionary(locale: Locale): LocaleDictionary | undefined {
+  return localeDictionaryCache.get(locale);
+}
+
+/**
+ * Reset the in-memory locale dictionary cache back to only the default `en`
+ * bundle (primarily used in tests).
+ */
+export function clearLocaleDictionaryCache(): void {
+  localeDictionaryCache.clear();
+  localeDictionaryCache.set("en", en as LocaleDictionary);
+}
+
+/**
+ * Asynchronously load a locale dictionary on demand via dynamic `import()` and
+ * cache the resolved dictionary in memory (#922).
+ */
+export async function loadLocaleDictionary(
+  locale: string | null | undefined,
+): Promise<LocaleDictionary> {
+  const target = resolveLocale(locale);
+  const cached = localeDictionaryCache.get(target);
+  if (cached) {
+    return cached;
+  }
+
+  let dictionary: LocaleDictionary;
+  switch (target) {
+    case "fr": {
+      const mod = await import("./fr.json");
+      dictionary = (mod.default ?? mod) as LocaleDictionary;
+      break;
+    }
+    case "pt": {
+      const mod = await import("./pt.json");
+      dictionary = (mod.default ?? mod) as LocaleDictionary;
+      break;
+    }
+    case "sw": {
+      const mod = await import("./sw.json");
+      dictionary = (mod.default ?? mod) as LocaleDictionary;
+      break;
+    }
+    case "en":
+    default:
+      dictionary = en as LocaleDictionary;
+      break;
+  }
+
+  localeDictionaryCache.set(target, dictionary);
+  return dictionary;
 }
