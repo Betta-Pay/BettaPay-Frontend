@@ -22,6 +22,7 @@ interface MobileNavDrawerProps {
   brandLabel?: string;
   logo?: React.ReactNode;
   userFooter?: React.ReactNode;
+  triggerRef?: React.RefObject<HTMLElement | null>;
 }
 
 export const MobileNavDrawer = ({
@@ -31,24 +32,44 @@ export const MobileNavDrawer = ({
   brandLabel = 'BettaPay',
   logo,
   userFooter,
+  triggerRef,
 }: MobileNavDrawerProps) => {
   const pathname = usePathname();
   const drawerRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const previousActiveElementRef = useRef<HTMLElement | null>(null);
+  const wasOpenRef = useRef(false);
+  const prevPathnameRef = useRef(pathname);
 
   // Close the drawer automatically when pathname changes (route change)
   useEffect(() => {
-    if (isOpen) {
-      onClose();
+    if (prevPathnameRef.current !== pathname) {
+      prevPathnameRef.current = pathname;
+      if (isOpen) {
+        onClose();
+      }
     }
   }, [pathname, isOpen, onClose]);
 
-  // Lock scroll when open, focus close button
+  // Lock scroll when open, focus close button, and restore focus to trigger on close
   useEffect(() => {
     if (isOpen) {
+      wasOpenRef.current = true;
+      previousActiveElementRef.current =
+        triggerRef?.current ??
+        (typeof document !== 'undefined' &&
+        document.activeElement instanceof HTMLElement
+          ? document.activeElement
+          : null);
       document.body.style.overflow = 'hidden';
+      closeButtonRef.current?.focus();
       const timer = setTimeout(() => {
-        closeButtonRef.current?.focus();
+        if (
+          drawerRef.current &&
+          !drawerRef.current.contains(document.activeElement)
+        ) {
+          closeButtonRef.current?.focus();
+        }
       }, 50);
       return () => {
         clearTimeout(timer);
@@ -56,8 +77,13 @@ export const MobileNavDrawer = ({
       };
     } else {
       document.body.style.overflow = '';
+      if (wasOpenRef.current) {
+        wasOpenRef.current = false;
+        const target = triggerRef?.current ?? previousActiveElementRef.current;
+        target?.focus();
+      }
     }
-  }, [isOpen]);
+  }, [isOpen, triggerRef]);
 
   // Trap focus inside the drawer & handle Escape key
   useEffect(() => {
@@ -65,26 +91,34 @@ export const MobileNavDrawer = ({
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
+        e.preventDefault();
         onClose();
+        const target = triggerRef?.current ?? previousActiveElementRef.current;
+        target?.focus();
         return;
       }
 
       if (e.key === 'Tab' && drawerRef.current) {
-        const focusableElements = drawerRef.current.querySelectorAll<HTMLElement>(
-          'a[href], button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        const focusableElements = Array.from(
+          drawerRef.current.querySelectorAll<HTMLElement>(
+            'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+          )
         );
         if (focusableElements.length === 0) return;
 
         const firstElement = focusableElements[0];
         const lastElement = focusableElements[focusableElements.length - 1];
+        const activeElement = document.activeElement as HTMLElement | null;
+        const isInsideDrawer =
+          activeElement && drawerRef.current.contains(activeElement);
 
         if (e.shiftKey) {
-          if (document.activeElement === firstElement) {
+          if (!isInsideDrawer || activeElement === firstElement) {
             e.preventDefault();
             lastElement.focus();
           }
         } else {
-          if (document.activeElement === lastElement) {
+          if (!isInsideDrawer || activeElement === lastElement) {
             e.preventDefault();
             firstElement.focus();
           }
@@ -94,7 +128,7 @@ export const MobileNavDrawer = ({
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, triggerRef]);
 
   return (
     <>
