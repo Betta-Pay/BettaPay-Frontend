@@ -33,15 +33,18 @@ import {
   Clock,
 } from "lucide-react";
 
-const EVENT_TYPES = [
+export const EVENT_TYPES = [
   { value: "payment.completed", label: "payment.completed" },
+  { value: "payment.succeeded", label: "payment.succeeded" },
+  { value: "payment.failed", label: "payment.failed" },
   { value: "settlement.completed", label: "settlement.completed" },
+  { value: "kyb.approved", label: "kyb.approved" },
   { value: "dispute.created", label: "dispute.created" },
 ] as const;
 
 type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
 
-const SAMPLE_PAYLOADS: Record<string, JsonValue> = {
+export const SAMPLE_PAYLOADS: Record<string, JsonValue> = {
   "payment.completed": {
     id: "evt_pay_123456",
     type: "payment.completed",
@@ -54,6 +57,31 @@ const SAMPLE_PAYLOADS: Record<string, JsonValue> = {
     },
     created_at: new Date().toISOString(),
   },
+  "payment.succeeded": {
+    id: "evt_pay_succeeded_101",
+    type: "payment.succeeded",
+    data: {
+      payment_id: "pay_101202",
+      amount: 250.0,
+      currency: "USDC",
+      tx_hash: "8f9b3c4d5e6f7a8b9c0d1e2f3a4b5c6d",
+      status: "succeeded",
+      customer: { email: "buyer@bettapay.com" },
+    },
+    created_at: new Date().toISOString(),
+  },
+  "payment.failed": {
+    id: "evt_pay_failed_102",
+    type: "payment.failed",
+    data: {
+      payment_id: "pay_101203",
+      amount: 120.0,
+      currency: "USDC",
+      failure_code: "insufficient_trustline_balance",
+      status: "failed",
+    },
+    created_at: new Date().toISOString(),
+  },
   "settlement.completed": {
     id: "evt_set_234567",
     type: "settlement.completed",
@@ -63,6 +91,17 @@ const SAMPLE_PAYLOADS: Record<string, JsonValue> = {
       currency: "USDC",
       fee: 100,
       status: "processed",
+    },
+    created_at: new Date().toISOString(),
+  },
+  "kyb.approved": {
+    id: "evt_kyb_445566",
+    type: "kyb.approved",
+    data: {
+      merchant_id: "merch_889900",
+      verification_tier: "tier_2_full",
+      status: "approved",
+      approved_by: "compliance_automated",
     },
     created_at: new Date().toISOString(),
   },
@@ -94,16 +133,29 @@ interface DeliveryLogEntry {
 interface WebhookTesterProps {
   initialEndpointUrl?: string;
   initialWebhookSecret?: string;
+  initialEventType?: string;
 }
 
 export function WebhookTester({
   initialEndpointUrl = "https://your-app.com/webhooks/bettapay",
   initialWebhookSecret = "whsec_test_secret123",
+  initialEventType = "payment.completed",
 }: WebhookTesterProps = {}) {
   const [endpointUrl, setEndpointUrl] = useState(initialEndpointUrl);
   const [webhookSecret, setWebhookSecret] = useState(initialWebhookSecret);
-  const [selectedEvent, setSelectedEvent] = useState<string>("payment.completed");
+  const [selectedEvent, setSelectedEvent] = useState<string>(initialEventType);
+  const [customPayload, setCustomPayload] = useState<string>(() =>
+    JSON.stringify(SAMPLE_PAYLOADS[initialEventType] ?? SAMPLE_PAYLOADS["payment.completed"], null, 2),
+  );
   const [isSending, setIsSending] = useState(false);
+
+  const handleEventChange = useCallback((nextEvent: string) => {
+    setSelectedEvent(nextEvent);
+    const sample = SAMPLE_PAYLOADS[nextEvent];
+    if (sample) {
+      setCustomPayload(JSON.stringify(sample, null, 2));
+    }
+  }, []);
   const [response, setResponse] = useState<{
     status: number;
     statusText: string;
@@ -131,13 +183,20 @@ export function WebhookTester({
       return;
     }
 
+    let parsedPayload: JsonValue;
+    try {
+      parsedPayload = JSON.parse(customPayload) as JsonValue;
+    } catch {
+      notify.error("Payload must be valid JSON before sending");
+      return;
+    }
+
     setIsSending(true);
     setResponse(null);
 
-    const payload = SAMPLE_PAYLOADS[selectedEvent];
-    const bodyString = JSON.stringify(payload);
+    const bodyString = JSON.stringify(parsedPayload);
     const timestamp = Math.floor(Date.now() / 1000).toString();
-    const eventId = (payload as { id?: string })?.id || `evt_${Date.now()}`;
+    const eventId = (parsedPayload as { id?: string })?.id || `evt_${Date.now()}`;
 
     try {
       const signature = `sha256=${await signPayload(webhookSecret, timestamp, bodyString)}`;
@@ -227,12 +286,12 @@ export function WebhookTester({
     } finally {
       setIsSending(false);
     }
-  }, [endpointUrl, webhookSecret, selectedEvent, notify]);
+  }, [endpointUrl, webhookSecret, selectedEvent, customPayload, notify]);
 
   const handleCopyPayload = useCallback(() => {
-    navigator.clipboard.writeText(JSON.stringify(SAMPLE_PAYLOADS[selectedEvent], null, 2));
+    navigator.clipboard.writeText(customPayload);
     notify.success("Payload copied to clipboard");
-  }, [selectedEvent, notify]);
+  }, [customPayload, notify]);
 
   return (
     <div className="space-y-6">
@@ -272,7 +331,7 @@ export function WebhookTester({
           <div className="flex flex-col sm:flex-row gap-4 items-end">
             <div className="flex-1 space-y-2">
               <Label>Event Type</Label>
-              <Select value={selectedEvent} onValueChange={(v) => v && setSelectedEvent(v)}>
+              <Select value={selectedEvent} onValueChange={(v) => v && handleEventChange(v)}>
                 <SelectTrigger className="w-full h-10 border-border rounded-xl bg-muted">
                   <SelectValue placeholder="Select event type" />
                 </SelectTrigger>
@@ -298,15 +357,20 @@ export function WebhookTester({
 
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label>Payload</Label>
+              <Label htmlFor="webhook-payload-editor">Payload</Label>
               <Button variant="ghost" size="sm" className="min-h-[36px] text-xs" onClick={handleCopyPayload}>
                 <Copy className="w-3 h-3 mr-1" /> Copy
               </Button>
             </div>
             <div className="bg-foreground rounded-xl p-4 overflow-x-auto border border-border">
-              <pre className="text-xs text-emerald-400 font-mono leading-relaxed">
-                {JSON.stringify(SAMPLE_PAYLOADS[selectedEvent], null, 2)}
-              </pre>
+              <textarea
+                id="webhook-payload-editor"
+                aria-label="Webhook payload JSON"
+                rows={8}
+                value={customPayload}
+                onChange={(e) => setCustomPayload(e.target.value)}
+                className="w-full bg-transparent text-xs text-emerald-400 font-mono leading-relaxed focus:outline-none resize-y"
+              />
             </div>
           </div>
 

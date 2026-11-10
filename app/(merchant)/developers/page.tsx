@@ -92,6 +92,7 @@ export default function DevelopersPage() {
   const [webhookUrl, setWebhookUrl] = useState(
     "https://your-app.com/webhooks/bettapay",
   );
+  const [defaultWebhookEvent] = useState<string>("payment.completed");
 
   // Create Key Dialog
   const [isCreateKeyOpen, setIsCreateKeyOpen] = useState(false);
@@ -382,7 +383,7 @@ export default function DevelopersPage() {
         </CardContent>
       </Card>
 
-      <WebhookTester initialEndpointUrl={webhookUrl} />
+      <WebhookTester initialEndpointUrl={webhookUrl} initialEventType={defaultWebhookEvent} />
 
       <SignatureVerifier />
 
