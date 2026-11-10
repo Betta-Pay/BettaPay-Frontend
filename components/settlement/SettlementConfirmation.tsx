@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import Link from "next/link";
 import {
   Dialog,
@@ -38,6 +38,7 @@ import {
 export interface SettlementConfirmationProps {
   isOpen: boolean;
   onClose: () => void;
+  onConfirm?: () => void | Promise<void>;
   amountUsdc?: number;
   amountNgn?: number;
   exchangeRate?: number;
@@ -65,6 +66,7 @@ function delay(ms: number) {
 export const SettlementConfirmation = ({
   isOpen,
   onClose,
+  onConfirm,
   amountUsdc = 12450.0,
   amountNgn = 19297500,
   exchangeRate = 1550,
@@ -82,6 +84,9 @@ export const SettlementConfirmation = ({
 }: SettlementConfirmationProps) => {
   const [state, setState] = useState<SettlementState>("summary");
   const [confirmed, setConfirmed] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const isSubmittingRef = useRef(false);
+  const confirmFailedRef = useRef(false);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [processingStep, setProcessingStep] = useState(0);
   const [showFeeBreakdown, setShowFeeBreakdown] = useState(false);
@@ -108,6 +113,9 @@ export const SettlementConfirmation = ({
   const netAmountNgn = netAmount * exchangeRate;
 
   const handleClose = useCallback(() => {
+    isSubmittingRef.current = false;
+    confirmFailedRef.current = false;
+    setIsSubmitting(false);
     setState("summary");
     setConfirmed(false);
     setProcessingStep(0);
@@ -118,20 +126,38 @@ export const SettlementConfirmation = ({
     onClose();
   }, [onClose]);
 
-  const handleConfirm = useCallback(() => {
-    if (!confirmed) return;
-    setState("processing");
-    setProgressStatus("signing");
+  const handleConfirm = useCallback(async () => {
+    if (!confirmed || isSubmittingRef.current) return;
+    isSubmittingRef.current = true;
+    confirmFailedRef.current = false;
+    setIsSubmitting(true);
     setFailedStep(null);
     setErrorMessage(null);
-  }, [confirmed]);
+
+    try {
+      if (onConfirm) {
+        await onConfirm();
+      }
+      setState("processing");
+      setProgressStatus("signing");
+    } catch (err) {
+      isSubmittingRef.current = false;
+      confirmFailedRef.current = true;
+      setIsSubmitting(false);
+      const msg = err instanceof Error ? err.message : "Settlement failed";
+      setErrorMessage(msg);
+      setFailedStep(0);
+      setProgressStatus("failed");
+      setState("processing");
+    }
+  }, [confirmed, onConfirm]);
 
   // Drive steps from backend-reported events. Each phase awaits its real
   // async work (Freighter signing → Horizon submission → ledger confirmation).
   // Failure is marked at the correct step and does NOT advance beyond it.
   // Indeterminate: the active step shows a spinner until its promise resolves.
   useEffect(() => {
-    if (state !== "processing") return;
+    if (state !== "processing" || confirmFailedRef.current) return;
     let cancelled = false;
     let activeStep = 0;
 
@@ -159,9 +185,13 @@ export const SettlementConfirmation = ({
         setProgressStatus("completed");
         await delay(250);
         if (cancelled) return;
+        isSubmittingRef.current = false;
+        setIsSubmitting(false);
         setState("receipt");
       } catch (err) {
         if (cancelled) return;
+        isSubmittingRef.current = false;
+        setIsSubmitting(false);
         const msg = err instanceof Error ? err.message : "Settlement failed";
         setErrorMessage(msg);
         setFailedStep(activeStep);
@@ -219,6 +249,7 @@ export const SettlementConfirmation = ({
                 </Button>
                 <Button
                   onClick={() => {
+                    confirmFailedRef.current = false;
                     setProgressStatus("signing");
                     setFailedStep(null);
                     setErrorMessage(null);
@@ -506,19 +537,29 @@ export const SettlementConfirmation = ({
         </div>
 
         <DialogFooter className="flex flex-col-reverse sm:flex-row gap-2">
-          <Button variant="outline" onClick={handleClose} className="flex-1">
+          <Button variant="outline" onClick={handleClose} disabled={isSubmitting} className="flex-1">
             Cancel
           </Button>
           <Button
             onClick={handleConfirm}
-            disabled={!confirmed}
+            disabled={!confirmed || isSubmitting}
+            aria-busy={isSubmitting}
             className={cn(
               "flex-1 transition-all",
-              confirmed && "shadow-button"
+              confirmed && !isSubmitting && "shadow-button"
             )}
           >
-            Confirm Settlement
-            <ArrowRight className="w-4 h-4 ml-2" />
+            {isSubmitting ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" data-testid="confirm-settlement-spinner" />
+                Processing...
+              </>
+            ) : (
+              <>
+                Confirm Settlement
+                <ArrowRight className="w-4 h-4 ml-2" />
+              </>
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>
