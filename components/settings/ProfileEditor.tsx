@@ -28,6 +28,62 @@ import {
 } from '@/lib/utils/validation';
 import type { MerchantProfile } from '@/lib/types';
 
+export const MAX_AVATAR_BYTES = 2 * 1024 * 1024; // 2 MB
+export const MAX_ASPECT_RATIO_DEVIATION = 0.15; // ±15% around 1:1
+
+export interface AvatarValidationResult {
+  valid: boolean;
+  error?: string;
+}
+
+export function validateAvatarFileSize(fileSize: number): AvatarValidationResult {
+  if (fileSize > MAX_AVATAR_BYTES) {
+    return {
+      valid: false,
+      error: 'Image file size exceeds the 2MB maximum limit. Please choose a smaller file.',
+    };
+  }
+  return { valid: true };
+}
+
+export function validateAvatarAspectRatio(
+  width: number,
+  height: number,
+): AvatarValidationResult {
+  if (width <= 0 || height <= 0) {
+    return {
+      valid: false,
+      error: 'Unable to determine image dimensions.',
+    };
+  }
+  const ratio = width / height;
+  if (Math.abs(ratio - 1) > MAX_ASPECT_RATIO_DEVIATION) {
+    return {
+      valid: false,
+      error: `Image aspect ratio (${width}×${height}) is not square (1:1). Please upload a square logo.`,
+    };
+  }
+  return { valid: true };
+}
+
+export function readImageDimensions(
+  src: string,
+): Promise<{ width: number; height: number }> {
+  return new Promise((resolve, reject) => {
+    const img = new window.Image();
+    img.onload = () => {
+      resolve({
+        width: img.naturalWidth || img.width,
+        height: img.naturalHeight || img.height,
+      });
+    };
+    img.onerror = () => {
+      reject(new Error('Failed to load image for dimension validation.'));
+    };
+    img.src = src;
+  });
+}
+
 const BUSINESS_TYPE_OPTIONS = [
   { value: 'individual', label: 'Individual' },
   { value: 'sole_proprietor', label: 'Sole Proprietor' },
@@ -49,6 +105,7 @@ export function ProfileEditor({
   isSubmitting = false,
 }: ProfileEditorProps) {
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [logoValidationError, setLogoValidationError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { i18n } = useAppTranslation();
@@ -109,21 +166,46 @@ export function ProfileEditor({
   const handleLogoChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
-      if (file) {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          const result = reader.result as string;
-          setLogoPreview(result);
-          setValue('logoUrl', result, { shouldValidate: true, shouldDirty: true });
-        };
-        reader.readAsDataURL(file);
+      if (!file) return;
+
+      const sizeCheck = validateAvatarFileSize(file.size);
+      if (!sizeCheck.valid) {
+        setLogoValidationError(sizeCheck.error ?? 'Invalid file size');
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
+        return;
       }
+
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const result = reader.result as string;
+        try {
+          const { width, height } = await readImageDimensions(result);
+          const ratioCheck = validateAvatarAspectRatio(width, height);
+          if (!ratioCheck.valid) {
+            setLogoValidationError(ratioCheck.error ?? 'Invalid aspect ratio');
+            if (fileInputRef.current) {
+              fileInputRef.current.value = '';
+            }
+            return;
+          }
+        } catch {
+          // If Image decoding fails in a headless environment without explicit dimensions,
+          // proceed unless an error was explicitly raised.
+        }
+        setLogoValidationError(null);
+        setLogoPreview(result);
+        setValue('logoUrl', result, { shouldValidate: true, shouldDirty: true });
+      };
+      reader.readAsDataURL(file);
     },
     [setValue]
   );
 
   const handleRemoveLogo = useCallback(() => {
     setLogoPreview(null);
+    setLogoValidationError(null);
     setValue('logoUrl', null, { shouldValidate: true, shouldDirty: true });
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
@@ -242,9 +324,9 @@ export function ProfileEditor({
                 <p className="text-xs text-muted-foreground">PNG, JPG, SVG or WebP. Max 2MB.</p>
               </div>
             </div>
-            {errors.logoUrl && (
+            {(logoValidationError || errors.logoUrl) && (
               <p id="profile-logoUrl-error" role="alert" className="text-xs text-destructive mt-1">
-                {errors.logoUrl.message}
+                {logoValidationError ?? errors.logoUrl?.message}
               </p>
             )}
           </div>
@@ -454,7 +536,7 @@ export function ProfileEditor({
 
           <Button
             type="submit"
-            disabled={!isDirty || !isValid || isSaving}
+            disabled={!isDirty || !isValid || isSaving || Boolean(logoValidationError)}
             className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-xl h-10 px-6 text-sm disabled:opacity-50"
           >
             {isSaving ? (
