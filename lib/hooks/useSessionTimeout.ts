@@ -4,10 +4,14 @@ import { useEffect, useCallback, useRef, useState } from 'react';
 import { useAuthStore } from '@/lib/store/authStore';
 import { csrfHeader } from '@/lib/utils/csrf';
 
+export const DEFAULT_IDLE_TIMEOUT_MS = 15 * 60 * 1000;
+export const DEFAULT_GRACE_PERIOD_MS = 5 * 60 * 1000;
+
 const ACTIVITY_EVENTS = ['mousedown', 'mousemove', 'keydown', 'scroll', 'click', 'touchstart'] as const;
+const LOCKED_BLUR_CLASSES = ['blur-sm', 'pointer-events-none', 'select-none'] as const;
 
 export interface UseSessionTimeoutOptions {
-  /** Inactivity threshold in ms before showing warning (default: 25 min) */
+  /** Inactivity threshold in ms before showing warning / locking screen (default: 15 min) */
   timeoutMs?: number;
   /** Grace period in ms after warning before auto-logout (default: 5 min) */
   gracePeriodMs?: number;
@@ -20,6 +24,8 @@ export interface UseSessionTimeoutOptions {
 export interface UseSessionTimeoutReturn {
   /** Whether the warning modal should be shown */
   showWarning: boolean;
+  /** Whether the dashboard screen is currently locked due to inactivity */
+  isLocked: boolean;
   /** Seconds remaining in the grace period / session deadline */
   secondsRemaining: number;
   /** Whether currently in the final minute of the grace period */
@@ -28,17 +34,41 @@ export interface UseSessionTimeoutReturn {
   isExtending: boolean;
   /** Dismiss the warning and reset the timer locally */
   dismissWarning: () => void;
+  /** Immediately lock the session and open the confirmation modal */
+  lockSession: () => void;
   /** Call the backend refresh API to update the server authoritative deadline */
   extendSession: () => Promise<boolean>;
+  /** Re-authenticate with a PIN or password credential and unlock the session */
+  unlockSession: (credential?: string) => Promise<boolean>;
+}
+
+function syncDocumentLockBlur(locked: boolean): void {
+  if (typeof document === 'undefined') return;
+  if (locked) {
+    document.documentElement.setAttribute('data-session-locked', 'true');
+  } else {
+    document.documentElement.removeAttribute('data-session-locked');
+  }
+  const mainContent = document.getElementById('main-content');
+  if (mainContent) {
+    if (locked) {
+      mainContent.classList.add(...LOCKED_BLUR_CLASSES);
+      mainContent.setAttribute('aria-hidden', 'true');
+    } else {
+      mainContent.classList.remove(...LOCKED_BLUR_CLASSES);
+      mainContent.removeAttribute('aria-hidden');
+    }
+  }
 }
 
 export function useSessionTimeout({
-  timeoutMs = 25 * 60 * 1000,
-  gracePeriodMs = 5 * 60 * 1000,
+  timeoutMs = DEFAULT_IDLE_TIMEOUT_MS,
+  gracePeriodMs = DEFAULT_GRACE_PERIOD_MS,
   serverExpiresAt = null,
   onTimeout,
 }: UseSessionTimeoutOptions): UseSessionTimeoutReturn {
   const [showWarning, setShowWarning] = useState(false);
+  const [isLocked, setIsLocked] = useState(false);
   const [secondsRemaining, setSecondsRemaining] = useState(
     Math.floor(gracePeriodMs / 1000)
   );
@@ -74,6 +104,8 @@ export function useSessionTimeout({
       if (remainingSecs <= 0) {
         clearAllTimers();
         setShowWarning(false);
+        setIsLocked(false);
+        syncDocumentLockBlur(false);
         onTimeoutRef.current();
       }
     };
@@ -83,13 +115,25 @@ export function useSessionTimeout({
     graceRef.current = setInterval(updateCountdown, 1000);
   }, [gracePeriodMs, clearAllTimers]);
 
+  const lockSession = useCallback(() => {
+    clearAllTimers();
+    setShowWarning(true);
+    setIsLocked(true);
+    syncDocumentLockBlur(true);
+    startGracePeriod();
+  }, [clearAllTimers, startGracePeriod]);
+
   const resetTimer = useCallback(() => {
     clearAllTimers();
     setShowWarning(false);
+    setIsLocked(false);
+    syncDocumentLockBlur(false);
     setSecondsRemaining(Math.floor(gracePeriodMs / 1000));
 
     timeoutRef.current = setTimeout(() => {
       setShowWarning(true);
+      setIsLocked(true);
+      syncDocumentLockBlur(true);
       startGracePeriod();
     }, timeoutMs);
   }, [timeoutMs, gracePeriodMs, clearAllTimers, startGracePeriod]);
@@ -113,6 +157,8 @@ export function useSessionTimeout({
       if (res.status === 401) {
         clearAllTimers();
         setShowWarning(false);
+        setIsLocked(false);
+        syncDocumentLockBlur(false);
         onTimeoutRef.current();
         return false;
       }
@@ -139,6 +185,16 @@ export function useSessionTimeout({
       setIsExtending(false);
     }
   }, [timeoutMs, gracePeriodMs, resetTimer, clearAllTimers]);
+
+  const unlockSession = useCallback(
+    async (credential?: string): Promise<boolean> => {
+      if (credential !== undefined && credential.trim().length === 0) {
+        return false;
+      }
+      return extendSession();
+    },
+    [extendSession],
+  );
 
   // Sync serverExpiresAt changes when updated externally
   useEffect(() => {
@@ -168,6 +224,7 @@ export function useSessionTimeout({
 
     return () => {
       clearAllTimers();
+      syncDocumentLockBlur(false);
       ACTIVITY_EVENTS.forEach((event) => {
         document.removeEventListener(event, handleActivity);
       });
@@ -178,11 +235,14 @@ export function useSessionTimeout({
 
   return {
     showWarning,
+    isLocked,
     secondsRemaining,
     isLastMinute,
     isExtending,
     dismissWarning,
+    lockSession,
     extendSession,
+    unlockSession,
   };
 }
 
