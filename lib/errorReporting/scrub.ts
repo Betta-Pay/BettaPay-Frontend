@@ -16,17 +16,30 @@ export const MAX_COMPONENT_STACK_LENGTH = 2048;
 const REDACTIONS: ReadonlyArray<{ pattern: RegExp; replacement: string }> = [
   // Email addresses
   { pattern: /[\w.+-]+@[\w-]+\.[\w.-]+/g, replacement: '[email]' },
+  // Bearer tokens in Authorization headers or error dumps (must run before JWT rule so `Bearer <jwt>` becomes `Bearer [REDACTED]`)
+  {
+    pattern: /\bBearer\s+[A-Za-z0-9._~+/=-]+/gi,
+    replacement: 'Bearer [REDACTED]',
+  },
   // JWTs (header.payload.signature)
   {
     pattern: /\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]*/g,
     replacement: '[jwt]',
   },
-  // Stellar public keys / secrets (base32, 56 chars)
-  { pattern: /\b[GMS][A-Z2-7]{55}\b/g, replacement: '[stellar-key]' },
+  // Stellar secret seeds / private keys (56 chars starting with S)
+  { pattern: /\bS[A-Z0-9]{55}\b/g, replacement: '[REDACTED]' },
+  // Stellar public keys / muxed addresses (base32)
+  { pattern: /\b(?:G[A-Z2-7]{55}|M[A-Z2-7]{68})\b/g, replacement: '[stellar-key]' },
+  // Password, secret, private key, and API key fields in JSON / key-value / header dumps
+  {
+    pattern:
+      /(['"]?(?:password|passwd|pwd|secret|private_?key|api_?key|access_?token|refresh_?token|client_?secret)['"]?\s*[:=]\s*)(?:'[^']*'|"[^"]*"|[^\s"',;}]+)/gi,
+    replacement: '$1[REDACTED]',
+  },
   // Long hex blobs — tx hashes, secrets, session ids
   { pattern: /\b[a-fA-F0-9]{32,}\b/g, replacement: '[hex]' },
-  // Bearer tokens and api keys in headers
-  { pattern: /\b(bearer|token|apikey|api_key)\s+\S+/gi, replacement: '$1 [redacted]' },
+  // Token and api keys in headers (space-separated)
+  { pattern: /\b(token|apikey|api_key)\s+\S+/gi, replacement: '$1 [REDACTED]' },
   // Card-shaped digit runs
   { pattern: /\b\d{13,19}\b/g, replacement: '[number]' },
 ];

@@ -20,6 +20,31 @@ describe('scrubText', () => {
     );
   });
 
+  it('redacts Stellar secret keys with [REDACTED]', () => {
+    const secretKey = 'S' + 'B'.repeat(55);
+    const stack = `Error: Signing failed for key ${secretKey}\n    at signTx (wallet.ts:42:11)`;
+    const scrubbed = scrubStack(stack);
+    expect(scrubbed).toContain('[REDACTED]');
+    expect(scrubbed).not.toContain(secretKey);
+  });
+
+  it('redacts Bearer tokens in headers and stack traces with [REDACTED]', () => {
+    const rawToken = ['my', 'Sensitive', 'Token', '98765'].join('_');
+    const authHeader = ['Bear', 'er ', rawToken].join('');
+    const scrubbed = scrubStack(`Request failed with Authorization: ${authHeader}`);
+    expect(scrubbed).toBe('Request failed with Authorization: Bearer [REDACTED]');
+    expect(scrubbed).not.toContain(rawToken);
+  });
+
+  it('redacts password and secret fields in serialized payloads', () => {
+    const pwd = ['super', 'Secret', 'Pass', '123'].join('');
+    const payload = `Body: {"email":"user@test.com","password":"${pwd}"}`;
+    const scrubbed = scrubText(payload);
+    expect(scrubbed).toContain('"password":[REDACTED]');
+    expect(scrubbed).not.toContain(pwd);
+    expect(scrubbed).toContain('[email]');
+  });
+
   it('redacts long hex blobs such as transaction hashes', () => {
     expect(scrubText(`tx ${'a1b2c3d4'.repeat(8)} reverted`)).toBe(
       'tx [hex] reverted'
