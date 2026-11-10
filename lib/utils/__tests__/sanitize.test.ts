@@ -3,6 +3,8 @@ import {
   normalizeEmail,
   sanitizeSearchQuery,
   sanitizeFilename,
+  sanitizeHtml,
+  STRICT_HTML_ALLOWLIST_CONFIG,
 } from '@/lib/utils/sanitize';
 
 describe('utils/sanitize', () => {
@@ -52,6 +54,35 @@ describe('utils/sanitize', () => {
 
     it('strips path-ish characters', () => {
       expect(sanitizeFilename('../../etc/passwd')).toBe('etc-passwd');
+    });
+  });
+
+  describe('sanitizeHtml()', () => {
+    it('configures a strict allowlist of tags and attributes', () => {
+      expect(STRICT_HTML_ALLOWLIST_CONFIG.ALLOWED_TAGS).toEqual(['b', 'i', 'code', 'span']);
+      expect(STRICT_HTML_ALLOWLIST_CONFIG.ALLOWED_ATTR).toEqual(['class']);
+    });
+
+    it('preserves allowed inline formatting tags and class attributes', () => {
+      const input =
+        'Payment failed for <code class="font-mono">USDC</code>: <b class="font-semibold">insufficient</b> <i>balance</i> <span class="text-red-500">error</span>';
+      expect(sanitizeHtml(input)).toBe(input);
+    });
+
+    it('strips <script>, <img>, <iframe>, and event handler attributes', () => {
+      const malicious =
+        'Error <script>alert(1)</script><img src=x onerror="alert(2)"><b onclick="steal()" style="color:red">detail</b>';
+      expect(sanitizeHtml(malicious)).toBe('Error <b>detail</b>');
+    });
+
+    it('strips anchor tags and javascript: protocol payloads', () => {
+      const malicious =
+        'Click <a href="javascript:alert(document.cookie)" class="link">here</a> for details';
+      expect(sanitizeHtml(malicious)).toBe('Click here for details');
+    });
+
+    it('returns empty string for empty input', () => {
+      expect(sanitizeHtml('')).toBe('');
     });
   });
 });
