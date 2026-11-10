@@ -64,6 +64,33 @@ function hexToUint8Array(hexString: string): Uint8Array {
   return result;
 }
 
+export const DEFAULT_QUOTE_TTL_SECONDS = 600;
+
+export function computeQuoteRemainingSeconds(
+  quoteExpiresAt?: string | number | null,
+  nowMs: number = Date.now(),
+  fallbackSeconds: number = DEFAULT_QUOTE_TTL_SECONDS,
+): number {
+  if (quoteExpiresAt === undefined || quoteExpiresAt === null || quoteExpiresAt === "") {
+    return fallbackSeconds;
+  }
+  const expiryMs =
+    typeof quoteExpiresAt === "number"
+      ? quoteExpiresAt
+      : Date.parse(quoteExpiresAt);
+  if (!Number.isFinite(expiryMs)) {
+    return fallbackSeconds;
+  }
+  return Math.max(0, Math.ceil((expiryMs - nowMs) / 1000));
+}
+
+export function formatQuoteCountdown(seconds: number): string {
+  const safeSeconds = Math.max(0, Math.floor(seconds));
+  const mins = Math.floor(safeSeconds / 60);
+  const secs = safeSeconds % 60;
+  return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+}
+
 interface PaymentLink {
   id: string;
   merchantName: string;
@@ -75,6 +102,7 @@ interface PaymentLink {
   isMultiCurrency: boolean;
   acceptedCurrencies: string[];
   expiresAt: string | null;
+  quoteExpiresAt?: string | number | null;
 }
 
 function resolveErrorReason(error: unknown): InvalidLinkReason {
@@ -120,7 +148,8 @@ export default function PaymentLinkPage() {
   const [resolveAttempt, setResolveAttempt] = useState(0);
 
   // ── Rate Lock Countdown State ──────────────────────────────────────────────
-  const [rateCountdown, setRateCountdown] = useState(60);
+  const [quoteTtlSeconds, setQuoteTtlSeconds] = useState(DEFAULT_QUOTE_TTL_SECONDS);
+  const [rateCountdown, setRateCountdown] = useState(DEFAULT_QUOTE_TTL_SECONDS);
   const [isRateExpired, setIsRateExpired] = useState(false);
   const [isRefreshingRate, setIsRefreshingRate] = useState(false);
 
@@ -181,10 +210,11 @@ export default function PaymentLinkPage() {
   const handleRefreshQuote = useCallback(() => {
     setIsRefreshingRate(true);
     setTimeout(() => {
-      setRateCountdown(60);
+      setQuoteTtlSeconds(DEFAULT_QUOTE_TTL_SECONDS);
+      setRateCountdown(DEFAULT_QUOTE_TTL_SECONDS);
       setIsRateExpired(false);
       setIsRefreshingRate(false);
-      notifyInfo("FX quote refreshed & locked for 60 seconds.");
+      notifyInfo("FX quote refreshed & locked for 10 minutes.");
     }, 600);
   }, [notifyInfo]);
 
@@ -196,7 +226,14 @@ export default function PaymentLinkPage() {
       .get<PaymentLink>(`/api/payment-links/${encodeURIComponent(linkId)}`)
       .then((response) => {
         if (cancelled) return;
-        setLinkData(response.data);
+        const resolved = response.data;
+        const initialRemaining = computeQuoteRemainingSeconds(
+          resolved?.quoteExpiresAt,
+        );
+        setLinkData(resolved);
+        setQuoteTtlSeconds(Math.max(1, initialRemaining || DEFAULT_QUOTE_TTL_SECONDS));
+        setRateCountdown(initialRemaining);
+        setIsRateExpired(initialRemaining <= 0);
         setLinkStatus("ready");
       })
       .catch((error: unknown) => {
@@ -480,18 +517,19 @@ export default function PaymentLinkPage() {
                   1 {activeCurrency} ≈ ₦1,580 NGN
                 </span>
                 <span
+                  data-testid="quote-countdown-pill"
                   className={cn(
-                    "font-mono text-xs font-bold px-1.5 py-0.5 rounded tabular-nums",
+                    "font-mono text-xs font-bold px-2 py-0.5 rounded-full tabular-nums",
                     isRateExpired
                       ? "bg-destructive/10 text-destructive"
-                      : rateCountdown <= 10
+                      : rateCountdown <= 60
                       ? "bg-amber-500/15 text-amber-600 dark:text-amber-400"
                       : "bg-primary/15 text-primary"
                   )}
                 >
                   {isRateExpired
-                    ? "Expired"
-                    : `00:${rateCountdown.toString().padStart(2, "0")}s`}
+                    ? "Quote expired"
+                    : `Quote expires in ${formatQuoteCountdown(rateCountdown)}`}
                 </span>
               </div>
             </div>
@@ -503,11 +541,13 @@ export default function PaymentLinkPage() {
                   "h-full transition-all duration-1000 ease-linear rounded-full",
                   isRateExpired
                     ? "bg-destructive w-0"
-                    : rateCountdown <= 10
+                    : rateCountdown <= 60
                     ? "bg-amber-500"
                     : "bg-primary"
                 )}
-                style={{ width: `${(rateCountdown / 60) * 100}%` }}
+                style={{
+                  width: `${Math.min(100, (rateCountdown / Math.max(1, quoteTtlSeconds)) * 100)}%`,
+                }}
               />
             </div>
 
