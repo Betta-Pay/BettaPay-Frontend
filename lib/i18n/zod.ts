@@ -24,52 +24,76 @@ function sizeKey(kind: "tooSmall" | "tooBig", origin: string, inclusive: boolean
   return `zod.errors.${kind}.${group}${inclusive ? "" : "Exclusive"}`;
 }
 
+export function describeReceivedType(input: unknown): string {
+  if (input === null) return "null";
+  if (Array.isArray(input)) return "array";
+  if (typeof input === "number" && Number.isNaN(input)) return "NaN";
+  return typeof input;
+}
+
+type ZodCustomErrorFn = NonNullable<
+  NonNullable<Parameters<typeof z.config>[0]>["customError"]
+>;
+export type ZodIssuePayload = Parameters<ZodCustomErrorFn>[0];
+
+/**
+ * Localized Zod error resolver supporting required (`invalid_type` with `undefined`),
+ * `invalid_format` (`email`, `url`, `regex`), and `too_small` / `too_big` (`min`/`max`)
+ * rules across all active app locales (#923).
+ */
+export const zodI18nErrorMap: ZodCustomErrorFn = (issue) => {
+  switch (issue.code) {
+    case "invalid_type": {
+      if (issue.input === undefined) {
+        return translate("zod.errors.invalidTypeNoReceived", { expected: issue.expected });
+      }
+      return translate("zod.errors.invalidType", {
+        expected: issue.expected,
+        received: describeReceivedType(issue.input),
+      });
+    }
+    case "too_small":
+      // `inclusive` is optional in the issue type; unspecified means the
+      // boundary is included, same as Zod's runtime behaviour.
+      return translate(sizeKey("tooSmall", issue.origin, issue.inclusive ?? true), {
+        minimum: issue.minimum,
+      });
+    case "too_big":
+      return translate(sizeKey("tooBig", issue.origin, issue.inclusive ?? true), {
+        maximum: issue.maximum,
+      });
+    case "invalid_format":
+      return translate(
+        `zod.errors.invalidFormat.${NAMED_FORMATS.has(issue.format) ? issue.format : "default"}`,
+      );
+    case "invalid_value":
+      return translate("zod.errors.invalidValue", { values: issue.values.join(", ") });
+    case "not_multiple_of":
+      return translate("zod.errors.notMultipleOf", { divisor: issue.divisor });
+    case "unrecognized_keys":
+      return translate("zod.errors.unrecognizedKeys", { keys: issue.keys.join(", ") });
+    case "invalid_union":
+      return translate("zod.errors.invalidUnion");
+    case "invalid_key":
+      return translate("zod.errors.invalidKey");
+    case "invalid_element":
+      return translate("zod.errors.invalidElement");
+    default:
+      // Return undefined so Zod keeps its own message for codes we do not
+      // translate, rather than surfacing a raw translation key.
+      return undefined;
+  }
+};
+
 export function configureZodI18n(): void {
   z.config({
-    customError: (issue) => {
-      switch (issue.code) {
-        case "invalid_type": {
-          if (issue.input === undefined) {
-            return translate("zod.errors.invalidTypeNoReceived", { expected: issue.expected });
-          }
-          return translate("zod.errors.invalidType", {
-            expected: issue.expected,
-            received: typeof issue.input,
-          });
-        }
-        case "too_small":
-          // `inclusive` is optional in the issue type; unspecified means the
-          // boundary is included, same as Zod's runtime behaviour.
-          return translate(sizeKey("tooSmall", issue.origin, issue.inclusive ?? true), {
-            minimum: issue.minimum,
-          });
-        case "too_big":
-          return translate(sizeKey("tooBig", issue.origin, issue.inclusive ?? true), {
-            maximum: issue.maximum,
-          });
-        case "invalid_format":
-          return translate(
-            `zod.errors.invalidFormat.${NAMED_FORMATS.has(issue.format) ? issue.format : "default"}`,
-          );
-        case "invalid_value":
-          return translate("zod.errors.invalidValue", { values: issue.values.join(", ") });
-        case "not_multiple_of":
-          return translate("zod.errors.notMultipleOf", { divisor: issue.divisor });
-        case "unrecognized_keys":
-          return translate("zod.errors.unrecognizedKeys", { keys: issue.keys.join(", ") });
-        case "invalid_union":
-          return translate("zod.errors.invalidUnion");
-        case "invalid_key":
-          return translate("zod.errors.invalidKey");
-        case "invalid_element":
-          return translate("zod.errors.invalidElement");
-        default:
-          // Return undefined so Zod keeps its own message for codes we do not
-          // translate, rather than surfacing a raw translation key.
-          return undefined;
-      }
-    },
+    customError: zodI18nErrorMap,
   });
+  const maybeSetErrorMap = (z as unknown as { setErrorMap?: (map: ZodCustomErrorFn) => void })
+    .setErrorMap;
+  if (typeof maybeSetErrorMap === "function") {
+    maybeSetErrorMap(zodI18nErrorMap);
+  }
 }
 
 // Configure once on import so any module defining schemas gets the localized

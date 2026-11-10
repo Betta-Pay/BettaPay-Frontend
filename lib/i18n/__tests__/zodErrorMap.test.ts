@@ -61,4 +61,29 @@ describe("zod error map i18n", () => {
       expect(result.error.issues[0]?.message).toContain("Entrée invalide");
     }
   });
+
+  it("resolves required (undefined) and max-length rules reactively when language changes (#923)", async () => {
+    const schema = z.object({
+      email: z.string().email(),
+      code: z.string().max(4),
+    });
+
+    await i18n.changeLanguage("fr");
+    const frMissing = schema.safeParse({ email: undefined, code: "123456" });
+    expect(frMissing.success).toBe(false);
+    if (!frMissing.success) {
+      const messages = frMissing.error.issues.map((i) => i.message);
+      expect(messages[0]).toContain("Entrée invalide");
+      expect(messages[1]).toBe("Doit contenir au plus 4 caractères");
+    }
+
+    await i18n.changeLanguage("en");
+    const enMissing = schema.safeParse({ email: undefined, code: "123456" });
+    expect(enMissing.success).toBe(false);
+    if (!enMissing.success) {
+      const messages = enMissing.error.issues.map((i) => i.message);
+      expect(messages[0]).toContain("Invalid input");
+      expect(messages[1]).toBe("Too big: expected at most 4 characters");
+    }
+  });
 });
