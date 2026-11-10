@@ -96,6 +96,28 @@ export const AdminSidebar = () => {
     setCollapsed((prev) => !prev);
   }, []);
 
+  // Keyboard shortcut: Cmd/Ctrl + B to toggle sidebar
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "b") {
+        const target = e.target as HTMLElement | null;
+        if (
+          target &&
+          (target.tagName === "INPUT" ||
+            target.tagName === "TEXTAREA" ||
+            target.tagName === "SELECT" ||
+            target.isContentEditable)
+        ) {
+          return;
+        }
+        e.preventDefault();
+        toggleCollapsed();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [toggleCollapsed]);
+
   return (
     <aside
       id={SIDEBAR_ID}

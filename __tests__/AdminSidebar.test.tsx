@@ -11,7 +11,7 @@
  */
 
 import React from "react";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 
 // ---------------------------------------------------------------------------
 // Module mocks
@@ -362,5 +362,49 @@ describe("MerchantSidebar — not affected by admin changes", () => {
   it('shows "Merchant Corp" in the footer', () => {
     renderMerchant();
     expect(screen.getByText(/merchant corp/i)).toBeInTheDocument();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Tests: AdminSidebar — Keyboard shortcut Cmd+B / Ctrl+B (#891)
+// ---------------------------------------------------------------------------
+
+describe("AdminSidebar — Cmd+B / Ctrl+B keyboard shortcut (#891)", () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+  });
+
+  it("toggles collapsed state and aria-expanded when Cmd+B or Ctrl+B is pressed", () => {
+    renderAdmin("/overview");
+
+    const collapseBtn = screen.getByRole("button", { name: /collapse sidebar/i });
+    expect(collapseBtn).toHaveAttribute("aria-expanded", "true");
+
+    fireEvent.keyDown(window, { key: "b", metaKey: true });
+
+    const expandBtn = screen.getByRole("button", { name: /expand sidebar/i });
+    expect(expandBtn).toHaveAttribute("aria-expanded", "false");
+
+    fireEvent.keyDown(window, { key: "b", ctrlKey: true });
+
+    expect(
+      screen.getByRole("button", { name: /collapse sidebar/i })
+    ).toHaveAttribute("aria-expanded", "true");
+  });
+
+  it("does not trigger when user is typing in an input or textarea", () => {
+    render(
+      <div>
+        <input data-testid="search-input" />
+        <AdminSidebar />
+      </div>
+    );
+
+    const input = screen.getByTestId("search-input");
+    fireEvent.keyDown(input, { key: "b", metaKey: true });
+
+    expect(
+      screen.getByRole("button", { name: /collapse sidebar/i })
+    ).toHaveAttribute("aria-expanded", "true");
   });
 });
