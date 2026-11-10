@@ -52,6 +52,7 @@ const initialData: OnboardingData = {
 
 
 const STORAGE_KEY = "bettapay_onboarding_progress";
+const LEGACY_DRAFT_KEY = "onboardingDraft";
 
 type SavedProgress = {
   step: number;
@@ -74,7 +75,7 @@ const BUSINESS_INFO_FIELDS = ["businessName", "businessType", "country"] as cons
  */
 function loadSavedProgress(): SavedProgress | null {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(STORAGE_KEY) ?? localStorage.getItem(LEGACY_DRAFT_KEY);
     if (!raw) return null;
     const parsed: SavedProgress = JSON.parse(raw);
     if (
@@ -97,7 +98,9 @@ function loadSavedProgress(): SavedProgress | null {
 function saveProgress(step: number, data: OnboardingData): void {
   try {
     const payload: SavedProgress = { step, data, savedAt: Date.now() };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+    const serialized = JSON.stringify(payload);
+    localStorage.setItem(STORAGE_KEY, serialized);
+    localStorage.setItem(LEGACY_DRAFT_KEY, serialized);
   } catch {
     // localStorage may be full or unavailable — silently ignore.
   }
@@ -106,6 +109,7 @@ function saveProgress(step: number, data: OnboardingData): void {
 function clearSavedProgress(): void {
   try {
     localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(LEGACY_DRAFT_KEY);
   } catch {
     // Silently ignore.
   }
@@ -185,7 +189,8 @@ export default function OnboardingPage() {
     (Object.keys(cleaned) as (keyof OnboardingData)[]).forEach((key) => {
       setValue(key, cleaned[key]);
     });
-    saveProgress(step, getValues());
+    const nextValues = { ...getValues(), ...cleaned };
+    saveProgress(step, nextValues);
     clearErrors();
   };
 
