@@ -9,6 +9,116 @@ export const NETWORK_ERROR_MESSAGE = "You're offline. Please check your connecti
 export const SERVER_ERROR_CODE = 'SERVER_ERROR';
 export const SERVER_ERROR_MESSAGE = 'A server error occurred. Please try again later.';
 
+export const DEFAULT_HORIZON_ERROR_MESSAGE =
+  'Transaction failed on the Stellar network. Please review the details and try again.';
+
+/**
+ * Dictionary mapping Stellar Horizon transaction (`tx_*`) and operation (`op_*`)
+ * result codes to friendly user-facing error descriptions.
+ */
+export const HORIZON_ERROR_MESSAGES: Readonly<Record<string, string>> = {
+  op_underfunded: 'Insufficient funds in wallet for this payment',
+  op_no_trust: 'Trustline required for this asset before receiving funds',
+  op_no_destination: 'Destination Stellar account does not exist or is not funded',
+  op_line_full: 'Recipient account has reached the trustline limit for this asset',
+  op_not_authorized: 'Account is not authorized to hold or transact this asset',
+  op_low_reserve: 'Account balance is too low to meet the Stellar base reserve requirement',
+  op_under_dest_min: 'Exchange rate changed and the minimum destination amount could not be met',
+  op_over_source_max: 'Exchange rate changed and required more than the maximum source amount',
+  tx_bad_auth: 'Invalid transaction signature or unauthorized signer',
+  tx_bad_seq: 'Transaction sequence number is out of sync. Please refresh and try again',
+  tx_insufficient_balance: 'Account balance is insufficient to cover network fees and reserves',
+  tx_insufficient_fee: 'Network fee is too low for current Stellar ledger congestion',
+  tx_too_late: 'Transaction expired before it could be included in a ledger',
+  tx_no_source_account: 'Source Stellar account was not found on the network',
+};
+
+/**
+ * Maps a Stellar Horizon result code (e.g., `op_underfunded`, `tx_bad_auth`)
+ * to a friendly localized message, falling back to `fallback` when unrecognized.
+ */
+export function mapHorizonErrorCode(
+  code: string | undefined | null,
+  fallback = DEFAULT_HORIZON_ERROR_MESSAGE,
+): string {
+  if (!code || typeof code !== 'string') return fallback;
+  const normalized = code.trim().toLowerCase();
+  return HORIZON_ERROR_MESSAGES[normalized] ?? fallback;
+}
+
+interface HorizonExtrasShape {
+  extras?: {
+    result_codes?: {
+      transaction?: string;
+      operations?: string[];
+    };
+  };
+  result_codes?: {
+    transaction?: string;
+    operations?: string[];
+  };
+  code?: string;
+  message?: string;
+}
+
+/**
+ * Extracts the most specific Stellar Horizon result code from a Horizon error
+ * payload or Error object. Operation-level codes (`op_*` other than `op_success`)
+ * take precedence over the generic `tx_failed` wrapper code.
+ */
+export function extractHorizonErrorCode(error: unknown): string | undefined {
+  if (!error) return undefined;
+
+  if (typeof error === 'string') {
+    const trimmed = error.trim().toLowerCase();
+    if (trimmed in HORIZON_ERROR_MESSAGES) return trimmed;
+    const match = trimmed.match(/\b((?:op|tx)_[a-z_]+)\b/);
+    if (match && match[1] in HORIZON_ERROR_MESSAGES) return match[1];
+    return undefined;
+  }
+
+  if (typeof error !== 'object') return undefined;
+
+  const maybeAxios = error as { response?: { data?: unknown } };
+  const payload = (maybeAxios.response?.data ?? error) as HorizonExtrasShape;
+
+  const resultCodes = payload?.extras?.result_codes ?? payload?.result_codes;
+  if (resultCodes) {
+    const opCodes = Array.isArray(resultCodes.operations) ? resultCodes.operations : [];
+    const failedOp = opCodes.find((c) => typeof c === 'string' && c !== 'op_success');
+    if (failedOp && failedOp.toLowerCase() in HORIZON_ERROR_MESSAGES) {
+      return failedOp.toLowerCase();
+    }
+    if (
+      typeof resultCodes.transaction === 'string' &&
+      resultCodes.transaction.toLowerCase() in HORIZON_ERROR_MESSAGES
+    ) {
+      return resultCodes.transaction.toLowerCase();
+    }
+    if (failedOp) return failedOp.toLowerCase();
+    if (typeof resultCodes.transaction === 'string') return resultCodes.transaction.toLowerCase();
+  }
+
+  if (typeof payload?.code === 'string' && payload.code.toLowerCase() in HORIZON_ERROR_MESSAGES) {
+    return payload.code.toLowerCase();
+  }
+
+  const rawMessage =
+    typeof payload?.message === 'string'
+      ? payload.message
+      : error instanceof Error
+        ? error.message
+        : undefined;
+  if (rawMessage) {
+    const match = rawMessage.toLowerCase().match(/\b((?:op|tx)_[a-z_]+)\b/);
+    if (match && match[1] in HORIZON_ERROR_MESSAGES) {
+      return match[1];
+    }
+  }
+
+  return undefined;
+}
+
 export function isTimeoutError(error: unknown): boolean {
   if (error && typeof error === 'object' && 'code' in error) {
     return (error as { code?: string }).code === REQUEST_TIMED_OUT_CODE;
@@ -136,12 +246,30 @@ export function parseApiError(error: unknown): ApiError {
     }
 
     // Generic / client errors (4xx, etc.)
+    const horizonCode = extractHorizonErrorCode(error);
+    if (horizonCode && horizonCode in HORIZON_ERROR_MESSAGES) {
+      const details = data?.details;
+      const fieldErrors = extractFieldErrors(data);
+      return new ApiError(
+        mapHorizonErrorCode(horizonCode),
+        horizonCode,
+        status,
+        details,
+        fieldErrors,
+      );
+    }
+
     const message = data?.message || data?.error || axiosError.message || 'An unexpected error occurred';
     const code = data?.code || axiosError.code || 'UNKNOWN_ERROR';
     const details = data?.details;
     const fieldErrors = extractFieldErrors(data);
 
     return new ApiError(message, code, status, details, fieldErrors);
+  }
+
+  const directHorizonCode = extractHorizonErrorCode(error);
+  if (directHorizonCode && directHorizonCode in HORIZON_ERROR_MESSAGES) {
+    return new ApiError(mapHorizonErrorCode(directHorizonCode), directHorizonCode);
   }
 
   if (error instanceof Error) {
