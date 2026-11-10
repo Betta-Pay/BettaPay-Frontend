@@ -1,8 +1,11 @@
 import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
+import { persist, type PersistStorage, type StorageValue } from 'zustand/middleware';
+import { z } from 'zod';
 import { csrfHeader } from '@/lib/utils/csrf';
 
 const MAX_ALERTS = 100;
+export const RATE_ALERT_STORAGE_KEY = 'bettapay_rate_alerts';
+export const RATE_ALERT_STORAGE_VERSION = 1;
 
 export type RateAlertRecurrence = 'once' | 'recurring';
 export type RateAlertChannel = 'in_app' | 'email' | 'webhook';
@@ -30,6 +33,133 @@ export interface RateAlert {
   /** Set once the row is known to the backend (issue #469). */
   synced?: boolean;
 }
+
+export const rateAlertWindowSchema = z.object({
+  start: z.string().min(1),
+  end: z.string().min(1),
+});
+
+export const rateAlertSchema = z.object({
+  id: z.string().min(1),
+  pair: z.string().min(1),
+  condition: z.enum(['above', 'below']),
+  target: z.number().finite().positive(),
+  enabled: z.boolean(),
+  recurrence: z.enum(['once', 'recurring']).default('once'),
+  channels: z.array(z.enum(['in_app', 'email', 'webhook'])).default(['in_app']),
+  window: rateAlertWindowSchema.optional(),
+  triggered: z.boolean().optional(),
+  triggeredAt: z.number().finite().optional(),
+  lastDeliveredAt: z.number().finite().optional(),
+  synced: z.boolean().optional(),
+});
+
+export const persistedRateAlertStateSchema = z.object({
+  alerts: z.array(rateAlertSchema),
+});
+
+export interface PersistedRateAlertSlice {
+  alerts: RateAlert[];
+}
+
+/**
+ * Validate and filter an arbitrary candidate list of alerts against `rateAlertSchema`.
+ * Invalid records are discarded rather than crashing hydration.
+ */
+export function sanitizeRateAlerts(rawAlerts: unknown): RateAlert[] {
+  if (!Array.isArray(rawAlerts)) return [];
+  const valid: RateAlert[] = [];
+  for (const candidate of rawAlerts) {
+    const parsed = rateAlertSchema.safeParse(candidate);
+    if (parsed.success) {
+      valid.push(parsed.data);
+    }
+  }
+  return valid.slice(-MAX_ALERTS);
+}
+
+/**
+ * Safely parse and schema-validate raw JSON from `localStorage`.
+ * Returns a clean empty state if the JSON is malformed or schema-invalid.
+ */
+export function parsePersistedRateAlertStorage(
+  raw: string | null,
+): StorageValue<PersistedRateAlertSlice> | null {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!parsed || typeof parsed !== 'object') {
+      return { state: { alerts: [] }, version: RATE_ALERT_STORAGE_VERSION };
+    }
+    const record = parsed as Record<string, unknown>;
+    const rawVersion =
+      typeof record.version === 'number' && Number.isFinite(record.version)
+        ? record.version
+        : 0;
+    const stateObj =
+      record.state && typeof record.state === 'object'
+        ? (record.state as Record<string, unknown>)
+        : record;
+
+    const strictResult = persistedRateAlertStateSchema.safeParse(stateObj);
+    if (strictResult.success) {
+      return {
+        state: { alerts: strictResult.data.alerts.slice(-MAX_ALERTS) },
+        version: rawVersion,
+      };
+    }
+
+    return {
+      state: { alerts: sanitizeRateAlerts(stateObj.alerts) },
+      version: rawVersion,
+    };
+  } catch {
+    return { state: { alerts: [] }, version: RATE_ALERT_STORAGE_VERSION };
+  }
+}
+
+const rateAlertPersistStorage: PersistStorage<PersistedRateAlertSlice> = {
+  getItem: (name) => {
+    if (typeof window === 'undefined') return null;
+    try {
+      const raw = window.localStorage.getItem(name);
+      const parsed = parsePersistedRateAlertStorage(raw);
+      if (raw !== null && parsed && parsed.state.alerts.length === 0) {
+        // Persist the sanitized fallback if the raw payload was corrupted
+        window.localStorage.setItem(
+          name,
+          JSON.stringify({ state: { alerts: [] }, version: RATE_ALERT_STORAGE_VERSION }),
+        );
+      }
+      return parsed;
+    } catch {
+      return { state: { alerts: [] }, version: RATE_ALERT_STORAGE_VERSION };
+    }
+  },
+  setItem: (name, value) => {
+    if (typeof window === 'undefined') return;
+    try {
+      const validatedAlerts = sanitizeRateAlerts(value.state?.alerts);
+      window.localStorage.setItem(
+        name,
+        JSON.stringify({
+          state: { alerts: validatedAlerts },
+          version: value.version ?? RATE_ALERT_STORAGE_VERSION,
+        }),
+      );
+    } catch {
+      // Ignore quota or storage security errors
+    }
+  },
+  removeItem: (name) => {
+    if (typeof window === 'undefined') return;
+    try {
+      window.localStorage.removeItem(name);
+    } catch {
+      // Ignore storage errors
+    }
+  },
+};
 
 type NewAlert = Pick<RateAlert, 'pair' | 'condition' | 'target'> &
   Partial<Pick<RateAlert, 'recurrence' | 'channels' | 'window'>>;
@@ -205,13 +335,27 @@ export const useRateAlertStore = create<RateAlertState>()(
       },
     }),
     {
-      name: 'bettapay_rate_alerts',
-      storage: createJSONStorage(() =>
-        typeof window !== 'undefined'
-          ? localStorage
-          : { getItem: () => null, setItem: () => {}, removeItem: () => {} },
-      ),
+      name: RATE_ALERT_STORAGE_KEY,
+      version: RATE_ALERT_STORAGE_VERSION,
+      storage: rateAlertPersistStorage,
       partialize: (s) => ({ alerts: s.alerts }),
+      migrate: (persistedState: unknown) => {
+        if (!persistedState || typeof persistedState !== 'object') {
+          return { alerts: [] };
+        }
+        const record = persistedState as Record<string, unknown>;
+        return { alerts: sanitizeRateAlerts(record.alerts) };
+      },
+      merge: (persistedState, currentState) => {
+        const record =
+          persistedState && typeof persistedState === 'object'
+            ? (persistedState as Record<string, unknown>)
+            : {};
+        return {
+          ...currentState,
+          alerts: sanitizeRateAlerts(record.alerts),
+        };
+      },
     },
   ),
 );
