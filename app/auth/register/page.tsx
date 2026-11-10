@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Loader2 } from 'lucide-react';
+import { Check, Circle, Loader2 } from 'lucide-react';
 
 import { Button, Input } from '@/components/ui';
 import { useNotify } from '@/lib/hooks/useNotify';
@@ -18,6 +18,34 @@ export default function RegisterPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+
+  const passwordRules = useMemo(
+    () => [
+      { id: 'length', label: '8+ characters', met: password.length >= 8 },
+      { id: 'uppercase', label: 'Uppercase letter', met: /[A-Z]/.test(password) },
+      { id: 'number', label: 'Number', met: /[0-9]/.test(password) },
+      { id: 'symbol', label: 'Symbol', met: /[^A-Za-z0-9]/.test(password) },
+    ],
+    [password],
+  );
+
+  const passedRulesCount = passwordRules.filter((r) => r.met).length;
+  const allPasswordRulesMet = passedRulesCount === passwordRules.length;
+  const strengthLabel =
+    passedRulesCount === 0
+      ? 'None'
+      : passedRulesCount <= 1
+        ? 'Weak'
+        : passedRulesCount <= 3
+          ? 'Medium'
+          : 'Strong';
+  const strengthColor =
+    passedRulesCount <= 1
+      ? 'bg-destructive'
+      : passedRulesCount <= 3
+        ? 'bg-amber-500'
+        : 'bg-emerald-500';
+  const strengthPercent = (passedRulesCount / passwordRules.length) * 100;
 
   const [errors, setErrors] = useState<{
     name?: string;
@@ -73,11 +101,11 @@ export default function RegisterPage() {
         firstErrorField = passwordInputRef.current;
         firstErrorMessage = 'Password is required';
       }
-    } else if (password.length < 8) {
-      newErrors.password = 'Password must be at least 8 characters';
+    } else if (!allPasswordRulesMet) {
+      newErrors.password = 'Password must meet all strength requirements';
       if (!firstErrorField) {
         firstErrorField = passwordInputRef.current;
-        firstErrorMessage = 'Password must be at least 8 characters';
+        firstErrorMessage = 'Password must meet all strength requirements';
       }
     }
 
@@ -221,6 +249,46 @@ export default function RegisterPage() {
               {errors.password}
             </p>
           )}
+
+          {/* Password Strength Meter & Live Checklist */}
+          <div className="pt-2 space-y-2" data-testid="password-strength-meter">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-muted-foreground">Password strength</span>
+              <span className="font-semibold text-foreground" data-testid="password-strength-label">
+                {strengthLabel}
+              </span>
+            </div>
+            <div
+              role="progressbar"
+              aria-label="Password strength"
+              aria-valuenow={strengthPercent}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              className="h-1.5 w-full rounded-full bg-muted overflow-hidden"
+            >
+              <div
+                className={`h-full transition-all duration-300 ${strengthColor}`}
+                style={{ width: `${strengthPercent}%` }}
+              />
+            </div>
+            <ul className="grid grid-cols-2 gap-1.5 pt-1 text-xs" aria-label="Password requirements">
+              {passwordRules.map((rule) => (
+                <li
+                  key={rule.id}
+                  data-testid={`rule-${rule.id}`}
+                  data-met={rule.met ? 'true' : 'false'}
+                  className={`flex items-center gap-1.5 ${rule.met ? 'text-emerald-600 dark:text-emerald-400 font-medium' : 'text-muted-foreground'}`}
+                >
+                  {rule.met ? (
+                    <Check className="h-3.5 w-3.5 shrink-0 text-emerald-500" aria-hidden="true" />
+                  ) : (
+                    <Circle className="h-3.5 w-3.5 shrink-0 opacity-40" aria-hidden="true" />
+                  )}
+                  <span>{rule.label}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
 
         {/* Confirm Password input */}
@@ -255,7 +323,7 @@ export default function RegisterPage() {
 
         <Button
           type="submit"
-          disabled={isSubmitting}
+          disabled={isSubmitting || !allPasswordRulesMet}
           className="w-full h-11 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-xl text-sm mt-2"
         >
           {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
