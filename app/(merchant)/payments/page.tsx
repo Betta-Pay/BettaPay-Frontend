@@ -32,27 +32,47 @@ type PaymentLink = ApiPayment;
 
 interface PaymentLinkCardProps {
   link: PaymentLink;
+  selected?: boolean;
+  onToggleSelect?: (id: string) => void;
   onEdit: (link: PaymentLink) => void;
   onDelete: (link: PaymentLink) => void;
   onShowQr: (link: PaymentLink) => void;
 }
 
-const PaymentLinkCard = memo(function PaymentLinkCard({ link, onEdit, onDelete, onShowQr }: PaymentLinkCardProps) {
+const PaymentLinkCard = memo(function PaymentLinkCard({
+  link,
+  selected = false,
+  onToggleSelect,
+  onEdit,
+  onDelete,
+  onShowQr,
+}: PaymentLinkCardProps) {
   const baseUrl = API_URL;
   const fullUrl = `${baseUrl}/pay/${link.id}`;
 
   return (
-    <Card className="bg-card border-border/50 shadow-sm hover:border-primary/50 transition-colors group">
+    <Card className={`bg-card border-border/50 shadow-sm hover:border-primary/50 transition-colors group ${selected ? 'ring-2 ring-primary/40 border-primary/50' : ''}`}>
       <CardHeader className="flex flex-row items-start justify-between pb-2">
-        <div>
-          <Link href={`/payments/${link.id}`} className="hover:underline">
-            <CardTitle className="text-base font-semibold text-foreground line-clamp-1">{link.source ?? 'Payment Link'}</CardTitle>
-          </Link>
-          <CardDescription className="mt-1 flex items-center gap-2">
-            <span>{link.amountUsdc ? `${link.amountUsdc} USDC` : 'Open amount'}</span>
-            <span>·</span>
-            <span>Created {new Date(link.createdAt).toLocaleDateString()}</span>
-          </CardDescription>
+        <div className="flex items-start gap-2.5">
+          {onToggleSelect && (
+            <input
+              type="checkbox"
+              aria-label={`Select ${link.source ?? link.id}`}
+              checked={selected}
+              onChange={() => onToggleSelect(link.id)}
+              className="mt-1 h-4 w-4 rounded border-border accent-primary cursor-pointer"
+            />
+          )}
+          <div>
+            <Link href={`/payments/${link.id}`} className="hover:underline">
+              <CardTitle className="text-base font-semibold text-foreground line-clamp-1">{link.source ?? 'Payment Link'}</CardTitle>
+            </Link>
+            <CardDescription className="mt-1 flex items-center gap-2">
+              <span>{link.amountUsdc ? `${link.amountUsdc} USDC` : 'Open amount'}</span>
+              <span>·</span>
+              <span>Created {new Date(link.createdAt).toLocaleDateString()}</span>
+            </CardDescription>
+          </div>
         </div>
         <div className="flex items-center gap-1">
           <Button
@@ -112,6 +132,13 @@ export default function PaymentsPage() {
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 6;
+  const [selectedLinkIds, setSelectedLinkIds] = useState<string[]>([]);
+
+  const handleToggleSelectLink = (id: string) => {
+    setSelectedLinkIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id],
+    );
+  };
 
   // Dialog states
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -174,6 +201,56 @@ export default function PaymentsPage() {
       ]),
     [filteredLinks],
   );
+
+  const handleToggleSelectAll = () => {
+    const visibleIds = filteredLinks.map((l) => l.id);
+    const allSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedLinkIds.includes(id));
+    if (allSelected) {
+      setSelectedLinkIds((prev) => prev.filter((id) => !visibleIds.includes(id)));
+    } else {
+      setSelectedLinkIds((prev) => Array.from(new Set([...prev, ...visibleIds])));
+    }
+  };
+
+  const handleExportSelectedCsv = () => {
+    const selectedLinks = links.filter((l) => selectedLinkIds.includes(l.id));
+    if (selectedLinks.length === 0) return;
+
+    const escapeCsv = (val: string | number) => {
+      const str = String(val ?? '');
+      return str.includes(',') || str.includes('"') || str.includes('\n')
+        ? `"${str.replace(/"/g, '""')}"`
+        : str;
+    };
+
+    const headers = ['Link Title', 'Full URL', 'Created Date', 'Total Volume'];
+    const rows = selectedLinks.map((link) => [
+      link.source ?? 'Payment Link',
+      link.url ?? `${API_URL}/pay/${link.id}`,
+      link.createdAt,
+      link.amountUsdc ?? 0,
+    ]);
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map((r) => r.map(escapeCsv).join(',')),
+    ].join('\n');
+
+    if (typeof window !== 'undefined' && typeof Blob !== 'undefined') {
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = typeof URL.createObjectURL === 'function' ? URL.createObjectURL(blob) : '';
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.setAttribute('download', 'selected-payment-links.csv');
+      document.body.appendChild(anchor);
+      anchor.click();
+      document.body.removeChild(anchor);
+      if (url && typeof URL.revokeObjectURL === 'function') {
+        URL.revokeObjectURL(url);
+      }
+    }
+    notifySuccess(`Exported ${selectedLinks.length} payment link(s) to CSV`);
+  };
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -509,11 +586,37 @@ export default function PaymentsPage() {
         />
       ) : (
         <>
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/50 bg-muted/20 px-4 py-2.5">
+            <label className="flex items-center gap-2 text-xs font-medium text-foreground cursor-pointer">
+              <input
+                type="checkbox"
+                aria-label="Select all payment links"
+                checked={filteredLinks.length > 0 && filteredLinks.every((l) => selectedLinkIds.includes(l.id))}
+                onChange={handleToggleSelectAll}
+                className="h-4 w-4 rounded border-border accent-primary cursor-pointer"
+              />
+              <span>
+                Select all ({selectedLinkIds.length} selected)
+              </span>
+            </label>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={selectedLinkIds.length === 0}
+              onClick={handleExportSelectedCsv}
+            >
+              Export Selected Links ({selectedLinkIds.length})
+            </Button>
+          </div>
+
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {paginatedLinks.map((link) => (
               <PaymentLinkCard
                 key={link.id}
                 link={link}
+                selected={selectedLinkIds.includes(link.id)}
+                onToggleSelect={handleToggleSelectLink}
                 onEdit={setEditingLink}
                 onDelete={setDeletingLink}
                 onShowQr={setSelectedQrLink}
