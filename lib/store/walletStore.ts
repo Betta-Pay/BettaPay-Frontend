@@ -383,7 +383,18 @@ export const useWalletStore = create<WalletState>((set, get) => ({
   setNetwork: (network: StellarNetwork) => {
     const current = get().network;
     if (current === network) return;
-    set({ network, balances: [], loading: true, error: null });
+    if (refreshBalancesController) {
+      refreshBalancesController.abort();
+      refreshBalancesController = null;
+    }
+    set({
+      network,
+      balances: [],
+      loading: true,
+      isReconnecting: false,
+      error: null,
+      connectError: null,
+    });
     const persisted = readPersistedWalletSession();
     if (persisted) {
       persistWalletSession({ ...persisted, network });
@@ -509,6 +520,9 @@ export const useWalletStore = create<WalletState>((set, get) => ({
       if (error instanceof Error && error.name === 'AbortError') {
         return;
       }
+      if (get().address !== address || get().network !== network) {
+        return;
+      }
       console.error('Failed to refresh balances', error);
       captureException(error, { source: 'wallet' });
       set({
@@ -559,6 +573,7 @@ if (typeof window !== 'undefined') {
         connector: parsed.connector,
         network: newNetwork,
         walletConnectSession: parsed.walletConnectSession || null,
+        ...(needsRefresh ? { balances: [], loading: true, error: null, connectError: null } : {}),
       });
 
       if (needsRefresh) {
