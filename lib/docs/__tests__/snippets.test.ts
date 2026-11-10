@@ -11,6 +11,8 @@ import {
   validateRequestExample,
   routesForPath,
   validateSdkOperation,
+  validateSnippetWithTypeScript,
+  type SdkBindingDescriptor,
   type SnippetProblem,
 } from '@/lib/docs/snippet-validation';
 import type { Endpoint, SampleLanguage } from '@/lib/docs/types';
@@ -271,5 +273,55 @@ describe('extraction helpers', () => {
     for (const language of Object.keys(snippets) as Language[]) {
       expect(Array.from(extractSdkFields(snippets[language], language)).sort()).toEqual(expected);
     }
+  });
+});
+
+describe('TypeScript compiler snippet validation (#942)', () => {
+  const sdkBindings: SdkBindingDescriptor[] = (Object.keys(OPERATION_ENDPOINTS) as Operation[]).map(
+    (operation) => {
+      const { endpointId, call } = OPERATION_ENDPOINTS[operation];
+      const endpoint = allEndpoints.find((e) => e.id === endpointId) as Endpoint;
+      return { endpoint, call };
+    },
+  );
+
+  it.each(Object.keys(codeSnippets) as Operation[])(
+    'compiles SDK JavaScript snippet for %s without TypeScript errors',
+    (operation) => {
+      const code = codeSnippets[operation].javascript;
+      const problems = validateSnippetWithTypeScript(
+        `${operation}/javascript`,
+        code,
+        sdkBindings,
+      );
+      expect(describeProblems(problems)).toBe('');
+    },
+  );
+
+  it('compiles generated node-fetch, node-axios, and react samples without TypeScript errors', () => {
+    const tsLanguages: SampleLanguage[] = ['node-fetch', 'node-axios', 'react'];
+    for (const endpoint of allEndpoints) {
+      for (const sample of generateSamples(endpoint, tsLanguages)) {
+        const problems = validateSnippetWithTypeScript(
+          `${endpoint.id}/${sample.language}`,
+          sample.code,
+          sdkBindings,
+        );
+        expect(describeProblems(problems)).toBe('');
+      }
+    }
+  });
+
+  it('rejects a snippet with a mismatched field type or unknown SDK property', () => {
+    const brokenTypeSnippet = codeSnippets['create-payment-link'].javascript.replace(
+      'amountUsdc: 25.0',
+      "amountUsdc: 'twenty-five'",
+    );
+    const problems = validateSnippetWithTypeScript(
+      'create-payment-link/javascript',
+      brokenTypeSnippet,
+      sdkBindings,
+    );
+    expect(problems.map((p) => p.kind)).toContain('type-error');
   });
 });

@@ -1,6 +1,7 @@
+import ts from 'typescript';
 import type { CodeSample } from './snippets';
 import { DOCS_BASE_URL } from './navigation';
-import type { Endpoint, HttpMethod, SampleLanguage } from './types';
+import type { Endpoint, HttpMethod, SampleLanguage, SchemaField } from './types';
 
 // Validation for the request examples shown in the docs.
 //
@@ -25,7 +26,8 @@ export interface SnippetProblem {
     | 'body-mismatch'
     | 'unknown-field'
     | 'missing-required-field'
-    | 'field-drift';
+    | 'field-drift'
+    | 'type-error';
   message: string;
 }
 
@@ -449,4 +451,215 @@ export function validateSdkOperation(
   }
 
   return problems;
+}
+
+// ─── TypeScript Compiler API validation (#942) ───────────────────────────────
+
+function schemaFieldToTsType(field: SchemaField): string {
+  const raw = field.type.trim().toLowerCase();
+  if (raw.startsWith('number') || raw === 'integer' || raw === 'float') return 'number';
+  if (raw.startsWith('boolean') || raw === 'bool') return 'boolean';
+  if (raw.startsWith('array') || raw.endsWith('[]')) return 'unknown[]';
+  if (raw.startsWith('object')) return 'Record<string, unknown>';
+  return 'string';
+}
+
+function buildInterfaceBody(fields: SchemaField[] | undefined): string {
+  if (!fields || fields.length === 0) return 'Record<string, never>';
+  const props = fields.map((f) => {
+    const optional = f.required ? '' : '?';
+    return `  ${f.name}${optional}: ${schemaFieldToTsType(f)};`;
+  });
+  return `{\n${props.join('\n')}\n}`;
+}
+
+function buildResponseBody(endpoint: Endpoint): string {
+  const fields = endpoint.responseSchema ?? [];
+  const props = new Map<string, string>();
+  for (const f of fields) {
+    props.set(f.name, schemaFieldToTsType(f));
+  }
+  // Ensure common convenience aliases surfaced by the SDK wrapper are typed
+  if (endpoint.id === 'payments-create' && !props.has('url')) {
+    props.set('url', 'string');
+  }
+  if (endpoint.id === 'payments-list' && !props.has('data')) {
+    props.set('data', 'unknown[]');
+  }
+  if (endpoint.id === 'settlements-create' && !props.has('id')) {
+    props.set('id', 'string');
+  }
+  if (endpoint.id === 'fx-quote' && !props.has('converted')) {
+    props.set('converted', 'number');
+  }
+  if (props.size === 0) return 'Record<string, unknown>';
+  return `{\n${Array.from(props.entries())
+    .map(([k, v]) => `  ${k}: ${v};`)
+    .join('\n')}\n}`;
+}
+
+export interface SdkBindingDescriptor {
+  endpoint: Endpoint;
+  call: SdkCall;
+}
+
+const MINIMAL_AMBIENT_PRELUDE = `
+interface Boolean {}
+interface Function {}
+interface CallableFunction extends Function {}
+interface NewableFunction extends Function {}
+interface IArguments {}
+interface Number { toFixed(digits?: number): string; }
+interface Object {}
+interface RegExp {}
+interface String { trim(): string; toLowerCase(): string; toUpperCase(): string; }
+interface Symbol {}
+interface SymbolConstructor { readonly iterator: unique symbol; }
+declare var Symbol: SymbolConstructor;
+interface IteratorResult<T> { done?: boolean; value: T; }
+interface IterableIterator<T> { next(): IteratorResult<T>; [Symbol.iterator](): IterableIterator<T>; }
+interface Array<T> { length: number; [n: number]: T; map<U>(fn: (v: T) => U): U[]; [Symbol.iterator](): IterableIterator<T>; }
+interface ReadonlyArray<T> { readonly length: number; readonly [n: number]: T; [Symbol.iterator](): IterableIterator<T>; }
+type Record<K extends string | number | symbol, T> = { [P in K]: T };
+interface Promise<T> {
+  then<TResult1 = T, TResult2 = never>(
+    onfulfilled?: ((value: T) => TResult1 | Promise<TResult1>) | null,
+    onrejected?: ((reason: unknown) => TResult2 | Promise<TResult2>) | null
+  ): Promise<TResult1 | TResult2>;
+  catch<TResult = never>(
+    onrejected?: ((reason: unknown) => TResult | Promise<TResult>) | null
+  ): Promise<T | TResult>;
+}
+declare var Promise: {
+  resolve<T>(value: T | Promise<T>): Promise<T>;
+  reject<T = never>(reason?: unknown): Promise<T>;
+};
+declare var console: { log(...args: unknown[]): void; error(...args: unknown[]): void; warn(...args: unknown[]): void; };
+declare var JSON: { stringify(value: unknown, replacer?: unknown, space?: number): string; parse(text: string): unknown; };
+declare var process: { env: Record<string, string | undefined> };
+declare var crypto: { randomUUID(): string };
+declare class AbortSignal {}
+declare class AbortController { readonly signal: AbortSignal; abort(): void; }
+interface FetchResponse { ok: boolean; status: number; json(): Promise<{ data: unknown }>; }
+declare function fetch(url: string, init?: { method?: string; headers?: Record<string, string>; body?: string; signal?: AbortSignal }): Promise<FetchResponse>;
+declare module 'axios' {
+  interface AxiosResponse<T = { data: unknown }> { data: T; status: number; }
+  const axios: {
+    get(url: string, config?: { headers?: Record<string, string> }): Promise<AxiosResponse>;
+    post(url: string, data?: unknown, config?: { headers?: Record<string, string> }): Promise<AxiosResponse>;
+    patch(url: string, data?: unknown, config?: { headers?: Record<string, string> }): Promise<AxiosResponse>;
+    put(url: string, data?: unknown, config?: { headers?: Record<string, string> }): Promise<AxiosResponse>;
+    delete(url: string, config?: { headers?: Record<string, string> }): Promise<AxiosResponse>;
+  };
+  export default axios;
+}
+declare module 'react' {
+  export function useState<T = unknown>(initial: T): [unknown, (next: unknown) => void];
+  export function useEffect(effect: () => void | (() => void), deps?: readonly unknown[]): void;
+}
+`;
+
+/**
+ * Generates an ambient `.d.ts` declaration for `@bettapay/sdk` derived directly
+ * from the documented `Endpoint` schemas and `SdkCall` bindings.
+ */
+export function buildSdkTypeDeclarations(bindings: SdkBindingDescriptor[]): string {
+  const byResource = new Map<string, Array<{ action: string; reqType: string; resType: string; allOptional: boolean }>>();
+
+  for (const { endpoint, call } of bindings) {
+    const fields = endpoint.method === 'GET' ? endpoint.queryParams : endpoint.requestBody;
+    const reqType = buildInterfaceBody(fields);
+    const resType = buildResponseBody(endpoint);
+    const allOptional = (fields ?? []).every((f) => !f.required);
+
+    const list = byResource.get(call.resource) ?? [];
+    list.push({ action: call.action, reqType, resType, allOptional });
+    byResource.set(call.resource, list);
+  }
+
+  const resourceDecls: string[] = [];
+  for (const [resource, actions] of byResource.entries()) {
+    const methods = actions
+      .map(({ action, reqType, resType, allOptional }) => {
+        const opt = allOptional ? '?' : '';
+        return `    ${action}(params${opt}: ${reqType}): Promise<${resType}>;`;
+      })
+      .join('\n');
+    resourceDecls.push(`  ${resource}: {\n${methods}\n  };`);
+  }
+
+  return `${MINIMAL_AMBIENT_PRELUDE}
+declare module '@bettapay/sdk' {
+  export interface BettaPayConfig {
+    apiKey: string;
+    network?: 'mainnet' | 'testnet' | 'futurenet';
+  }
+  export class BettaPay {
+    constructor(config: BettaPayConfig);
+${resourceDecls.join('\n')}
+  }
+}
+`;
+}
+
+/**
+ * Compiles a TypeScript / JavaScript documentation snippet in-memory against
+ * the TypeScript compiler API and the generated SDK type definitions, returning
+ * any syntax or type diagnostics as `SnippetProblem` entries.
+ */
+export function validateSnippetWithTypeScript(
+  source: string,
+  code: string,
+  bindings: SdkBindingDescriptor[],
+): SnippetProblem[] {
+  const sdkDts = buildSdkTypeDeclarations(bindings);
+  const snippetFileName = 'snippet.tsx';
+  const sdkDtsFileName = 'sdk.d.ts';
+
+  // Ensure top-level await is valid by guaranteeing the file is parsed as an ES module
+  const hasModuleSyntax = /\b(?:import|export)\b/.test(code);
+  const moduleCode = hasModuleSyntax ? code : `${code}\nexport {};`;
+
+  const compilerOptions: ts.CompilerOptions = {
+    target: ts.ScriptTarget.ES2022,
+    module: ts.ModuleKind.ES2022,
+    moduleResolution: ts.ModuleResolutionKind.Bundler,
+    jsx: ts.JsxEmit.Preserve,
+    strict: true,
+    noImplicitAny: false,
+    noLib: true,
+    skipLibCheck: false,
+  };
+
+  const files: Record<string, string> = {
+    [snippetFileName]: moduleCode,
+    [sdkDtsFileName]: sdkDts,
+  };
+
+  const host: ts.CompilerHost = {
+    getSourceFile: (fileName, languageVersion) => {
+      const content = files[fileName];
+      if (content === undefined) return undefined;
+      return ts.createSourceFile(fileName, content, languageVersion, true);
+    },
+    getDefaultLibFileName: () => sdkDtsFileName,
+    writeFile: () => {},
+    getCurrentDirectory: () => '/',
+    getCanonicalFileName: (f) => f,
+    useCaseSensitiveFileNames: () => true,
+    getNewLine: () => '\n',
+    fileExists: (fileName) => fileName in files,
+    readFile: (fileName) => files[fileName],
+  };
+
+  const program = ts.createProgram([snippetFileName, sdkDtsFileName], compilerOptions, host);
+  const diagnostics = ts.getPreEmitDiagnostics(program);
+
+  return diagnostics
+    .filter((d) => !d.file || d.file.fileName === snippetFileName)
+    .map((d) => ({
+      source,
+      kind: 'type-error' as const,
+      message: ts.flattenDiagnosticMessageText(d.messageText, '\n'),
+    }));
 }
