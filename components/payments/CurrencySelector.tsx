@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback, memo } from "react";
+import { useState, useEffect, useCallback, useMemo, memo } from "react";
 import { cn } from "@/lib/utils";
-import { Check, TrendingUp, TrendingDown, Loader2 } from "lucide-react";
+import { Check, TrendingUp, TrendingDown, Loader2, Search } from "lucide-react";
 import { MULTI_CURRENCY_ASSETS, MOCK_RATES, USE_MOCK_RATE_DATA } from "@/lib/utils/constants";
 import { useEnabledAssets } from "@/lib/assets/hooks";
 import type { SupportedAsset } from "@/lib/assets/types";
@@ -12,6 +12,22 @@ import {
   UnsupportedAssetBanner,
 } from "@/components/assets/AssetPickerStates";
 
+export const DEFAULT_CURRENCY_SEARCH_DEBOUNCE_MS = 150;
+
+export function useDebouncedValue<T>(value: T, delayMs: number = DEFAULT_CURRENCY_SEARCH_DEBOUNCE_MS): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delayMs);
+
+    return () => clearTimeout(timer);
+  }, [value, delayMs]);
+
+  return debouncedValue;
+}
+
 export interface CurrencySelectorProps {
   selectedCurrencies: string[];
   onSelectionChange: (currencies: string[]) => void;
@@ -19,6 +35,7 @@ export interface CurrencySelectorProps {
   disabled?: boolean;
   className?: string;
   showRates?: boolean;
+  debounceMs?: number;
 }
 
 interface CurrencyCardProps {
@@ -26,7 +43,7 @@ interface CurrencyCardProps {
   selected: boolean;
   rate: number | null;
   rateLoading: boolean;
-  onClick: () => void;
+  onToggle: (code: string) => void;
   disabled: boolean;
   showRate: boolean;
 }
@@ -36,7 +53,7 @@ const CurrencyCard = memo(function CurrencyCard({
   selected,
   rate,
   rateLoading,
-  onClick,
+  onToggle,
   disabled,
   showRate,
 }: CurrencyCardProps) {
@@ -49,7 +66,7 @@ const CurrencyCard = memo(function CurrencyCard({
     <button
       type="button"
       disabled={disabled}
-      onClick={onClick}
+      onClick={() => onToggle(code)}
       className={cn(
         "relative flex items-center gap-3 w-full p-3 rounded-xl border-2 transition-all text-left",
         "hover:border-primary/50 hover:bg-primary/5",
@@ -104,12 +121,26 @@ export function CurrencySelector({
   disabled = false,
   className,
   showRates = true,
+  debounceMs = DEFAULT_CURRENCY_SEARCH_DEBOUNCE_MS,
 }: CurrencySelectorProps) {
   const assetsQuery = useEnabledAssets();
   const assets = assetsQuery.data;
   const [rates, setRates] = useState<Record<string, number>>({});
   const [ratesLoading, setRatesLoading] = useState(true);
   const [trends, setTrends] = useState<Record<string, "up" | "down">>({});
+  const [searchQuery, setSearchQuery] = useState("");
+  const debouncedQuery = useDebouncedValue(searchQuery, debounceMs);
+
+  const filteredAssets = useMemo(() => {
+    if (!assets) return [];
+    const normalized = debouncedQuery.trim().toLowerCase();
+    if (!normalized) return assets;
+    return assets.filter(
+      (asset) =>
+        asset.code.toLowerCase().includes(normalized) ||
+        asset.name.toLowerCase().includes(normalized)
+    );
+  }, [assets, debouncedQuery]);
 
   const fetchRates = useCallback(async () => {
     setRatesLoading(true);
@@ -148,21 +179,26 @@ export function CurrencySelector({
     return () => clearInterval(interval);
   }, [fetchRates]);
 
-  const handleToggle = (code: string) => {
-    if (disabled) return;
+  const selectedSet = useMemo(() => new Set(selectedCurrencies), [selectedCurrencies]);
 
-    if (mode === "single") {
-      onSelectionChange([code]);
-      return;
-    }
+  const handleToggle = useCallback(
+    (code: string) => {
+      if (disabled) return;
 
-    if (selectedCurrencies.includes(code)) {
-      if (selectedCurrencies.length <= 1) return;
-      onSelectionChange(selectedCurrencies.filter((c) => c !== code));
-    } else {
-      onSelectionChange([...selectedCurrencies, code]);
-    }
-  };
+      if (mode === "single") {
+        onSelectionChange([code]);
+        return;
+      }
+
+      if (selectedCurrencies.includes(code)) {
+        if (selectedCurrencies.length <= 1) return;
+        onSelectionChange(selectedCurrencies.filter((c) => c !== code));
+      } else {
+        onSelectionChange([...selectedCurrencies, code]);
+      }
+    },
+    [disabled, mode, onSelectionChange, selectedCurrencies],
+  );
 
   // Anything selected that the backend no longer lists as enabled.
   const unsupported = assets
@@ -193,20 +229,41 @@ export function CurrencySelector({
         codes={unsupported}
         onRemove={() => onSelectionChange(selectedCurrencies.filter((c) => assetsQuery.codes.has(c)))}
       />
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-        {assets.map((asset) => (
-          <CurrencyCard
-            key={asset.code}
-            asset={asset}
-            selected={selectedCurrencies.includes(asset.code)}
-            rate={rates[asset.code] ?? null}
-            rateLoading={ratesLoading}
-            onClick={() => handleToggle(asset.code)}
-            disabled={disabled}
-            showRate={showRates}
-          />
-        ))}
+      <div className="relative">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <input
+          type="search"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          disabled={disabled}
+          placeholder="Search currencies..."
+          aria-label="Search currencies"
+          className={cn(
+            "w-full rounded-xl border border-border/50 bg-background/50 py-2 pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none",
+            disabled && "opacity-50 cursor-not-allowed"
+          )}
+        />
       </div>
+      {filteredAssets.length === 0 ? (
+        <p className="py-4 text-center text-xs text-muted-foreground">
+          No matching currencies found
+        </p>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          {filteredAssets.map((asset) => (
+            <CurrencyCard
+              key={asset.code}
+              asset={asset}
+              selected={selectedSet.has(asset.code)}
+              rate={rates[asset.code] ?? null}
+              rateLoading={ratesLoading}
+              onToggle={handleToggle}
+              disabled={disabled}
+              showRate={showRates}
+            />
+          ))}
+        </div>
+      )}
 
       {USE_MOCK_RATE_DATA && (
         <div className="flex items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5 text-xs font-medium text-amber-700 dark:text-amber-300">
