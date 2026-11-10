@@ -1,7 +1,30 @@
 "use client";
 
+import { useState, useCallback } from "react";
 import { cn } from "@/lib/utils";
-import { CheckCircle2, Loader2, Circle, XCircle, AlertTriangle } from "lucide-react";
+import {
+  CheckCircle2,
+  Loader2,
+  Circle,
+  XCircle,
+  AlertTriangle,
+  ExternalLink,
+  Copy,
+  Check,
+} from "lucide-react";
+
+export type StellarExplorerNetwork = "testnet" | "public" | "mainnet";
+
+/**
+ * Builds a Stellar Expert transaction explorer URL for the active network.
+ */
+export function getStellarExpertTxUrl(
+  txHash: string,
+  network: StellarExplorerNetwork = "testnet"
+): string {
+  const segment = network === "public" || network === "mainnet" ? "public" : "testnet";
+  return `https://stellar.expert/explorer/${segment}/tx/${encodeURIComponent(txHash)}`;
+}
 
 /** Backend-driven settlement progress — replaces synthetic step timing. */
 export type SettlementProgressStatus =
@@ -31,7 +54,7 @@ export const SETTLEMENT_STEPS: ReadonlyArray<ProgressStep<SettlementStepKey>> = 
   { key: "confirming", label: "Ledger Confirmation", description: "Waiting for on-chain finality" },
 ];
 
-interface TransactionProgressProps<K extends string> {
+export interface TransactionProgressProps<K extends string> {
   /** Ordered steps for this flow (e.g. deposit vs. withdrawal). Defaults to `SETTLEMENT_STEPS`. */
   steps?: ReadonlyArray<ProgressStep<K>>;
   /** Backend-derived status. When omitted, `currentStep` fallback is used for backwards-compat. */
@@ -40,6 +63,10 @@ interface TransactionProgressProps<K extends string> {
   failedStep?: number | null;
   /** @deprecated — prefer `status`. Kept for existing callers migrated incrementally. */
   currentStep?: number;
+  /** Confirmed Stellar transaction hash to display and link to Stellar Expert. */
+  txHash?: string | null;
+  /** Active Stellar network used to build the Stellar Expert explorer link. Defaults to `"testnet"`. */
+  network?: StellarExplorerNetwork;
 }
 
 function deriveState<K extends string>(
@@ -85,8 +112,22 @@ export function TransactionProgress<K extends string = SettlementStepKey>({
   status,
   failedStep,
   currentStep,
+  txHash,
+  network = "testnet",
 }: TransactionProgressProps<K>) {
   const { activeIndex, completedUntil, failedIndex, isCompleted } = deriveState(steps, status, failedStep, currentStep);
+  const [copied, setCopied] = useState(false);
+
+  const handleCopyHash = useCallback(async () => {
+    if (!txHash) return;
+    try {
+      await navigator.clipboard?.writeText(txHash);
+      setCopied(true);
+    } catch {
+      // Clipboard write unavailable
+    }
+  }, [txHash]);
+
   return (
     <div className="space-y-6 py-4" role="progressbar" aria-valuemin={0} aria-valuemax={steps.length} aria-valuenow={isCompleted ? steps.length : Math.max(0, activeIndex + 1)}>
       {steps.map((step, index) => {
@@ -155,6 +196,40 @@ export function TransactionProgress<K extends string = SettlementStepKey>({
           </div>
         );
       })}
+
+      {txHash && (
+        <div className="flex items-center justify-between gap-2 rounded-xl border border-border/60 bg-muted/40 px-3 py-2 text-xs">
+          <div className="min-w-0 flex items-center gap-2">
+            <span className="text-muted-foreground shrink-0">Tx Hash:</span>
+            <a
+              href={getStellarExpertTxUrl(txHash, network)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 font-mono text-primary hover:underline truncate"
+              aria-label={`View transaction ${txHash} on Stellar Expert`}
+            >
+              <span className="truncate">{txHash}</span>
+              <ExternalLink className="w-3.5 h-3.5 shrink-0" />
+            </a>
+          </div>
+          <button
+            type="button"
+            onClick={handleCopyHash}
+            aria-label={copied ? "Copied!" : "Copy transaction hash"}
+            title={copied ? "Copied!" : "Copy transaction hash"}
+            className="inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors shrink-0"
+          >
+            {copied ? (
+              <>
+                <Check className="w-3.5 h-3.5 text-success" />
+                <span className="text-[11px] font-medium text-success">Copied!</span>
+              </>
+            ) : (
+              <Copy className="w-3.5 h-3.5" />
+            )}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

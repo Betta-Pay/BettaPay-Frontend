@@ -1,6 +1,10 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
-import { TransactionProgress, type ProgressStep } from '@/components/settlement/TransactionProgress';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import {
+  TransactionProgress,
+  getStellarExpertTxUrl,
+  type ProgressStep,
+} from '@/components/settlement/TransactionProgress';
 
 describe('TransactionProgress — backend-driven states', () => {
   it('idle shows all steps pending (no active spinner beyond)', () => {
@@ -133,5 +137,67 @@ describe('TransactionProgress — lifecycle (no polling)', () => {
 
     expect(setIntervalSpy).not.toHaveBeenCalled();
     expect(setTimeoutSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe('TransactionProgress — Stellar Expert explorer link & copy action (#878)', () => {
+  const sampleHash = 'a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8f9a0b1c2d3e4f5a6b7c8d9e0f';
+
+  afterEach(() => jest.restoreAllMocks());
+
+  it('builds the correct Stellar Expert URL for testnet and public/mainnet networks', () => {
+    expect(getStellarExpertTxUrl(sampleHash, 'testnet')).toBe(
+      `https://stellar.expert/explorer/testnet/tx/${sampleHash}`
+    );
+    expect(getStellarExpertTxUrl(sampleHash, 'public')).toBe(
+      `https://stellar.expert/explorer/public/tx/${sampleHash}`
+    );
+    expect(getStellarExpertTxUrl(sampleHash, 'mainnet')).toBe(
+      `https://stellar.expert/explorer/public/tx/${sampleHash}`
+    );
+  });
+
+  it('renders an external link to Stellar Expert for testnet and public networks when txHash is provided', () => {
+    const { rerender } = render(
+      <TransactionProgress status="completed" txHash={sampleHash} network="testnet" />
+    );
+
+    const link = screen.getByRole('link', {
+      name: new RegExp(`view transaction ${sampleHash} on stellar expert`, 'i'),
+    });
+    expect(link).toHaveAttribute(
+      'href',
+      `https://stellar.expert/explorer/testnet/tx/${sampleHash}`
+    );
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+
+    rerender(
+      <TransactionProgress status="completed" txHash={sampleHash} network="public" />
+    );
+    expect(link).toHaveAttribute(
+      'href',
+      `https://stellar.expert/explorer/public/tx/${sampleHash}`
+    );
+  });
+
+  it('copies the transaction hash to clipboard and shows confirmation feedback when clicked', async () => {
+    const writeTextMock = jest.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, {
+      clipboard: {
+        writeText: writeTextMock,
+      },
+    });
+
+    render(<TransactionProgress status="completed" txHash={sampleHash} />);
+
+    const copyBtn = screen.getByRole('button', { name: /copy transaction hash/i });
+    fireEvent.click(copyBtn);
+
+    expect(writeTextMock).toHaveBeenCalledWith(sampleHash);
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /copied!/i })).toBeInTheDocument();
+      expect(screen.getByText('Copied!')).toBeInTheDocument();
+    });
   });
 });
