@@ -3,6 +3,8 @@ import {
   computeSettlementFees,
   formatUsdc,
   formatNgn,
+  loadPdfLibraries,
+  generateSettlementInvoicesBatchBlob,
   SETTLEMENT_FEE_PERCENT,
 } from '@/lib/utils/pdf';
 
@@ -55,6 +57,21 @@ describe('utils/pdf', () => {
   describe('formatNgn()', () => {
     it('formats whole naira amounts with NGN prefix', () => {
       expect(formatNgn(19297500)).toBe('NGN 19,297,500');
+    });
+  });
+
+  describe('dynamic PDF library loading (#912)', () => {
+    it('loads jspdf and jspdf-autotable on demand via dynamic import()', async () => {
+      const libs = await loadPdfLibraries();
+      expect(typeof libs.jsPDF).toBe('function');
+      expect(typeof libs.autoTable).toBe('function');
+    });
+
+    it('returns null without loading PDF libraries when batch settlements array is empty', async () => {
+      const result = await generateSettlementInvoicesBatchBlob([], {
+        businessName: 'Test Merchant',
+      });
+      expect(result).toBeNull();
     });
   });
 });

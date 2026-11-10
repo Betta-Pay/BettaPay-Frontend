@@ -1,7 +1,25 @@
-import { jsPDF } from 'jspdf';
-import autoTable from 'jspdf-autotable';
+import type { jsPDF } from 'jspdf';
+import type autoTableType from 'jspdf-autotable';
 import type { ApiSettlement } from '@/lib/api/hooks';
 import { sanitizeFilename } from '@/lib/utils/sanitize';
+
+/**
+ * Dynamically imports `jspdf` and `jspdf-autotable` on demand so importing
+ * pure invoice formatting helpers from `@/lib/utils/pdf` does not bundle PDF
+ * libraries into the initial dashboard chunk.
+ */
+export async function loadPdfLibraries(): Promise<{
+  jsPDF: typeof jsPDF;
+  autoTable: typeof autoTableType;
+}> {
+  const [jspdfMod, autoTableMod] = await Promise.all([
+    import('jspdf'),
+    import('jspdf-autotable'),
+  ]);
+  const JsPdfCtor = jspdfMod.jsPDF ?? jspdfMod.default;
+  const autoTableFn = autoTableMod.default ?? (autoTableMod as unknown as typeof autoTableType);
+  return { jsPDF: JsPdfCtor, autoTable: autoTableFn };
+}
 
 /** Platform fee applied to settlements, matches SettlementConfirmation. */
 export const SETTLEMENT_FEE_PERCENT = 1;
@@ -86,6 +104,7 @@ async function loadLogo(): Promise<string | null> {
 
 function renderInvoicePage(
   doc: jsPDF,
+  autoTable: typeof autoTableType,
   settlement: ApiSettlement,
   merchant: InvoiceMerchant,
   logo: string | null,
@@ -267,9 +286,12 @@ export async function generateSettlementInvoice(
   merchant: InvoiceMerchant,
   intlLocale: string = 'en-US'
 ): Promise<jsPDF> {
-  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
-  const logo = await loadLogo();
-  renderInvoicePage(doc, settlement, merchant, logo, intlLocale);
+  const [{ jsPDF: JsPDF, autoTable }, logo] = await Promise.all([
+    loadPdfLibraries(),
+    loadLogo(),
+  ]);
+  const doc = new JsPDF({ unit: 'mm', format: 'a4' });
+  renderInvoicePage(doc, autoTable, settlement, merchant, logo, intlLocale);
   return doc;
 }
 
@@ -294,11 +316,14 @@ export async function generateSettlementInvoicesBatchBlob(
   intlLocale: string = 'en-US'
 ): Promise<{ blob: Blob; filename: string } | null> {
   if (settlements.length === 0) return null;
-  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
-  const logo = await loadLogo();
+  const [{ jsPDF: JsPDF, autoTable }, logo] = await Promise.all([
+    loadPdfLibraries(),
+    loadLogo(),
+  ]);
+  const doc = new JsPDF({ unit: 'mm', format: 'a4' });
   settlements.forEach((settlement, index) => {
     if (index > 0) doc.addPage();
-    renderInvoicePage(doc, settlement, merchant, logo, intlLocale);
+    renderInvoicePage(doc, autoTable, settlement, merchant, logo, intlLocale);
   });
 
   const dates = settlements
