@@ -15,6 +15,8 @@
 
 export const CSRF_COOKIE_NAME = 'csrf_token';
 export const CSRF_HEADER_NAME = 'X-CSRF-Token';
+export const CSRF_META_NAME = 'csrf-token';
+export const MUTATING_HTTP_METHODS = ['POST', 'PUT', 'PATCH', 'DELETE'] as const;
 
 /**
  * Companion HttpOnly cookie that binds the readable `csrf_token` to the
@@ -188,9 +190,99 @@ export function getCsrfTokenFromCookie(): string | null {
  * issue #486). Returns `{}` when no token is readable so callers can spread
  * it unconditionally.
  */
+/**
+ * Read the CSRF token from `<meta name="csrf-token" content="...">` when present.
+ */
+export function getCsrfTokenFromMeta(): string | null {
+  if (typeof document === 'undefined' || typeof document.querySelector !== 'function') {
+    return null;
+  }
+
+  const meta = document.querySelector(`meta[name="${CSRF_META_NAME}"]`);
+  const content = meta?.getAttribute('content')?.trim();
+  if (!content) return null;
+
+  return content.length === CSRF_TOKEN_HEX_LENGTH ? content : null;
+}
+
+/**
+ * Resolve the active CSRF token from `document.cookie` first, falling back to
+ * the `<meta name="csrf-token">` tag when the cookie is not present.
+ */
+export function getCsrfToken(): string | null {
+  return getCsrfTokenFromCookie() ?? getCsrfTokenFromMeta();
+}
+
+/**
+ * Returns `true` if the HTTP method is state-changing (`POST`, `PUT`, `PATCH`, `DELETE`).
+ */
+export function isMutatingMethod(method?: string | null): boolean {
+  if (!method) return false;
+  return (MUTATING_HTTP_METHODS as readonly string[]).includes(method.toUpperCase());
+}
+
 export function csrfHeader(): Record<string, string> {
-  const token = getCsrfTokenFromCookie();
+  const token = getCsrfToken();
   return token ? { [CSRF_HEADER_NAME]: token } : {};
+}
+
+/**
+ * Injects `X-CSRF-Token` into a `fetch` `RequestInit` object when the request
+ * method is mutating (`POST`, `PUT`, `PATCH`, `DELETE`). Leaves `GET`, `HEAD`,
+ * and `OPTIONS` requests untouched.
+ */
+export function withCsrfHeaders(init: RequestInit = {}): RequestInit {
+  if (!isMutatingMethod(init.method)) {
+    return init;
+  }
+
+  const token = getCsrfToken();
+  if (!token) {
+    return init;
+  }
+
+  const headers = new Headers(init.headers);
+  if (!headers.has(CSRF_HEADER_NAME)) {
+    headers.set(CSRF_HEADER_NAME, token);
+  }
+
+  return {
+    ...init,
+    headers: Object.fromEntries(headers.entries()),
+  };
+}
+
+/**
+ * Request interceptor helper that attaches `X-CSRF-Token` to mutating request
+ * configs (`POST`, `PUT`, `PATCH`, `DELETE`) while leaving safe methods (`GET`) untouched.
+ */
+export function attachCsrfHeader<
+  T extends {
+    method?: string;
+    headers?: Record<string, unknown> & { set?: (name: string, value: string) => void };
+  },
+>(config: T): T {
+  if (!isMutatingMethod(config.method)) {
+    return config;
+  }
+
+  const token = getCsrfToken();
+  if (!token) {
+    return config;
+  }
+
+  if (config.headers && typeof config.headers.set === 'function') {
+    config.headers.set(CSRF_HEADER_NAME, token);
+    return config;
+  }
+
+  return {
+    ...config,
+    headers: {
+      ...(config.headers ?? {}),
+      [CSRF_HEADER_NAME]: token,
+    },
+  };
 }
 
 /**
