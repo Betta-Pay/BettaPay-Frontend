@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { merchantNavItems } from "@/lib/navigation/merchantNav";
 import { ROUTES } from "@/lib/navigation/routes";
 import { useAuthStore } from "@/lib/store/authStore";
+import { useRateAlertStore } from "@/lib/store/rateAlertStore";
 import Image from "next/image";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import {
@@ -36,10 +37,19 @@ const KYB_STATUS_LABEL: Record<string, { label: string; color: string }> = {
   none: { label: "Not Verified", color: "text-muted-foreground" },
 };
 
-export const MerchantSidebar = () => {
+export interface MerchantSidebarProps {
+  badgeCounts?: Partial<Record<string, number>>;
+}
+
+export const MerchantSidebar = ({ badgeCounts }: MerchantSidebarProps = {}) => {
   const pathname = usePathname();
   const user = useAuthStore((s) => s.user);
   const isLoggedIn = useAuthStore((s) => s.isLoggedIn);
+  const alerts = useRateAlertStore((s) => s.alerts);
+
+  const triggeredAlertsCount = Array.isArray(alerts)
+    ? alerts.filter((a) => a?.triggered).length || alerts.length
+    : 0;
 
   const businessName = user?.businessName ?? user?.name ?? "";
   const initials = businessName ? getInitials(businessName) : "MC";
@@ -172,6 +182,12 @@ export const MerchantSidebar = () => {
             const Icon = item.icon as unknown as React.ComponentType<{
               className?: string;
             }>;
+            const rawCount =
+              badgeCounts?.[item.href] ??
+              badgeCounts?.[item.label.toLowerCase()] ??
+              (item.href === "/fx" ? triggeredAlertsCount : 0);
+            const badgeCount =
+              typeof rawCount === "number" && rawCount > 0 ? rawCount : 0;
 
             const navLink = (
               <Link
@@ -207,6 +223,20 @@ export const MerchantSidebar = () => {
                   <span className="truncate flex-1">{item.label}</span>
                 )}
                 {collapsed && <span className="sr-only">{item.label}</span>}
+                {badgeCount > 0 && (
+                  <span
+                    data-testid={`sidebar-badge-${item.href.replace(/^\//, "")}`}
+                    aria-label={`${badgeCount} pending alerts`}
+                    className={cn(
+                      "inline-flex items-center justify-center rounded-full bg-primary/15 text-primary border border-primary/30 text-[11px] font-semibold leading-none",
+                      collapsed
+                        ? "absolute -top-1 -right-1 min-w-[16px] h-4 px-1 text-[10px]"
+                        : "ml-auto min-w-[20px] h-5 px-1.5"
+                    )}
+                  >
+                    {badgeCount > 99 ? "99+" : badgeCount}
+                  </span>
+                )}
               </Link>
             );
 
