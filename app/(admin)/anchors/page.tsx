@@ -43,6 +43,8 @@ import type { Anchor as AnchorType, AnchorWithHealth } from "@/lib/types";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api/axios";
 
+export const HEARTBEAT_INTERVAL_MS = 60_000;
+
 function useAnchorHealthMatrix() {
   return useQuery<{ data: AnchorWithHealth[] }, Error>({
     queryKey: ["admin", "anchors", "health"],
@@ -52,7 +54,7 @@ function useAnchorHealthMatrix() {
       );
       return res.data;
     },
-    refetchInterval: 30_000,
+    refetchInterval: HEARTBEAT_INTERVAL_MS,
   });
 }
 
@@ -110,6 +112,7 @@ function useCreateAnchor() {
 const HEALTH_COLOR: Record<string, string> = {
   healthy: "bg-emerald-500",
   degraded: "bg-yellow-500",
+  down: "bg-red-500",
   unreachable: "bg-red-500",
   unchecked: "bg-muted",
 };
@@ -117,7 +120,8 @@ const HEALTH_COLOR: Record<string, string> = {
 const HEALTH_LABEL: Record<string, string> = {
   healthy: "Healthy",
   degraded: "Degraded",
-  unreachable: "Unreachable",
+  down: "Down",
+  unreachable: "Down",
   unchecked: "Unchecked",
 };
 
@@ -499,6 +503,10 @@ export default function AdminAnchorsPage() {
   const healthyCount = anchors.filter(
     (a) => a.health?.status === "healthy"
   ).length;
+  const unhealthyAnchors = anchors.filter((a) => {
+    const status = a.health?.status as string | undefined;
+    return status === "degraded" || status === "down" || status === "unreachable";
+  });
   const totalVolume = anchors.reduce(
     (sum, a) => sum + (a.stats?.totalVolumeUsdc ?? 0),
     0
@@ -506,6 +514,21 @@ export default function AdminAnchorsPage() {
 
   return (
     <div className="space-y-6">
+      {unhealthyAnchors.length > 0 && (
+        <div
+          role="alert"
+          data-testid="anchor-health-warning-banner"
+          className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 flex items-center gap-3 text-amber-800 dark:text-amber-300"
+        >
+          <AlertTriangle className="w-5 h-5 shrink-0 text-amber-600 dark:text-amber-400" />
+          <div className="text-sm">
+            <span className="font-semibold">SEP-24 Heartbeat Warning:</span>{" "}
+            {unhealthyAnchors.map((a) => `${a.name} (${HEALTH_LABEL[a.health?.status ?? "unchecked"]})`).join(", ")}{" "}
+            reported degraded or down status during the latest 60s `/info` check.
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
