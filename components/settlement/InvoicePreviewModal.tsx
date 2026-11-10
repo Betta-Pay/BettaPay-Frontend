@@ -1,6 +1,7 @@
 "use client";
 
-import { Loader2, FileDown } from 'lucide-react';
+import { useCallback } from 'react';
+import { Loader2, FileDown, Printer } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -18,6 +19,37 @@ import {
   formatNgn,
   type InvoiceMerchant,
 } from '@/lib/utils/pdf';
+
+export const INVOICE_PRINT_STYLES = `
+@media print {
+  @page {
+    size: letter portrait;
+    margin: 15mm;
+  }
+  [data-slot="dialog-overlay"],
+  [data-slot="dialog-close"],
+  .invoice-modal-chrome {
+    display: none !important;
+  }
+  [data-slot="dialog-content"] {
+    position: static !important;
+    transform: none !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+  .invoice-printable-sheet {
+    border-color: #e5e7eb !important;
+    background: #ffffff !important;
+    color: #111827 !important;
+    page-break-inside: avoid;
+  }
+}
+`;
 
 export type InvoicePreviewData =
   | { kind: 'single'; settlement: ApiSettlement }
@@ -51,7 +83,10 @@ function SingleInvoicePreview({
     settlement.amountNgn && settlement.amountUsdc > 0 ? settlement.amountNgn / settlement.amountUsdc : null;
 
   return (
-    <div className="rounded-xl border border-border bg-background p-5 text-sm">
+    <div
+      data-testid="invoice-printable-sheet"
+      className="invoice-printable-sheet rounded-xl border border-border bg-background p-5 text-sm print:border-gray-200 print:bg-white print:text-gray-900 print:shadow-none"
+    >
       <div className="flex items-start justify-between gap-4 border-b border-border/50 pb-4">
         <div>
           <p className="font-heading text-lg font-bold text-primary">BettaPay</p>
@@ -104,7 +139,7 @@ function SingleInvoicePreview({
         </div>
       </div>
 
-      <div className="mt-4 flex items-center justify-between rounded-lg bg-muted/50 p-3">
+      <div className="mt-4 flex items-center justify-between rounded-lg bg-muted/50 p-3 print:bg-gray-50">
         <span className="text-xs font-medium text-muted-foreground">TOTAL PAID OUT</span>
         <span className="text-base font-bold text-foreground">
           {settlement.amountNgn != null ? formatNgn(settlement.amountNgn) : formatUsdc(fees.net)}
@@ -119,8 +154,11 @@ function BatchInvoicePreview({ settlements }: { settlements: ApiSettlement[] }) 
   const totalNet = settlements.reduce((sum, s) => sum + computeSettlementFees(s.amountUsdc).net, 0);
 
   return (
-    <div className="rounded-xl border border-border bg-background">
-      <div className="max-h-72 overflow-y-auto divide-y divide-border/50">
+    <div
+      data-testid="invoice-printable-sheet"
+      className="invoice-printable-sheet rounded-xl border border-border bg-background print:border-gray-200 print:bg-white print:text-gray-900"
+    >
+      <div className="max-h-72 overflow-y-auto divide-y divide-border/50 print:max-h-none print:overflow-visible">
         {settlements.map((s) => (
           <div key={s.id} className="flex items-center justify-between gap-3 p-3 text-xs">
             <div className="min-w-0">
@@ -150,11 +188,28 @@ export function InvoicePreviewModal({
   isDownloading,
   onDownload,
 }: InvoicePreviewModalProps) {
+  const handlePrint = useCallback(() => {
+    window.print();
+  }, []);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Invoice Preview</DialogTitle>
+      <DialogContent className="sm:max-w-md print:max-w-full print:border-0 print:p-0 print:shadow-none">
+        <style>{INVOICE_PRINT_STYLES}</style>
+        <DialogHeader className="invoice-modal-chrome print:hidden">
+          <div className="flex items-center justify-between gap-2 pr-6">
+            <DialogTitle>Invoice Preview</DialogTitle>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handlePrint}
+              className="gap-1.5 text-xs print:hidden"
+            >
+              <Printer className="size-3.5" />
+              Print Invoice
+            </Button>
+          </div>
           <DialogDescription>
             Review the invoice details below before downloading the PDF.
           </DialogDescription>
@@ -166,7 +221,7 @@ export function InvoicePreviewModal({
         {data?.kind === 'batch' && <BatchInvoicePreview settlements={data.settlements} />}
 
         <Button
-          className="w-full bg-foreground text-background hover:bg-foreground/90"
+          className="invoice-modal-chrome w-full bg-foreground text-background hover:bg-foreground/90 print:hidden"
           onClick={onDownload}
           disabled={isDownloading}
         >
