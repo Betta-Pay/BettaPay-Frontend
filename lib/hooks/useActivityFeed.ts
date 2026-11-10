@@ -49,6 +49,42 @@ const POLL_INTERVAL_MS = 30_000;
 /** Maximum consecutive poll failures before the error state is surfaced */
 const MAX_POLL_ERRORS = 3;
 
+/** Base delay (1s) for SSE reconnection exponential backoff (#906) */
+export const SSE_BACKOFF_BASE_MS = 1_000;
+
+/** Maximum delay cap (30s) for SSE reconnection exponential backoff (#906) */
+export const SSE_BACKOFF_MAX_MS = 30_000;
+
+/** Maximum SSE reconnection attempts before staying on HTTP polling fallback */
+export const SSE_MAX_RETRIES = 5;
+
+export interface SseBackoffOptions {
+  baseDelayMs?: number;
+  maxDelayMs?: number;
+  /** Maximum fractional jitter added to the exponential delay (default 0.2 = up to +20%). */
+  jitterRatio?: number;
+  random?: () => number;
+}
+
+/**
+ * Computes exponential backoff delay (1s, 2s, 4s, 8s, 16s, capped at 30s) with
+ * randomized positive jitter to prevent thundering-herd SSE reconnections.
+ */
+export function computeSseBackoffDelay(
+  attempt: number,
+  options?: SseBackoffOptions,
+): number {
+  const baseDelayMs = options?.baseDelayMs ?? SSE_BACKOFF_BASE_MS;
+  const maxDelayMs = options?.maxDelayMs ?? SSE_BACKOFF_MAX_MS;
+  const jitterRatio = options?.jitterRatio ?? 0.2;
+  const randomFn = options?.random ?? Math.random;
+
+  const safeAttempt = Math.max(0, Math.floor(attempt));
+  const exponential = Math.min(maxDelayMs, baseDelayMs * Math.pow(2, safeAttempt));
+  const jitter = Math.floor(exponential * jitterRatio * randomFn());
+  return Math.min(maxDelayMs, exponential + jitter);
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function deduplicate(events: ActivityEvent[]): ActivityEvent[] {
@@ -97,6 +133,8 @@ export function useActivityFeed(limit = 20, filter = "all") {
   const evsRef = useRef<EventSource | null>(null);
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const sseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const sseRetryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const sseRetryCountRef = useRef(0);
   const pollErrorCountRef = useRef(0);
   // Tracks whether we've already committed to the polling fallback so we don't
   // attempt SSE reconnection on visibility-change wakeups.
@@ -207,6 +245,10 @@ export function useActivityFeed(limit = 20, filter = "all") {
       clearTimeout(sseTimeoutRef.current);
       sseTimeoutRef.current = null;
     }
+    if (sseRetryTimerRef.current !== null) {
+      clearTimeout(sseRetryTimerRef.current);
+      sseRetryTimerRef.current = null;
+    }
     if (evsRef.current) {
       evsRef.current.close();
       evsRef.current = null;
@@ -232,14 +274,35 @@ export function useActivityFeed(limit = 20, filter = "all") {
 
     let hasConnected = false;
 
+    const scheduleSseReconnectOrFallback = () => {
+      if (!mountedRef.current) return;
+      closeSSE();
+
+      const attempt = sseRetryCountRef.current;
+      if (attempt < SSE_MAX_RETRIES) {
+        sseRetryCountRef.current = attempt + 1;
+        const delayMs = computeSseBackoffDelay(attempt);
+        sseRetryTimerRef.current = setTimeout(() => {
+          sseRetryTimerRef.current = null;
+          if (mountedRef.current) {
+            startSSE();
+          }
+        }, delayMs);
+      } else {
+        console.warn(
+          "[useActivityFeed] SSE max retries reached — falling back to polling",
+        );
+        void fetchEvents();
+        startPolling();
+      }
+    };
+
     sseTimeoutRef.current = setTimeout(() => {
       if (!hasConnected && mountedRef.current) {
         console.warn(
-          "[useActivityFeed] SSE connection timed out — falling back to polling",
+          "[useActivityFeed] SSE connection timed out — scheduling backoff retry",
         );
-        closeSSE();
-        void fetchEvents();
-        startPolling();
+        scheduleSseReconnectOrFallback();
       }
     }, SSE_CONNECT_TIMEOUT_MS);
 
@@ -248,11 +311,14 @@ export function useActivityFeed(limit = 20, filter = "all") {
 
     es.onopen = () => {
       hasConnected = true;
+      sseRetryCountRef.current = 0;
       if (sseTimeoutRef.current !== null) {
         clearTimeout(sseTimeoutRef.current);
         sseTimeoutRef.current = null;
       }
       if (mountedRef.current) {
+        stopPolling();
+        usePollFallbackRef.current = false;
         setConnectionStatus("connected");
         setError(null);
       }
@@ -260,6 +326,7 @@ export function useActivityFeed(limit = 20, filter = "all") {
 
     es.onmessage = (ev: MessageEvent<string>) => {
       hasConnected = true;
+      sseRetryCountRef.current = 0;
       if (!mountedRef.current) return;
       try {
         const incoming = JSON.parse(ev.data) as ActivityEvent | ActivityEvent[];
@@ -296,6 +363,7 @@ export function useActivityFeed(limit = 20, filter = "all") {
     EVENT_TYPES.forEach((type) => {
       es.addEventListener(type, (ev: Event) => {
         hasConnected = true;
+        sseRetryCountRef.current = 0;
         if (!mountedRef.current) return;
         const msgEv = ev as MessageEvent<string>;
         try {
@@ -324,15 +392,10 @@ export function useActivityFeed(limit = 20, filter = "all") {
     es.onerror = () => {
       if (!mountedRef.current) return;
       if (!hasConnected || es.readyState === EventSource.CLOSED) {
-        console.warn(
-          "[useActivityFeed] SSE error — falling back to polling",
-        );
-        closeSSE();
-        void fetchEvents();
-        startPolling();
+        scheduleSseReconnectOrFallback();
       }
     };
-  }, [limit, filter, fetchEvents, startPolling, closeSSE]);
+  }, [limit, filter, fetchEvents, startPolling, stopPolling, closeSSE]);
 
   // ── Lifecycle ─────────────────────────────────────────────────────────────
 
@@ -341,6 +404,7 @@ export function useActivityFeed(limit = 20, filter = "all") {
 
     mountedRef.current = true;
     usePollFallbackRef.current = false;
+    sseRetryCountRef.current = 0;
     pollErrorCountRef.current = 0;
 
     void fetchEvents();
