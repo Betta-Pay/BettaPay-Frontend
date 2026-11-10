@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, act } from "@testing-library/react";
 
 // ── next/navigation ──────────────────────────────────────────────────────────
 const mockPush = jest.fn();
@@ -111,5 +111,49 @@ describe("InvalidPaymentLinkState", () => {
   it("omits the reference box when no link id is given", () => {
     render(<InvalidPaymentLinkState reason="not-found" />);
     expect(screen.queryByText(/Reference:/)).not.toBeInTheDocument();
+  });
+
+  it("renders a Contact Merchant mailto link when merchantEmail is provided", () => {
+    render(
+      <InvalidPaymentLinkState
+        reason="expired"
+        merchantEmail="billing@merchant.example"
+      />,
+    );
+
+    const contactLink = screen.getByRole("link", { name: "Contact Merchant" });
+    expect(contactLink).toHaveAttribute("href", "mailto:billing@merchant.example");
+  });
+
+  it("counts down from 10s and automatically redirects to returnUrl when timer reaches zero", () => {
+    jest.useFakeTimers();
+    try {
+      render(
+        <InvalidPaymentLinkState
+          reason="not-found"
+          returnUrl="/safe-home"
+          redirectSeconds={10}
+        />,
+      );
+
+      expect(
+        screen.getByRole("button", { name: "Return to homepage (10s)" }),
+      ).toBeInTheDocument();
+
+      act(() => {
+        jest.advanceTimersByTime(3000);
+      });
+      expect(
+        screen.getByRole("button", { name: "Return to homepage (7s)" }),
+      ).toBeInTheDocument();
+      expect(mockPush).not.toHaveBeenCalled();
+
+      act(() => {
+        jest.advanceTimersByTime(7000);
+      });
+      expect(mockPush).toHaveBeenCalledWith("/safe-home");
+    } finally {
+      jest.useRealTimers();
+    }
   });
 });
