@@ -21,7 +21,12 @@ import {
   TransactionBuilder,
   nativeToScVal,
 } from '@stellar/stellar-sdk';
-import { decodeSorobanInvocation, fetchTransactionEnvelope } from '../sorobanInvocation';
+import {
+  decodeSorobanInvocation,
+  fetchTransactionEnvelope,
+  simulateSorobanTransaction,
+  SorobanSimulationError,
+} from '../sorobanInvocation';
 
 function buildInvokeContractEnvelope(): { envelopeXdr: string; contractId: string; recipient: string } {
   const sourceKeypair = Keypair.random();
@@ -111,5 +116,62 @@ describe('fetchTransactionEnvelope', () => {
   it('returns null when the request throws', async () => {
     global.fetch = jest.fn().mockRejectedValue(new Error('network down')) as unknown as typeof fetch;
     await expect(fetchTransactionEnvelope('hash1', 'testnet')).resolves.toBeNull();
+  });
+});
+
+describe('simulateSorobanTransaction (#898)', () => {
+  it('calculates required resource fees and footprint limits from RPC simulation', async () => {
+    const { envelopeXdr } = buildInvokeContractEnvelope();
+    const tx = TransactionBuilder.fromXDR(envelopeXdr, Networks.TESTNET);
+
+    const mockServer = {
+      simulateTransaction: jest.fn().mockResolvedValue({
+        minResourceFee: '48000',
+        cost: {
+          cpuInsns: '1250000',
+          memBytes: '262144',
+        },
+        resources: {
+          readBytes: 2048,
+          writeBytes: 512,
+        },
+        transactionData: 'AAAA-mock-soroban-data',
+      }),
+    };
+
+    const result = await simulateSorobanTransaction(tx, mockServer, {
+      baseFeeStroops: 100,
+      feeBufferBps: 1500, // +15%
+    });
+
+    expect(mockServer.simulateTransaction).toHaveBeenCalledWith(tx);
+    expect(result.minResourceFee).toBe('48000');
+    // 100 + ceil(48000 * 1.15) = 55300
+    expect(result.totalFeeStroops).toBe('55300');
+    expect(result.footprint).toEqual({
+      cpuInstructions: 1250000,
+      memoryBytes: 262144,
+      readBytes: 2048,
+      writeBytes: 512,
+    });
+    expect(result.transactionData).toBe('AAAA-mock-soroban-data');
+  });
+
+  it('throws descriptive SorobanSimulationError before user signs when simulation fails', async () => {
+    const { envelopeXdr } = buildInvokeContractEnvelope();
+    const tx = TransactionBuilder.fromXDR(envelopeXdr, Networks.TESTNET);
+
+    const mockServer = {
+      simulateTransaction: jest.fn().mockResolvedValue({
+        error: 'HostError: Error(Contract, #4) — insufficient allowance',
+        events: ['diag-event-1'],
+      }),
+    };
+
+    const err = await simulateSorobanTransaction(tx, mockServer).catch((e) => e);
+    expect(err).toBeInstanceOf(SorobanSimulationError);
+    expect((err as SorobanSimulationError).message).toContain('insufficient allowance');
+    expect((err as SorobanSimulationError).details).toContain('HostError');
+    expect((err as SorobanSimulationError).events).toEqual(['diag-event-1']);
   });
 });
