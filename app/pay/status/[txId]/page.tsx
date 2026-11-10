@@ -12,17 +12,38 @@ import { apiClient } from '@/lib/api/axios';
 
 type Status = 'processing' | 'success' | 'failed' | 'timeout';
 
-// ─── Polling config ───────────────────────────────────────────────────────────
-// Base interval: 3 s. Backoff multiplier: 1.5×. Cap: 30 s.
-// 60 attempts ≈ 3 minutes of total wall-clock time before giving up.
-const POLL_BASE_MS = 3_000;
-const POLL_BACKOFF = 1.5;
-const POLL_CAP_MS = 30_000;
-const POLL_MAX_ATTEMPTS = 60;
+// ─── Polling config (#925) ────────────────────────────────────────────────────
+// Start at 2 s, back off through 5 s and 10 s, cap at 15 s (especially after 2 min),
+// and halt after 10 minutes or when the payment reaches a terminal state.
+export const POLL_BASE_MS = 2_000;
+export const POLL_BACKOFF = 1.5;
+export const POLL_CAP_MS = 15_000;
+export const POLL_TWO_MINUTES_MS = 2 * 60 * 1000;
+export const POLL_MAX_DURATION_MS = 10 * 60 * 1000;
+export const POLL_MAX_ATTEMPTS = 60;
 
-function nextDelay(attempt: number): number {
-  const raw = POLL_BASE_MS * Math.pow(POLL_BACKOFF, attempt);
-  return Math.min(raw, POLL_CAP_MS);
+/**
+ * Compute adaptive polling delay with exponential backoff and ±10% jitter.
+ * When `randomFn` returns `0.5`, jitter is `0` for deterministic assertions.
+ */
+export function computeStatusPollDelay(
+  attempt: number,
+  elapsedMs = 0,
+  randomFn: () => number = Math.random,
+): number {
+  const safeAttempt = Math.max(0, attempt);
+  const rawBase =
+    elapsedMs >= POLL_TWO_MINUTES_MS
+      ? POLL_CAP_MS
+      : Math.min(POLL_BASE_MS * Math.pow(POLL_BACKOFF, safeAttempt), POLL_CAP_MS);
+
+  const clampedRandom = Math.min(1, Math.max(0, randomFn()));
+  // Map [0, 1] -> [-0.1, +0.1] so randomFn() === 0.5 yields exact 1.0x
+  const jitterFactor = 1 + (clampedRandom - 0.5) * 0.2;
+  return Math.min(
+    POLL_CAP_MS,
+    Math.max(POLL_BASE_MS, Math.round(rawBase * jitterFactor)),
+  );
 }
 
 export default function PaymentStatusPage() {
@@ -39,6 +60,7 @@ export default function PaymentStatusPage() {
   // Refs so the polling closure always sees the latest values without
   // needing to be re-created (avoids re-registering the effect).
   const attemptRef = useRef(0);
+  const startedAtRef = useRef<number>(Date.now());
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const mountedRef = useRef(true);
 
@@ -61,7 +83,7 @@ export default function PaymentStatusPage() {
       if (payment) {
         setPaymentData(payment);
 
-        if (payment.status === 'success') {
+        if (payment.status === 'success' || payment.status === 'completed') {
           setStatus('success');
           return; // terminal — stop polling
         }
@@ -77,17 +99,21 @@ export default function PaymentStatusPage() {
     }
 
     // Non-terminal: schedule the next attempt with exponential backoff,
-    // unless we have already exhausted the maximum retry budget.
+    // unless we have already exhausted the maximum retry budget or 10-min window.
     if (!mountedRef.current) return;
 
     attemptRef.current += 1;
+    const elapsedMs = Date.now() - startedAtRef.current;
 
-    if (attemptRef.current >= POLL_MAX_ATTEMPTS) {
+    if (
+      attemptRef.current >= POLL_MAX_ATTEMPTS ||
+      elapsedMs >= POLL_MAX_DURATION_MS
+    ) {
       setStatus('timeout');
       return;
     }
 
-    const delay = nextDelay(attemptRef.current);
+    const delay = computeStatusPollDelay(attemptRef.current, elapsedMs);
     timerRef.current = setTimeout(checkStatus, delay);
   }, [txId]);
 
@@ -96,6 +122,7 @@ export default function PaymentStatusPage() {
 
     if (status === 'processing') {
       attemptRef.current = 0;
+      startedAtRef.current = Date.now();
       checkStatus();
     }
 
@@ -114,6 +141,7 @@ export default function PaymentStatusPage() {
     clearTimer();
     mountedRef.current = true;
     attemptRef.current = 0;
+    startedAtRef.current = Date.now();
     setStatus('processing');
     // Kick off a poll immediately after the state flush.
     setTimeout(checkStatus, 0);
