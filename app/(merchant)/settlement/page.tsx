@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   Card,
   CardContent,
@@ -62,9 +63,57 @@ export default function SettlementPage() {
   const [settlementOpen, setSettlementOpen] = useState(false);
   const network = useWalletStore((s) => s.network);
   const notify = useNotify();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
 
-  // Active filter tab
-  const [activeFilter, setActiveFilter] = useState<string>("ALL");
+  // Active status & date range filters synced with URL query parameters
+  const [activeFilter, setActiveFilter] = useState<string>(() =>
+    (searchParams?.get("status") ?? "ALL").toUpperCase()
+  );
+  const [dateRange, setDateRange] = useState<string>(
+    () => searchParams?.get("dateRange") ?? "all"
+  );
+  const [fromDate, setFromDate] = useState<string>(
+    () => searchParams?.get("from") ?? ""
+  );
+  const [toDate, setToDate] = useState<string>(
+    () => searchParams?.get("to") ?? ""
+  );
+
+  const syncUrlParams = useCallback(
+    (nextStatus: string, nextDateRange: string, nextFrom: string, nextTo: string) => {
+      const params = new URLSearchParams(searchParams?.toString() ?? "");
+      if (nextStatus && nextStatus !== "ALL") {
+        params.set("status", nextStatus.toLowerCase());
+      } else {
+        params.delete("status");
+      }
+      if (nextDateRange && nextDateRange !== "all") {
+        params.set("dateRange", nextDateRange);
+      } else {
+        params.delete("dateRange");
+      }
+      if (nextFrom) {
+        params.set("from", nextFrom);
+      } else {
+        params.delete("from");
+      }
+      if (nextTo) {
+        params.set("to", nextTo);
+      } else {
+        params.delete("to");
+      }
+      const qs = params.toString();
+      const href = qs ? `${pathname ?? "/settlement"}?${qs}` : (pathname ?? "/settlement");
+      router?.push?.(href);
+    },
+    [pathname, router, searchParams]
+  );
+
+  useEffect(() => {
+    syncUrlParams(activeFilter, dateRange, fromDate, toDate);
+  }, [activeFilter, dateRange, fromDate, toDate, syncUrlParams]);
 
   // Automated settlement rule toggle
   const [settlementRule, setSettlementRule] =
@@ -86,11 +135,38 @@ export default function SettlementPage() {
 
   // Filtered rows
   const filteredSettlements = useMemo(() => {
-    if (activeFilter === "ALL") return settlements;
-    return settlements.filter(
-      (s) => s.status.toUpperCase() === activeFilter.toUpperCase()
-    );
-  }, [settlements, activeFilter]);
+    const now = new Date();
+    return settlements.filter((s) => {
+      const matchesStatus =
+        activeFilter === "ALL" ||
+        s.status.toUpperCase() === activeFilter.toUpperCase();
+
+      let matchesDate = true;
+      const createdDate = new Date(s.createdAt);
+      if (dateRange === "7d") {
+        const diffDays = (now.getTime() - createdDate.getTime()) / (1000 * 3600 * 24);
+        matchesDate = diffDays <= 7;
+      } else if (dateRange === "30d") {
+        const diffDays = (now.getTime() - createdDate.getTime()) / (1000 * 3600 * 24);
+        matchesDate = diffDays <= 30;
+      }
+
+      if (matchesDate && fromDate) {
+        const fromTime = new Date(fromDate).getTime();
+        if (!Number.isNaN(fromTime)) {
+          matchesDate = createdDate.getTime() >= fromTime;
+        }
+      }
+      if (matchesDate && toDate) {
+        const toTime = new Date(`${toDate}T23:59:59.999Z`).getTime();
+        if (!Number.isNaN(toTime)) {
+          matchesDate = createdDate.getTime() <= toTime;
+        }
+      }
+
+      return matchesStatus && matchesDate;
+    });
+  }, [settlements, activeFilter, dateRange, fromDate, toDate]);
 
   // Export rows
   const exportRows = useMemo(
@@ -359,9 +435,49 @@ export default function SettlementPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            {/* Status dropdown + pills */}
+            <select
+              aria-label="Filter by status"
+              value={activeFilter}
+              onChange={(e) => setActiveFilter(e.target.value)}
+              className="h-8 rounded-xl border border-border/60 bg-muted/60 px-2.5 text-xs font-medium text-foreground"
+            >
+              <option value="ALL">All Statuses</option>
+              <option value="PENDING">Pending</option>
+              <option value="PROCESSING">Processing</option>
+              <option value="COMPLETED">Completed</option>
+              <option value="FAILED">Failed</option>
+            </select>
+
+            <select
+              aria-label="Filter by date range"
+              value={dateRange}
+              onChange={(e) => setDateRange(e.target.value)}
+              className="h-8 rounded-xl border border-border/60 bg-muted/60 px-2.5 text-xs font-medium text-foreground"
+            >
+              <option value="all">All Time</option>
+              <option value="7d">Last 7 Days</option>
+              <option value="30d">Last 30 Days</option>
+            </select>
+
+            <input
+              type="date"
+              aria-label="From date"
+              value={fromDate}
+              onChange={(e) => setFromDate(e.target.value)}
+              className="h-8 rounded-xl border border-border/60 bg-muted/60 px-2 text-xs text-foreground"
+            />
+            <input
+              type="date"
+              aria-label="To date"
+              value={toDate}
+              onChange={(e) => setToDate(e.target.value)}
+              className="h-8 rounded-xl border border-border/60 bg-muted/60 px-2 text-xs text-foreground"
+            />
+
             {/* Filter pills */}
             <div className="flex items-center gap-1 bg-muted/60 p-1 rounded-xl border border-border/40 text-xs">
-              {["ALL", "COMPLETED", "PROCESSING", "FAILED"].map((filter) => (
+              {["ALL", "PENDING", "COMPLETED", "PROCESSING", "FAILED"].map((filter) => (
                 <button
                   key={filter}
                   onClick={() => setActiveFilter(filter)}
