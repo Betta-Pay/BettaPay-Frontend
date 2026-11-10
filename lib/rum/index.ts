@@ -15,7 +15,7 @@
  *   return cleanup;
  */
 
-import { getClientId, shouldSample } from './client';
+import { getClientId, getConfiguredSampleRate, shouldSample } from './client';
 import { startCollectors } from './collect';
 import { enqueue, initSender, destroySender } from './send';
 import { normalizeRoute } from './normalize';
@@ -71,7 +71,11 @@ export function initRum(options?: {
     return () => {};
   }
 
-  const sampleRate = options?.sampleRate ?? DEFAULT_SAMPLE_RATE;
+  const sampleRate =
+    options?.sampleRate ??
+    (typeof getConfiguredSampleRate === 'function'
+      ? getConfiguredSampleRate()
+      : DEFAULT_SAMPLE_RATE);
   const clientId = getClientId();
 
   if (!clientId) return () => {};
@@ -130,5 +134,11 @@ export function recordRumEvent(
 // Re-export types and utilities for consumers
 export type { RumEvent, RumBatchPayload, RumMetricName, NavigationType } from './types';
 export { normalizeRoute } from './normalize';
-export { getClientId, shouldSample, djb2Hash } from './client';
+export {
+  getClientId,
+  getConfiguredSampleRate,
+  DEFAULT_RUM_SAMPLE_RATE,
+  shouldSample,
+  djb2Hash,
+} from './client';
 export { VALID_METRIC_NAMES } from './types';

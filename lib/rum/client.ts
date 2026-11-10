@@ -11,6 +11,27 @@
 
 const CLIENT_ID_KEY = 'bp_rum_cid';
 
+/** Default RUM session sample rate when `NEXT_PUBLIC_RUM_SAMPLE_RATE` is unset. */
+export const DEFAULT_RUM_SAMPLE_RATE = 0.1;
+
+/**
+ * Reads and validates `NEXT_PUBLIC_RUM_SAMPLE_RATE` (float in `[0, 1]`).
+ * Values outside `[0, 1]` are clamped; malformed or empty values fall back to
+ * `DEFAULT_RUM_SAMPLE_RATE`.
+ */
+export function getConfiguredSampleRate(
+  rawValue: string | undefined = process.env.NEXT_PUBLIC_RUM_SAMPLE_RATE,
+): number {
+  if (rawValue === undefined || rawValue.trim() === '') {
+    return DEFAULT_RUM_SAMPLE_RATE;
+  }
+  const parsed = Number(rawValue);
+  if (!Number.isFinite(parsed)) {
+    return DEFAULT_RUM_SAMPLE_RATE;
+  }
+  return Math.min(1, Math.max(0, parsed));
+}
+
 /**
  * Get or create a random opaque client identifier.
  * Stored in sessionStorage to limit cross-tab persistence.
@@ -58,7 +79,7 @@ export function djb2Hash(str: string): number {
  */
 export function shouldSample(
   clientId: string,
-  sampleRate: number,
+  sampleRate: number = getConfiguredSampleRate(),
   windowMs: number = 60000
 ): boolean {
   if (!clientId) return false;

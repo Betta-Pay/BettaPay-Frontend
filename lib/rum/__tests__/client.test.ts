@@ -1,4 +1,10 @@
-import { djb2Hash, shouldSample, getClientId } from '../client';
+import {
+  djb2Hash,
+  shouldSample,
+  getClientId,
+  getConfiguredSampleRate,
+  DEFAULT_RUM_SAMPLE_RATE,
+} from '../client';
 
 describe('djb2Hash', () => {
   it('returns a non-negative integer', () => {
@@ -50,6 +56,54 @@ describe('shouldSample', () => {
 
   it('returns false when sampleRate is negative', () => {
     expect(shouldSample('client1', -0.5)).toBe(false);
+  });
+
+  it('reads NEXT_PUBLIC_RUM_SAMPLE_RATE and clamps values to [0, 1]', () => {
+    const original = process.env.NEXT_PUBLIC_RUM_SAMPLE_RATE;
+    try {
+      delete process.env.NEXT_PUBLIC_RUM_SAMPLE_RATE;
+      expect(getConfiguredSampleRate()).toBe(DEFAULT_RUM_SAMPLE_RATE);
+
+      process.env.NEXT_PUBLIC_RUM_SAMPLE_RATE = '0.5';
+      expect(getConfiguredSampleRate()).toBe(0.5);
+
+      process.env.NEXT_PUBLIC_RUM_SAMPLE_RATE = '2.5';
+      expect(getConfiguredSampleRate()).toBe(1);
+
+      process.env.NEXT_PUBLIC_RUM_SAMPLE_RATE = '-1';
+      expect(getConfiguredSampleRate()).toBe(0);
+
+      process.env.NEXT_PUBLIC_RUM_SAMPLE_RATE = 'invalid';
+      expect(getConfiguredSampleRate()).toBe(DEFAULT_RUM_SAMPLE_RATE);
+    } finally {
+      if (original === undefined) {
+        delete process.env.NEXT_PUBLIC_RUM_SAMPLE_RATE;
+      } else {
+        process.env.NEXT_PUBLIC_RUM_SAMPLE_RATE = original;
+      }
+    }
+  });
+
+  it('samples approximately 50% of sessions when sampleRate is 0.5', () => {
+    const original = process.env.NEXT_PUBLIC_RUM_SAMPLE_RATE;
+    process.env.NEXT_PUBLIC_RUM_SAMPLE_RATE = '0.5';
+    try {
+      const total = 1000;
+      let sampled = 0;
+      for (let i = 0; i < total; i++) {
+        if (shouldSample(`session-client-${i}`)) {
+          sampled++;
+        }
+      }
+      expect(sampled).toBeGreaterThan(400);
+      expect(sampled).toBeLessThan(600);
+    } finally {
+      if (original === undefined) {
+        delete process.env.NEXT_PUBLIC_RUM_SAMPLE_RATE;
+      } else {
+        process.env.NEXT_PUBLIC_RUM_SAMPLE_RATE = original;
+      }
+    }
   });
 });
 
