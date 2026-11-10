@@ -4,6 +4,43 @@ import { useEffect } from 'react';
 import { useOfflineStore } from '@/lib/store/offlineStore';
 import { resolveApiBaseUrl } from '@/lib/api/axios';
 
+export const CONNECTIVITY_BROADCAST_CHANNEL = 'betta_connectivity';
+
+export interface ConnectivityBroadcastMessage {
+  isOnline: boolean;
+  isApiReachable: boolean;
+  timestamp: number;
+}
+
+function createConnectivityChannel(): BroadcastChannel | null {
+  if (typeof BroadcastChannel === 'undefined') {
+    return null;
+  }
+  try {
+    return new BroadcastChannel(CONNECTIVITY_BROADCAST_CHANNEL);
+  } catch {
+    return null;
+  }
+}
+
+function postConnectivityStatus(
+  channel: BroadcastChannel | null,
+  isOnline: boolean,
+  isApiReachable: boolean,
+): void {
+  if (!channel) return;
+  try {
+    const message: ConnectivityBroadcastMessage = {
+      isOnline,
+      isApiReachable,
+      timestamp: Date.now(),
+    };
+    channel.postMessage(message);
+  } catch {
+    // Ignore errors if channel is already closed
+  }
+}
+
 export async function pingApiHealth(): Promise<boolean> {
   const url = `${resolveApiBaseUrl()}/healthz`;
   try {
@@ -30,32 +67,58 @@ export function useOnlineStatus(): boolean {
   useEffect(() => {
     let active = true;
     let pollInterval: ReturnType<typeof setInterval> | null = null;
+    const channel = createConnectivityChannel();
 
-    const checkHealth = async () => {
+    const applyStatus = (nextOnline: boolean, nextReachable: boolean, broadcast: boolean) => {
+      const prev = useOfflineStore.getState();
+      const changed =
+        prev.isOnline !== nextOnline || prev.isApiReachable !== nextReachable;
+      prev.setIsOnline(nextOnline);
+      prev.setIsApiReachable(nextReachable);
+      if (broadcast && changed) {
+        postConnectivityStatus(channel, nextOnline, nextReachable);
+      }
+    };
+
+    if (channel) {
+      channel.onmessage = (event: MessageEvent<ConnectivityBroadcastMessage>) => {
+        if (!active || !event?.data || typeof event.data !== 'object') return;
+        const { isOnline: remoteOnline, isApiReachable: remoteReachable } = event.data;
+        if (typeof remoteOnline === 'boolean' && typeof remoteReachable === 'boolean') {
+          applyStatus(remoteOnline, remoteReachable, false);
+        }
+      };
+    }
+
+    const checkHealth = async (broadcastAlways = false) => {
       if (typeof navigator !== 'undefined' && !navigator.onLine) {
-        useOfflineStore.getState().setIsOnline(false);
-        useOfflineStore.getState().setIsApiReachable(false);
+        applyStatus(false, false, true);
+        if (broadcastAlways) {
+          postConnectivityStatus(channel, false, false);
+        }
         return;
       }
 
       const reachable = await pingApiHealth();
       if (!active) return;
 
-      useOfflineStore.getState().setIsOnline(true);
-      useOfflineStore.getState().setIsApiReachable(reachable);
+      applyStatus(true, reachable, true);
+      if (broadcastAlways) {
+        postConnectivityStatus(channel, true, reachable);
+      }
     };
 
     // Initialize/sync status on mount
-    checkHealth();
+    void checkHealth();
 
     const handleOnline = () => {
       useOfflineStore.getState().setIsOnline(true);
-      checkHealth();
+      void checkHealth(true);
     };
 
     const handleOffline = () => {
-      useOfflineStore.getState().setIsOnline(false);
-      useOfflineStore.getState().setIsApiReachable(false);
+      applyStatus(false, false, true);
+      postConnectivityStatus(channel, false, false);
     };
 
     window.addEventListener('online', handleOnline);
@@ -64,13 +127,13 @@ export function useOnlineStatus(): boolean {
     // Poll every 10 seconds if visible
     pollInterval = setInterval(() => {
       if (document.visibilityState === 'visible') {
-        checkHealth();
+        void checkHealth();
       }
     }, 10000);
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        checkHealth();
+        void checkHealth();
       }
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
@@ -81,6 +144,10 @@ export function useOnlineStatus(): boolean {
       window.removeEventListener('offline', handleOffline);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       if (pollInterval) clearInterval(pollInterval);
+      if (channel) {
+        channel.onmessage = null;
+        channel.close();
+      }
     };
   }, []);
 
