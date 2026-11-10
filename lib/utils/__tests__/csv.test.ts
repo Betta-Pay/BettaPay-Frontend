@@ -1,4 +1,9 @@
-import { buildCsv, escapeCsvField } from '@/lib/utils/csv';
+import {
+  buildCsv,
+  escapeCsvField,
+  generateCSV,
+  sanitizeCsvFormula,
+} from '@/lib/utils/csv';
 
 describe('escapeCsvField', () => {
   it('wraps plain string values in double quotes', () => {
@@ -12,8 +17,19 @@ describe('escapeCsvField', () => {
   });
 
   it('escapes values that look like CSV injection attempts', () => {
-    // =cmd|'/c calc'!A1 — should be safely quoted, not executable.
-    expect(escapeCsvField('=cmd|"/c calc"!A1').startsWith('"')).toBe(true);
+    // =cmd|'/c calc'!A1 — should be prefixed with a single quote and safely quoted.
+    const escaped = escapeCsvField('=cmd|"/c calc"!A1');
+    expect(escaped.startsWith('"')).toBe(true);
+    expect(escaped).toBe('"\'=cmd|""/c calc""!A1"');
+  });
+
+  it('prefixes formula triggers (=, +, -, @, tab, cr) with a single quote', () => {
+    expect(sanitizeCsvFormula('=1+1')).toBe("'=1+1");
+    expect(sanitizeCsvFormula('+SUM(A1:A2)')).toBe("'+SUM(A1:A2)");
+    expect(sanitizeCsvFormula('-2+3')).toBe("'-2+3");
+    expect(sanitizeCsvFormula('@SUM(1,2)')).toBe("'@SUM(1,2)");
+    expect(sanitizeCsvFormula('\t=1+1')).toBe("'\t=1+1");
+    expect(escapeCsvField('=1+1')).toBe('"\'=1+1"');
   });
 
   it('returns an empty quoted string for null or undefined', () => {
@@ -46,5 +62,20 @@ describe('buildCsv', () => {
 
   it('produces an empty body when no rows are given', () => {
     expect(buildCsv('h\n', [])).toBe('\ufeffh\n');
+  });
+});
+
+describe('generateCSV formula sanitization (#911)', () => {
+  it('sanitizes string cells starting with formula triggers while leaving numbers intact', () => {
+    const rows = [{ memo: '=1+1', cmd: '=cmd|"/c calc"!A0', amount: -42 }];
+    const csv = generateCSV(rows, [
+      { header: 'Memo', key: 'memo' },
+      { header: 'Command', key: 'cmd' },
+      { header: 'Amount', key: 'amount' },
+    ]);
+
+    expect(csv).toContain("'=1+1");
+    expect(csv).toContain('"\'=cmd|""/c calc""!A0"');
+    expect(csv).toContain(',-42');
   });
 });

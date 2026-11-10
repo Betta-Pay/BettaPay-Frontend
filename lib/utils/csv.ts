@@ -16,14 +16,34 @@ export interface CSVColumn<T = Record<string, unknown>> {
 }
 
 /**
+ * Leading characters that spreadsheet software (Excel, LibreOffice Calc,
+ * Google Sheets) interprets as formula or DDE command triggers.
+ */
+export const CSV_FORMULA_PREFIXES = ['=', '+', '-', '@', '\t', '\r'] as const;
+
+const CSV_FORMULA_TRIGGER_REGEX = /^[=+\-@\t\r]/;
+
+/**
+ * Neutralizes CSV / DDE formula injection by prefixing strings that start with
+ * `=`, `+`, `-`, `@`, `\t`, or `\r` with a leading single quote (`'`).
+ */
+export function sanitizeCsvFormula(value: string): string {
+  if (!value) return value;
+  if (CSV_FORMULA_TRIGGER_REGEX.test(value)) {
+    return `'${value}`;
+  }
+  return value;
+}
+
+/**
  * Escapes a grid value for CSV storage following RFC 4180 rules.
- * Handles commas, double quotes, and carriage return / line feeds.
+ * Handles commas, double quotes, carriage return / line feeds, and formula injection.
  */
 function escapeCSVValue(value: unknown): string {
   if (value === null || value === undefined) {
     return '';
   }
-  const str = String(value);
+  const str = typeof value === 'string' ? sanitizeCsvFormula(value) : String(value);
   if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
     return `"${str.replace(/"/g, '""')}"`;
   }
@@ -36,7 +56,8 @@ const BOM = '\ufeff';
  * Escape a single CSV field for safe inclusion in a comma-separated value stream.
  */
 export function escapeCsvField(value: unknown): string {
-  const str = value == null ? '' : String(value);
+  const raw = value == null ? '' : String(value);
+  const str = typeof value === 'string' ? sanitizeCsvFormula(raw) : raw;
   return `"${str.replace(/"/g, '""')}"`;
 }
 
