@@ -9,6 +9,7 @@ import { useWalletStore } from "@/lib/store/walletStore";
 import { ROUTES } from "@/lib/navigation/routes";
 import {
   actionsForRole,
+  formatShortcutKeys,
   type CommandAction,
   type CommandContext,
   type CommandRole,
@@ -258,6 +259,21 @@ export function CommandPalette({ role }: CommandPaletteProps) {
                   >
                     <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
                     <span className="flex-1 truncate">{action.title}</span>
+                    {action.shortcut && action.shortcut.length > 0 && (
+                      <span
+                        className="flex shrink-0 items-center gap-1"
+                        aria-label={`Shortcut ${formatShortcutKeys(action.shortcut).join(" + ")}`}
+                      >
+                        {formatShortcutKeys(action.shortcut).map((key, keyIndex) => (
+                          <kbd
+                            key={`${action.id}-kbd-${keyIndex}`}
+                            className="rounded border border-border bg-muted/60 px-1.5 py-0.5 font-mono text-[10px] leading-none text-muted-foreground"
+                          >
+                            {key}
+                          </kbd>
+                        ))}
+                      </span>
+                    )}
                     <span className="shrink-0 text-[11px] text-muted-foreground">
                       {action.group}
                     </span>
