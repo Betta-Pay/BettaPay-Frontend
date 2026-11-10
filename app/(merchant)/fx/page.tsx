@@ -124,6 +124,7 @@ export default function FxRatesPage() {
   const [fromCurrency, setFromCurrency] = useState("USDC");
   const [isExecuting, setIsExecuting] = useState(false);
   const [conversionSuccess, setConversionSuccess] = useState(false);
+  const [showFeeBreakdown, setShowFeeBreakdown] = useState(false);
 
   // Rate Alert states
   const [newPair, setNewPair] = useState("USDC/NGN");
@@ -144,7 +145,10 @@ export default function FxRatesPage() {
 
   const rawInput = parseFloat(convertAmount) || 0;
   const feePercent = 0.5;
+  const spreadPercent = 0.15;
+  const networkFeeXlm = 0.00001;
   const feeUsdc = rawInput * (feePercent / 100);
+  const spreadUsdc = rawInput * (spreadPercent / 100);
   const netUsdc = Math.max(0, rawInput - feeUsdc);
   const estimatedOutputNgn = currentRate ? netUsdc * currentRate : 0;
 
@@ -364,6 +368,52 @@ export default function FxRatesPage() {
                       ₦{estimatedOutputNgn.toLocaleString(undefined, { maximumFractionDigits: 0 })} NGN
                     </span>
                   </div>
+                </div>
+
+                {/* Guaranteed Exchange Rate Lock Window & Expandable Fee Breakdown */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span
+                      data-testid="rate-lock-window"
+                      className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-0.5 font-mono text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
+                    >
+                      Rate locked for 30s
+                    </span>
+                    <button
+                      type="button"
+                      aria-expanded={showFeeBreakdown}
+                      onClick={() => setShowFeeBreakdown((prev) => !prev)}
+                      className="text-xs font-semibold text-primary hover:underline"
+                    >
+                      {showFeeBreakdown ? "Hide Fee Breakdown" : "Fee Breakdown"}
+                    </button>
+                  </div>
+
+                  {showFeeBreakdown && (
+                    <div
+                      data-testid="fee-breakdown-panel"
+                      className="rounded-xl border border-border/70 bg-muted/30 p-3 space-y-1.5 text-xs"
+                    >
+                      <div className="flex justify-between text-muted-foreground">
+                        <span>Network Fee (Stellar)</span>
+                        <span className="font-mono font-semibold text-foreground">
+                          {networkFeeXlm} XLM
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-muted-foreground">
+                        <span>Platform Fee ({feePercent}%)</span>
+                        <span className="font-mono font-semibold text-foreground" data-testid="breakdown-platform-fee">
+                          ${feeUsdc.toFixed(2)} {fromCurrency}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-muted-foreground">
+                        <span>Estimated Spread ({spreadPercent}%)</span>
+                        <span className="font-mono font-semibold text-foreground" data-testid="breakdown-spread-fee">
+                          ${spreadUsdc.toFixed(2)} {fromCurrency}
+                        </span>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <Button
