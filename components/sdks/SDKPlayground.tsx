@@ -10,6 +10,12 @@ import type { SdkRelease } from "@/lib/sdks/registry";
 import { SDK_ICONS } from "./icons";
 import { CopyableCode } from "./CopyableCode";
 import { TryItPanel } from "./TryItPanel";
+import {
+  PACKAGE_MANAGERS,
+  formatPackageManagerInstall,
+  isNpmInstallCommand,
+  type PackageManager,
+} from "./SDKCard";
 
 interface SDKPlaygroundProps {
   releases: SdkRelease[];
@@ -17,6 +23,7 @@ interface SDKPlaygroundProps {
 
 export function SDKPlayground({ releases }: SDKPlaygroundProps) {
   const [activeId, setActiveId] = useState(SDKS[0].id);
+  const [packageManager, setPackageManager] = useState<PackageManager>("npm");
   const tabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
 
   const sdk = SDKS.find((item) => item.id === activeId) ?? SDKS[0];
@@ -101,8 +108,45 @@ export function SDKPlayground({ releases }: SDKPlaygroundProps) {
         {sample && (
           <div className="space-y-4">
             <div className="space-y-2">
-              <h3 className="text-sm font-semibold">1. Install</h3>
-              <CopyableCode code={sample.install} label={`${sdk.language} install command`} />
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h3 className="text-sm font-semibold">1. Install</h3>
+                {(sdk.id === "typescript" || isNpmInstallCommand(sample.install)) && (
+                  <div
+                    role="tablist"
+                    aria-label="Package manager"
+                    className="inline-flex items-center gap-1 rounded-lg border border-border bg-muted/40 p-1"
+                  >
+                    {PACKAGE_MANAGERS.map((pm) => {
+                      const selected = pm === packageManager;
+                      return (
+                        <button
+                          key={pm}
+                          type="button"
+                          role="tab"
+                          aria-selected={selected}
+                          onClick={() => setPackageManager(pm)}
+                          className={cn(
+                            "rounded-md px-2.5 py-1 text-xs font-mono font-medium transition-colors",
+                            selected
+                              ? "bg-card text-primary shadow-xs border border-border/60"
+                              : "text-muted-foreground hover:text-foreground",
+                          )}
+                        >
+                          {pm}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+              <CopyableCode
+                code={
+                  sdk.id === "typescript" || isNpmInstallCommand(sample.install)
+                    ? formatPackageManagerInstall(sample.install, packageManager)
+                    : sample.install
+                }
+                label={`${sdk.language} install command`}
+              />
             </div>
             <div className="space-y-2">
               <h3 className="text-sm font-semibold">2. Request a quote</h3>
