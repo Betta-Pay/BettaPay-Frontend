@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api/axios';
@@ -66,5 +66,157 @@ describe('CurrencySelector backed by the supported-assets endpoint', () => {
     get.mockResolvedValue({ data: { data: [asset('USDC', 'USD Coin')] } });
     await userEvent.click(screen.getByRole('button', { name: /retry/i }));
     await waitFor(() => expect(screen.getByText('USD Coin')).toBeInTheDocument());
+  });
+
+  describe('debounced search filtering', () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      jest.clearAllTimers();
+      jest.useRealTimers();
+    });
+
+    it('updates search input value immediately while debouncing currency list filtering by 150ms', async () => {
+      get.mockResolvedValue({
+        data: {
+          data: [
+            asset('USDC', 'USD Coin'),
+            asset('EURC', 'Euro Coin'),
+            asset('XLM', 'Stellar Lumens'),
+          ],
+        },
+      });
+
+      renderSelector(['USDC']);
+      expect(await screen.findByText('USD Coin')).toBeInTheDocument();
+      expect(screen.getByText('Euro Coin')).toBeInTheDocument();
+      expect(screen.getByText('Stellar Lumens')).toBeInTheDocument();
+
+      const searchInput = screen.getByRole('searchbox', { name: /search currencies/i });
+      fireEvent.change(searchInput, { target: { value: 'Stellar' } });
+
+      // Input updates immediately on keystroke
+      expect(searchInput).toHaveValue('Stellar');
+      // List has not filtered yet before 150ms elapses
+      expect(screen.getByText('USD Coin')).toBeInTheDocument();
+      expect(screen.getByText('Euro Coin')).toBeInTheDocument();
+
+      // Advance 100ms (still under 150ms threshold)
+      act(() => {
+        jest.advanceTimersByTime(100);
+      });
+      expect(screen.getByText('USD Coin')).toBeInTheDocument();
+
+      // Advance remaining 50ms to reach 150ms debounce threshold
+      act(() => {
+        jest.advanceTimersByTime(50);
+      });
+      expect(screen.queryByText('USD Coin')).not.toBeInTheDocument();
+      expect(screen.queryByText('Euro Coin')).not.toBeInTheDocument();
+      expect(screen.getByText('Stellar Lumens')).toBeInTheDocument();
+    });
+
+    it('resets the 150ms debounce timer on rapid consecutive keystrokes', async () => {
+      get.mockResolvedValue({
+        data: {
+          data: [
+            asset('USDC', 'USD Coin'),
+            asset('EURC', 'Euro Coin'),
+          ],
+        },
+      });
+
+      renderSelector(['USDC']);
+      expect(await screen.findByText('USD Coin')).toBeInTheDocument();
+
+      const searchInput = screen.getByRole('searchbox', { name: /search currencies/i });
+      fireEvent.change(searchInput, { target: { value: 'EU' } });
+      act(() => {
+        jest.advanceTimersByTime(100);
+      });
+
+      // Type again before 150ms finishes
+      fireEvent.change(searchInput, { target: { value: 'EURC' } });
+      expect(searchInput).toHaveValue('EURC');
+
+      // 100ms after second keystroke (200ms total) should still not have filtered
+      act(() => {
+        jest.advanceTimersByTime(100);
+      });
+      expect(screen.getByText('USD Coin')).toBeInTheDocument();
+
+      // Complete the 150ms after second keystroke
+      act(() => {
+        jest.advanceTimersByTime(50);
+      });
+      expect(screen.queryByText('USD Coin')).not.toBeInTheDocument();
+      expect(screen.getByText('Euro Coin')).toBeInTheDocument();
+    });
+
+    it('shows empty state when no currency matches and restores full list when cleared', async () => {
+      get.mockResolvedValue({
+        data: {
+          data: [
+            asset('USDC', 'USD Coin'),
+            asset('EURC', 'Euro Coin'),
+          ],
+        },
+      });
+
+      renderSelector(['USDC']);
+      expect(await screen.findByText('USD Coin')).toBeInTheDocument();
+
+      const searchInput = screen.getByRole('searchbox', { name: /search currencies/i });
+      fireEvent.change(searchInput, { target: { value: '   zzz-none   ' } });
+      act(() => {
+        jest.advanceTimersByTime(150);
+      });
+
+      expect(screen.getByText(/no matching currencies found/i)).toBeInTheDocument();
+      expect(screen.queryByText('USD Coin')).not.toBeInTheDocument();
+
+      fireEvent.change(searchInput, { target: { value: '   ' } });
+      act(() => {
+        jest.advanceTimersByTime(150);
+      });
+
+      expect(screen.queryByText(/no matching currencies found/i)).not.toBeInTheDocument();
+      expect(screen.getByText('USD Coin')).toBeInTheDocument();
+      expect(screen.getByText('Euro Coin')).toBeInTheDocument();
+    });
+
+    it('avoids re-rendering memoized CurrencyCard items on intermediate keystrokes before debounce settles', async () => {
+      let nameReads = 0;
+      const trackedAsset = {
+        code: 'USDC',
+        get name() {
+          nameReads += 1;
+          return 'USD Coin';
+        },
+        contractId: 'CUSDC',
+        decimals: 7,
+        isActive: true,
+      };
+      get.mockResolvedValue({ data: { data: [trackedAsset] } });
+
+      renderSelector(['USDC']);
+      expect(await screen.findByText('USD Coin')).toBeInTheDocument();
+      const readsAfterMount = nameReads;
+
+      const searchInput = screen.getByRole('searchbox', { name: /search currencies/i });
+      fireEvent.change(searchInput, { target: { value: 'U' } });
+      fireEvent.change(searchInput, { target: { value: 'US' } });
+      fireEvent.change(searchInput, { target: { value: 'USD' } });
+
+      // Neither filteredAssets nor memoized CurrencyCard should re-evaluate asset.name before 150ms
+      expect(nameReads).toBe(readsAfterMount);
+
+      act(() => {
+        jest.advanceTimersByTime(150);
+      });
+      expect(screen.getByText('USD Coin')).toBeInTheDocument();
+    });
   });
 });
