@@ -1,5 +1,6 @@
 import type { NextRequest } from 'next/server';
 import type { User, Role } from '@/lib/types';
+import { stripLocalePrefix } from '@/lib/i18n/locales';
 
 /**
  * Single source of truth for BettaPay session cookie contract.
@@ -54,23 +55,25 @@ export function isSessionValid(session: Session): boolean {
 
 /** Route classification shared by middleware and client flash guard. */
 export function isPublicRoute(pathname: string): boolean {
+  const path = stripLocalePrefix(pathname);
   return (
-    pathname === '/' ||
-    pathname.startsWith('/pay') ||
-    pathname === '/contact' ||
-    pathname.startsWith('/docs') ||
-    pathname.startsWith('/privacy') ||
-    pathname.startsWith('/terms') ||
-    pathname.startsWith('/fiat-settlements') ||
-    pathname.startsWith('/pricing') ||
-    pathname.startsWith('/about') ||
-    pathname.startsWith('/guides') ||
-    pathname.startsWith('/sdks') ||
-    pathname.startsWith('/status')
+    path === '/' ||
+    path.startsWith('/pay') ||
+    path === '/contact' ||
+    path.startsWith('/docs') ||
+    path.startsWith('/privacy') ||
+    path.startsWith('/terms') ||
+    path.startsWith('/fiat-settlements') ||
+    path.startsWith('/pricing') ||
+    path.startsWith('/about') ||
+    path.startsWith('/guides') ||
+    path.startsWith('/sdks') ||
+    path.startsWith('/status')
   );
 }
 export function isAuthRoute(pathname: string): boolean {
-  return pathname.startsWith('/auth');
+  const path = stripLocalePrefix(pathname);
+  return path.startsWith('/auth');
 }
 
 /**
@@ -96,9 +99,10 @@ const MARKETING_ROUTE_PREFIXES = [
 ] as const;
 
 export function isMarketingRoute(pathname: string): boolean {
-  if (pathname === '/') return true;
+  const path = stripLocalePrefix(pathname);
+  if (path === '/') return true;
   return MARKETING_ROUTE_PREFIXES.some(
-    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+    (prefix) => path === prefix || path.startsWith(`${prefix}/`),
   );
 }
 
