@@ -7,6 +7,7 @@ import pt from "./pt.json";
 import sw from "./sw.json";
 import {
   defaultLocale,
+  extractLocaleFromPathname,
   isSupportedLocale,
   LOCALE_COOKIE,
   localeStorageKey,
@@ -18,7 +19,14 @@ import {
 // Re-export the shared locale constants so existing importers that reference
 // them from "@/lib/i18n/config" keep working. New code may import directly
 // from "@/lib/i18n/locales" to avoid pulling in the i18next runtime.
-export { defaultLocale, isSupportedLocale, localeStorageKey, stripLocalePrefix, supportedLocales };
+export {
+  defaultLocale,
+  extractLocaleFromPathname,
+  isSupportedLocale,
+  localeStorageKey,
+  stripLocalePrefix,
+  supportedLocales,
+};
 export type { Locale };
 
 /**

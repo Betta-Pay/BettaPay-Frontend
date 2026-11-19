@@ -62,17 +62,34 @@ export function isSupportedLocale(value: string | null | undefined): value is Lo
 }
 
 /**
+ * Extract a supported locale prefix from the URL pathname, returning the
+ * locale and the pathname with the prefix stripped. Returns `null`
+ * when no supported locale prefix is found.
+ */
+export function extractLocaleFromPathname(
+  pathname: string,
+): { locale: Locale; stripped: string } | null {
+  const segments = pathname.split("/");
+  // segments[0] is '' (before the leading /)
+  if (segments[0] !== "") {
+    return null;
+  }
+  const candidate = segments[1];
+  if (candidate && isSupportedLocale(candidate)) {
+    const stripped = "/" + segments.slice(2).join("/");
+    return { locale: candidate, stripped: stripped === "//" ? "/" : (stripped || "/") };
+  }
+  return null;
+}
+
+/**
  * Strip a supported locale prefix from a pathname, e.g. `/en/dashboard` →
  * `/dashboard` and `/fr` → `/`. Pathnames without a supported prefix (and the
  * bare root) are returned unchanged.
  */
 export function stripLocalePrefix(pathname: string): string {
-  const [leading, ...segments] = pathname.split("/");
-  if (leading !== "" || !isSupportedLocale(segments[0])) {
-    return pathname;
-  }
-  const stripped = `/${segments.slice(1).join("/")}`;
-  return stripped === "/" ? "/" : stripped;
+  const extracted = extractLocaleFromPathname(pathname);
+  return extracted ? extracted.stripped : pathname;
 }
 
 /**

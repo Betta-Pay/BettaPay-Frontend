@@ -2,27 +2,16 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { ensureCsrfCookieInMiddleware } from '@/lib/utils/csrf';
 import { isAdminRoute as isAdminPath, isMerchantRoute as isMerchantPath } from '@/lib/auth/routeAccess';
-import { supportedLocales, defaultLocale, LOCALE_COOKIE } from '@/lib/i18n/locales';
+import {
+  supportedLocales,
+  defaultLocale,
+  LOCALE_COOKIE,
+  extractLocaleFromPathname,
+} from '@/lib/i18n/locales';
 import type { Locale } from '@/lib/i18n/locales';
 import { ROUTES } from '@/lib/navigation/routes';
 
 // ─── Locale helpers ──────────────────────────────────────────────────────────
-
-/**
- * Extract a supported locale prefix from the URL pathname, returning the
- * locale and the pathname with the prefix stripped. Returns `null` locale
- * when no supported locale prefix is found.
- */
-function extractLocaleFromPathname(pathname: string): { locale: Locale; stripped: string } | null {
-  const segments = pathname.split('/');
-  // segments[0] is '' (before the leading /)
-  const candidate = segments[1];
-  if (candidate && supportedLocales.includes(candidate as Locale)) {
-    const stripped = '/' + segments.slice(2).join('/');
-    return { locale: candidate as Locale, stripped: stripped || '/' };
-  }
-  return null;
-}
 
 /**
  * Detect the preferred locale from the NEXT_LOCALE cookie or the
