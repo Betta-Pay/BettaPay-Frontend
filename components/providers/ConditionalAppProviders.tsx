@@ -3,6 +3,7 @@
 import { ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import { isMarketingRoute } from "@/lib/auth/session";
+import { extractLocaleFromPathname } from "@/lib/i18n/locales";
 import { AppProviders } from "./AppProviders";
 
 /**
@@ -18,8 +19,11 @@ import { AppProviders } from "./AppProviders";
  */
 export function ConditionalAppProviders({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const normalizedPathname = pathname
+    ? (extractLocaleFromPathname(pathname)?.stripped ?? pathname)
+    : pathname;
 
-  if (pathname && isMarketingRoute(pathname)) {
+  if (normalizedPathname && isMarketingRoute(normalizedPathname)) {
     return <>{children}</>;
   }
 

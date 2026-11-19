@@ -2,7 +2,12 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { ensureCsrfCookieInMiddleware } from '@/lib/utils/csrf';
 import { isAdminRoute as isAdminPath, isMerchantRoute as isMerchantPath } from '@/lib/auth/routeAccess';
-import { supportedLocales, defaultLocale, LOCALE_COOKIE } from '@/lib/i18n/locales';
+import {
+  supportedLocales,
+  defaultLocale,
+  LOCALE_COOKIE,
+  extractLocaleFromPathname,
+} from '@/lib/i18n/locales';
 import type { Locale } from '@/lib/i18n/locales';
 import { ROUTES } from '@/lib/navigation/routes';
 

@@ -89,6 +89,10 @@ describe('lib/auth/session — single session contract for middleware, hooks, st
     expect(isPublicRoute('/en/dashboard')).toBe(false);
     expect(isMarketingRoute('/en')).toBe(true);
     expect(isMarketingRoute('/pt/about')).toBe(true);
+    expect(isMarketingRoute('/fr/pricing')).toBe(true);
+    expect(isMarketingRoute('/en/auth/login')).toBe(false);
+    expect(isPublicRoute('/en/pay/abc')).toBe(isPublicRoute('/pay/abc'));
+    expect(isAuthRoute('/fr/auth/login')).toBe(isAuthRoute('/auth/login'));
     expect(isMarketingRoute('/en/auth/login')).toBe(false);
   });
 
