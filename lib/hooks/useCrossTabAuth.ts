@@ -92,15 +92,19 @@ export function useCrossTabAuth() {
       }
     };
 
-    const onMessage = (event: MessageEvent<AuthChannelMessage>) => {
-      switch (event.data?.type) {
-        case "AUTH_LOGOUT":
-        case "AUTH_TOKEN_EXPIRED":
-          handleLogout();
-          break;
-        case "AUTH_LOGIN":
-          void handleLoginElsewhere();
-          break;
+    const onMessage = (event: MessageEvent<AuthChannelMessage | string>) => {
+      const data = event.data;
+      if (
+        data === "logout" ||
+        (typeof data === "object" &&
+          data !== null &&
+          (data.type === "AUTH_LOGOUT" || data.type === "AUTH_TOKEN_EXPIRED"))
+      ) {
+        handleLogout();
+        return;
+      }
+      if (typeof data === "object" && data !== null && data.type === "AUTH_LOGIN") {
+        void handleLoginElsewhere();
       }
     };
 

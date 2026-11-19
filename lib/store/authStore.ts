@@ -3,6 +3,7 @@ import { persist } from "zustand/middleware";
 import { User } from "../types";
 import { BP_SESSION_KEY } from "@/lib/auth/session";
 import { ROUTES } from "@/lib/navigation/routes";
+import { csrfHeader } from "@/lib/utils/csrf";
 
 interface AuthState {
   user: User | null;
@@ -88,7 +89,7 @@ export const useAuthStore = create<AuthState>()(
       logout: async () => {
         if (typeof window !== "undefined") {
           try {
-            const channel = new BroadcastChannel("bettapay_auth_sync");
+            const channel = new BroadcastChannel("bettapay-auth-sync");
             channel.postMessage("logout");
             channel.close();
           } catch {}
@@ -115,6 +116,7 @@ export const useAuthStore = create<AuthState>()(
             const res = await fetch("/api/auth/session", {
               method: "DELETE",
               credentials: "include",
+              headers: { ...csrfHeader() },
             });
             serverInvalidated = res.ok;
           } catch {
@@ -129,7 +131,6 @@ export const useAuthStore = create<AuthState>()(
           // cannot be replayed by whoever uses this browser profile next
           // (issue #486). Best-effort; the DELETE above already cleared it.
           try {
-            const { rotateCsrfToken } = await import("@/lib/utils/csrf");
             await rotateCsrfToken();
           } catch {
             /* csrf module / network unavailable */
@@ -145,7 +146,6 @@ export const useAuthStore = create<AuthState>()(
       // `isLoggedIn` is derived from the identity, never written independently.
       partialize: (state) => ({
         user: state.user,
-        token: state.token,
         role: state.role,
         isAuthenticated: state.isAuthenticated,
         isLoggedIn: hasRealSession(state),
@@ -175,9 +175,15 @@ export function useAuthHydrated(): boolean {
 
 if (typeof window !== "undefined") {
   try {
-    const channel = new BroadcastChannel("bettapay_auth_sync");
+    const channel = new BroadcastChannel("bettapay-auth-sync");
     channel.onmessage = (event) => {
-      if (event.data === "logout") {
+      const data = event.data;
+      const isLogout =
+        data === "logout" ||
+        (typeof data === "object" &&
+          data !== null &&
+          (data.type === "AUTH_LOGOUT" || data.type === "AUTH_TOKEN_EXPIRED"));
+      if (isLogout) {
         useAuthStore.setState({
           user: null,
           token: null,

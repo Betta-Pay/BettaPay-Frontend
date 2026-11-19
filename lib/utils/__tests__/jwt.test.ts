@@ -1,4 +1,4 @@
-import { decodeJwtPayload, isJwtExpiredOrInvalid } from '@/lib/utils/jwt';
+import { decodeJwtPayload, isJwtExpiredOrInvalid, base64UrlDecode } from '@/lib/utils/jwt';
 
 function base64Url(value: object | string): string {
   const json = typeof value === 'string' ? value : JSON.stringify(value);
@@ -117,6 +117,35 @@ describe('decodeJwtPayload', () => {
     expect(result.ok).toBe(true);
   });
 
+  it('accurately decodes JWT claims containing UTF-8 multibyte characters', () => {
+    const claims = {
+      exp: inOneHour,
+      merchantName: 'Café de Paris & Élégance',
+      currencySymbol: '₦',
+      cjkTitle: '日本語の店舗名',
+      chineseCity: '上海市',
+      description: 'Payment for services 🚀',
+    };
+
+    const token = makeToken(claims);
+    const result = decodeJwtPayload(token);
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.payload.merchantName).toBe('Café de Paris & Élégance');
+      expect(result.payload.currencySymbol).toBe('₦');
+      expect(result.payload.cjkTitle).toBe('日本語の店舗名');
+      expect(result.payload.chineseCity).toBe('上海市');
+      expect(result.payload.description).toBe('Payment for services 🚀');
+    }
+  });
+
+  it('rejects tokens with malformed base64url characters without throwing', () => {
+    const invalidToken = 'eyJhbGciOiJIUzI1NiJ9.invalid%base64%content.sig';
+    const result = decodeJwtPayload(invalidToken);
+    expect(result).toMatchObject({ ok: false, error: 'malformed' });
+  });
+
   it('tolerates small clock skew around expiry', () => {
     const justExpired = Math.floor(Date.now() / 1000) - 5;
 
@@ -143,5 +172,27 @@ describe('isJwtExpiredOrInvalid', () => {
 
   it('is false for a well-formed, unexpired token', () => {
     expect(isJwtExpiredOrInvalid(makeToken({ exp: inOneHour }))).toBe(false);
+  });
+});
+
+describe('base64UrlDecode', () => {
+  it('decodes ASCII strings', () => {
+    const input = base64Url('Hello, world!');
+    expect(base64UrlDecode(input)).toBe('Hello, world!');
+  });
+
+  it('decodes UTF-8 multibyte characters accurately', () => {
+    const text = 'Café ₦50,000 日本語 中文 🚀';
+    const input = base64Url(text);
+    expect(base64UrlDecode(input)).toBe(text);
+  });
+
+  it('returns null on malformed base64url input without throwing', () => {
+    expect(base64UrlDecode('invalid%base64!')).toBeNull();
+    expect(base64UrlDecode('===bad-padding===')).toBeNull();
+    // @ts-expect-error test non-string input
+    expect(base64UrlDecode(12345)).toBeNull();
+    // @ts-expect-error test null input
+    expect(base64UrlDecode(null)).toBeNull();
   });
 });
