@@ -61,6 +61,7 @@ describe('useAuthStore', () => {
     expect(fetchMock).toHaveBeenCalledWith('/api/auth/session', {
       method: 'DELETE',
       credentials: 'include',
+      headers: expect.any(Object),
     });
   });
 
