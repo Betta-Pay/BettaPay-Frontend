@@ -7,6 +7,8 @@ import {
   buildCsrfClearCookieHeaders,
   deriveCsrfBinding,
   sessionKeyFromAuthToken,
+  verifyCsrfRequest,
+  CSRF_FAILURE_STATUS,
 } from '@/lib/utils/csrf';
 
 export async function GET(req: NextRequest) {
@@ -59,11 +61,35 @@ function normalizeRole(role: unknown): string {
   return typeof role === 'string' && KNOWN_ROLES.has(role) ? role : FALLBACK_ROLE;
 }
 
-export async function POST(req: Request) {
-  try {
-    const body = await req.json();
-    const token = body.token;
+const JWT_REGEX = /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/;
 
+function isValidSessionToken(token: unknown): token is string {
+  if (typeof token !== 'string') return false;
+  if (/[\r\n\s]/.test(token)) return false;
+  return JWT_REGEX.test(token);
+}
+
+export async function POST(req: Request) {
+  let body: Record<string, unknown>;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ ok: false, error: 'Malformed JSON body' }, { status: 400 });
+  }
+
+  if (!body || typeof body !== 'object' || Array.isArray(body)) {
+    return NextResponse.json({ ok: false, error: 'Invalid request body' }, { status: 400 });
+  }
+
+  const token = body.token;
+  if (!isValidSessionToken(token)) {
+    return NextResponse.json(
+      { ok: false, error: 'Invalid or malformed session token' },
+      { status: 400 }
+    );
+  }
+
+  try {
     // The role is deliberately NOT read from the request body. It used to be,
     // which meant a caller could mint a `user_role=admin` cookie simply by
     // asking for one — the middleware trusts that cookie for route access.
@@ -164,7 +190,15 @@ export async function POST(req: Request) {
   }
 }
 
-export async function DELETE() {
+export async function DELETE(req: NextRequest | Request) {
+  const csrf = await verifyCsrfRequest(req);
+  if (!csrf.ok) {
+    return NextResponse.json(
+      { ok: false, error: 'CSRF verification failed' },
+      { status: CSRF_FAILURE_STATUS }
+    );
+  }
+
   const isProduction = process.env.NODE_ENV === 'production';
   const secureFlag = isProduction ? '; Secure' : '';
 

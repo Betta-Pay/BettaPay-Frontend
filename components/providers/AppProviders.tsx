@@ -18,6 +18,7 @@ import { initErrorReporting } from "@/lib/errorReporting";
 import { useRouteChange } from "@/lib/rum/useRouteChange";
 import { useHydrationCapture } from "@/lib/rum/useHydrationCapture";
 import { isPublicRoute, isAuthRoute } from "@/lib/auth/session";
+import { extractLocaleFromPathname } from "@/lib/i18n/locales";
 
 /**
  * The authenticated-app provider stack: React Query, session verification,
@@ -118,9 +119,14 @@ export function AppProviders({ children }: { children: ReactNode }) {
   const { isVerifying, isSessionValid } = useAuthSession();
   useCrossTabAuth();
   const pathname = usePathname();
+  const normalizedPathname = pathname
+    ? (extractLocaleFromPathname(pathname)?.stripped ?? pathname)
+    : pathname;
   // Persisted Zustand flags are cache only. Do not render protected content
   // until the server confirms the HttpOnly-cookie-backed session.
-  const isProtectedRoute = Boolean(pathname && !isPublicRoute(pathname) && !isAuthRoute(pathname));
+  const isProtectedRoute = Boolean(
+    normalizedPathname && !isPublicRoute(normalizedPathname) && !isAuthRoute(normalizedPathname)
+  );
   const showFlashGuard = isProtectedRoute && (isVerifying || !isSessionValid || !isAuthenticated);
   useCrossTabRateLimit();
   useRateLimitCountdown();
