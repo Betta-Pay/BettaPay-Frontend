@@ -12,7 +12,7 @@
 
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { ExportMenu } from '@/components/shared/ExportMenu';
+import { ExportMenu, serializeCell } from '@/components/shared/ExportMenu';
 import { useNotify } from '@/lib/hooks/useNotify';
 
 // ── useNotify ────────────────────────────────────────────────────────────────
@@ -213,5 +213,63 @@ describe('ExportMenu', () => {
     expect(button).toBeDisabled();
     fireEvent.click(button);
     expect(createObjectURL).not.toHaveBeenCalled();
+  });
+
+  describe('formula injection neutralization', () => {
+    it.each([
+      ['=CMD|\'/C calc\'!A0', '"\'=CMD|\'/C calc\'!A0"'],
+      ['+12345', '"\'+12345"'],
+      ['-999', '"\'-999"'],
+      ['@SUM(A1:B2)', '"\'@SUM(A1:B2)"'],
+      ['\tindented', '"\'\tindented"'],
+      ['\rcarriage', '"\'\rcarriage"'],
+    ])('escapes formula prefix %s to %s in serializeCell', (input, expected) => {
+      expect(serializeCell(input)).toBe(expected);
+    });
+
+    it('neutralizes formula injection characters inside rendered CSV output', async () => {
+      render(
+        <ExportMenu
+          filename="injections"
+          headers={['Formula', 'LegitNumber', 'Tabbed', 'Carriage']}
+          rows={[[
+            '=CMD|\'/C calc\'!A0',
+            123.45,
+            '\tleading-tab',
+            '\rleading-cr',
+          ]]}
+        />,
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: /export csv/i }));
+      await waitFor(() => expect(notify.success).toHaveBeenCalled());
+
+      const text = await readBlobText(lastBlob as Blob);
+      expect(text).toContain('"\'=CMD|\'/C calc\'!A0"');
+      expect(text).toContain('123.45');
+      expect(text).toContain('"\'\tleading-tab"');
+      expect(text).toContain('"\'\rleading-cr"');
+    });
+  });
+
+  it('displays an error toast and clears preparing state when export fails', async () => {
+    createObjectURL.mockImplementationOnce(() => {
+      throw new Error('Blob creation failure');
+    });
+
+    render(
+      <ExportMenu
+        filename="transactions"
+        headers={['Date']}
+        rows={[['2026-08-01']]}
+      />,
+    );
+
+    const button = screen.getByRole('button', { name: /export csv/i });
+    fireEvent.click(button);
+
+    await waitFor(() => expect(notify.error).toHaveBeenCalledWith('Failed to export CSV'));
+    expect(screen.queryByText('Preparing…')).not.toBeInTheDocument();
+    expect(button).not.toBeDisabled();
   });
 });

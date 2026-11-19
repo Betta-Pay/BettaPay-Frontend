@@ -11,6 +11,7 @@ import {
 export const runtime = 'nodejs';
 
 const SESSION_SECONDS = 1800; // 30 minutes, matching GET /api/auth/session
+const NO_STORE = { 'Cache-Control': 'no-store' };
 
 function apiBase(): string {
   return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
@@ -38,7 +39,7 @@ export async function POST(req: NextRequest) {
   if (!existingToken) {
     return NextResponse.json(
       { ok: false, error: 'session_expired' },
-      { status: 401 },
+      { status: 401, headers: NO_STORE },
     );
   }
 
@@ -60,16 +61,18 @@ export async function POST(req: NextRequest) {
         },
         body: JSON.stringify({ token: existingToken }),
         cache: 'no-store',
+        signal: AbortSignal.timeout(8000),
       });
 
       if (upstream.status === 401 || upstream.status === 403) {
         const res = NextResponse.json(
           { ok: false, error: 'session_expired' },
-          { status: 401 },
+          { status: 401, headers: NO_STORE },
         );
         res.headers.set('Set-Cookie', `auth_token=; HttpOnly; Path=/; Max-Age=0; SameSite=Lax${secure}`);
         res.headers.append('Set-Cookie', `user_role=; Path=/; Max-Age=0; SameSite=Lax${secure}`);
         for (const h of buildCsrfClearCookieHeaders()) res.headers.append('Set-Cookie', h);
+        res.headers.set('Cache-Control', 'no-store');
         return res;
       }
 
@@ -84,7 +87,16 @@ export async function POST(req: NextRequest) {
           refreshed = true;
         }
       }
-    } catch {
+    } catch (err) {
+      if (
+        err instanceof Error &&
+        (err.name === 'TimeoutError' || err.name === 'AbortError')
+      ) {
+        return NextResponse.json(
+          { ok: false, error: 'upstream_timeout' },
+          { status: 504, headers: NO_STORE },
+        );
+      }
       // Backend offline — fall through to a local lifetime extension.
     }
   }
@@ -99,6 +111,8 @@ export async function POST(req: NextRequest) {
     token: refreshed ? token : undefined,
     expiresIn: SESSION_SECONDS,
     expiresAt: Date.now() + SESSION_SECONDS * 1000,
+  }, {
+    headers: NO_STORE,
   });
 
   res.headers.set(
@@ -111,5 +125,6 @@ export async function POST(req: NextRequest) {
   );
   res.headers.append('Set-Cookie', buildCsrfCookieHeader(csrfToken));
   res.headers.append('Set-Cookie', buildCsrfSidCookieHeader(csrfBinding));
+  res.headers.set('Cache-Control', 'no-store');
   return res;
 }
