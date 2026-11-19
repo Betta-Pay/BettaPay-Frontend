@@ -6,6 +6,8 @@ import { csrfHeader } from '@/lib/utils/csrf';
 
 const ACTIVITY_EVENTS = ['mousedown', 'mousemove', 'keydown', 'scroll', 'click', 'touchstart'] as const;
 
+export const MOUSEMOVE_THROTTLE_MS = 1000;
+
 export interface UseSessionTimeoutOptions {
   /** Inactivity threshold in ms before showing warning (default: 25 min) */
   timeoutMs?: number;
@@ -43,13 +45,12 @@ export function useSessionTimeout({
     Math.floor(gracePeriodMs / 1000)
   );
   const [isExtending, setIsExtending] = useState(false);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [expiryDeadline, setExpiryDeadline] = useState<number | null>(serverExpiresAt);
 
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const graceRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const onTimeoutRef = useRef(onTimeout);
   onTimeoutRef.current = onTimeout;
+  const lastMouseMoveRef = useRef<number>(0);
 
   const clearAllTimers = useCallback(() => {
     if (timeoutRef.current) {
@@ -64,7 +65,6 @@ export function useSessionTimeout({
 
   const startGracePeriod = useCallback((deadlineMs?: number) => {
     const targetExpiry = deadlineMs || Date.now() + gracePeriodMs;
-    setExpiryDeadline(targetExpiry);
 
     const updateCountdown = () => {
       const now = Date.now();
@@ -128,8 +128,6 @@ export function useSessionTimeout({
       if (data.refreshed && typeof data.token === 'string' && data.token.length > 0) {
         useAuthStore.getState().setToken(data.token);
       }
-      const newExpiresAt = typeof data.expiresAt === 'number' ? data.expiresAt : Date.now() + timeoutMs + gracePeriodMs;
-      setExpiryDeadline(newExpiresAt);
       resetTimer();
       return true;
     } catch (err) {
@@ -138,14 +136,7 @@ export function useSessionTimeout({
     } finally {
       setIsExtending(false);
     }
-  }, [timeoutMs, gracePeriodMs, resetTimer, clearAllTimers]);
-
-  // Sync serverExpiresAt changes when updated externally
-  useEffect(() => {
-    if (serverExpiresAt) {
-      setExpiryDeadline(serverExpiresAt);
-    }
-  }, [serverExpiresAt]);
+  }, [resetTimer]);
 
   const showWarningRef = useRef(showWarning);
   showWarningRef.current = showWarning;
@@ -154,12 +145,20 @@ export function useSessionTimeout({
   useEffect(() => {
     resetTimer();
 
-    const handleActivity = () => {
+    const handleActivity = (event: Event) => {
       // Only reset timer on activity if modal is NOT showing
       // (when modal is showing, user must explicitly extend/re-auth)
-      if (!showWarningRef.current) {
-        resetTimer();
+      if (showWarningRef.current) return;
+
+      if (event.type === 'mousemove') {
+        const now = Date.now();
+        if (now - lastMouseMoveRef.current < MOUSEMOVE_THROTTLE_MS) {
+          return;
+        }
+        lastMouseMoveRef.current = now;
       }
+
+      resetTimer();
     };
 
     ACTIVITY_EVENTS.forEach((event) => {
