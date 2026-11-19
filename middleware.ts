@@ -9,16 +9,51 @@ import { ROUTES } from '@/lib/navigation/routes';
 // ─── Locale helpers ──────────────────────────────────────────────────────────
 
 /**
+ * Validate that a URL is a safe relative redirect target, mitigating open-redirect vulnerabilities.
+ * Rejects external protocols, protocol-relative paths (`//`), backslashes, and malformed targets.
+ */
+export function isSafeRedirect(url: string | null | undefined): boolean {
+  if (!url || typeof url !== 'string') {
+    return false;
+  }
+  // Must be a relative path starting with '/' but not '//' or containing backslashes
+  if (!url.startsWith('/') || url.startsWith('//') || url.includes('\\')) {
+    return false;
+  }
+  // Reject control characters or newlines
+  if (/[\r\n\t]/.test(url)) {
+    return false;
+  }
+  try {
+    const parsed = new URL(url, 'http://localhost');
+    return parsed.origin === 'http://localhost';
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Normalizes trailing slashes from path segments while preserving the root path `'/'`.
+ */
+export function normalizeTrailingSlash(path: string): string {
+  if (path.length > 1 && path.endsWith('/')) {
+    return path.replace(/\/+$/, '') || '/';
+  }
+  return path;
+}
+
+/**
  * Extract a supported locale prefix from the URL pathname, returning the
  * locale and the pathname with the prefix stripped. Returns `null` locale
  * when no supported locale prefix is found.
  */
-function extractLocaleFromPathname(pathname: string): { locale: Locale; stripped: string } | null {
+export function extractLocaleFromPathname(pathname: string): { locale: Locale; stripped: string } | null {
   const segments = pathname.split('/');
   // segments[0] is '' (before the leading /)
   const candidate = segments[1];
   if (candidate && supportedLocales.includes(candidate as Locale)) {
-    const stripped = '/' + segments.slice(2).join('/');
+    const rawStripped = '/' + segments.slice(2).join('/');
+    const stripped = normalizeTrailingSlash(rawStripped);
     return { locale: candidate as Locale, stripped: stripped || '/' };
   }
   return null;
@@ -84,7 +119,7 @@ export function middleware(request: NextRequest) {
     // Bare path — redirect to the locale-prefixed equivalent for SEO and
     // consistency. The locale is inferred from the cookie or Accept-Language.
     activeLocale = detectLocaleFromRequest(request);
-    internalPathname = request.nextUrl.pathname;
+    internalPathname = normalizeTrailingSlash(request.nextUrl.pathname);
 
     const prefixedUrl = request.nextUrl.clone();
     prefixedUrl.pathname = localePath(activeLocale, internalPathname);
@@ -114,8 +149,9 @@ export function middleware(request: NextRequest) {
     withCsrf(NextResponse.redirect(new URL(localePath(activeLocale, path), request.url)));
 
   // `request.nextUrl.pathname` still carries the locale prefix — every auth
-  // check below runs against the locale-stripped path instead.
-  const pathname = internalPathname;
+  // check below runs against the locale-stripped path instead, normalized
+  // to avoid trailing-slash route-guard bypasses.
+  const pathname = normalizeTrailingSlash(internalPathname);
 
   // Public payment links have no auth requirement — bail before the protected
   // checks below so an anonymous payer is never redirected to login.
@@ -136,7 +172,27 @@ export function middleware(request: NextRequest) {
 
   // Everything else in the matcher is a protected route — require a session.
   if (!token) {
-    return redirectTo(ROUTES.LOGIN);
+    const rawSearch = request.nextUrl.search || '';
+    let safeSearch = rawSearch;
+    if (rawSearch) {
+      try {
+        const sp = new URLSearchParams(rawSearch);
+        const nestedRedirect = sp.get('redirect');
+        if (nestedRedirect && !isSafeRedirect(nestedRedirect)) {
+          sp.delete('redirect');
+          const s = sp.toString();
+          safeSearch = s ? `?${s}` : '';
+        }
+      } catch {
+        safeSearch = '';
+      }
+    }
+    const destination = request.nextUrl.pathname + safeSearch;
+    const loginUrl = new URL(localePath(activeLocale, ROUTES.LOGIN), request.url);
+    if (isSafeRedirect(destination)) {
+      loginUrl.searchParams.set('redirect', destination);
+    }
+    return withCsrf(NextResponse.redirect(loginUrl));
   }
 
   // Redirect onboarded merchants away from onboarding page
