@@ -44,12 +44,12 @@ describe('useAuthStore', () => {
     });
   });
 
-  it('logout clears auth state and asks the session endpoint to clear the auth cookie', () => {
+  it('logout clears auth state and asks the session endpoint to clear the auth cookie', async () => {
     const fetchMock = jest.fn().mockResolvedValue({ ok: true });
     global.fetch = fetchMock;
     useAuthStore.getState().login('session-token', testUser);
 
-    useAuthStore.getState().logout();
+    await useAuthStore.getState().logout();
 
     expect(useAuthStore.getState()).toMatchObject({
       user: null,
@@ -80,26 +80,26 @@ describe('useAuthStore', () => {
     });
   });
 
-  it('persist partialize stores identity and derived session flags together (issue #485)', () => {
+  it('persist partialize stores identity and derived session flags while excluding raw token', () => {
     const partialize = useAuthStore.persist.getOptions().partialize;
 
     expect(partialize).toBeDefined();
-    expect(
-      partialize?.({
-        ...useAuthStore.getState(),
-        user: testUser,
-        token: 'session-token',
-        role: 'admin',
-        isAuthenticated: true,
-        isLoggedIn: true,
-      })
-    ).toEqual({
+    const result = partialize?.({
+      ...useAuthStore.getState(),
       user: testUser,
       token: 'session-token',
       role: 'admin',
       isAuthenticated: true,
       isLoggedIn: true,
     });
+
+    expect(result).toEqual({
+      user: testUser,
+      role: 'admin',
+      isAuthenticated: true,
+      isLoggedIn: true,
+    });
+    expect((result as Record<string, unknown>).token).toBeUndefined();
   });
 
   describe('cross-tab logout via BroadcastChannel', () => {
@@ -146,11 +146,27 @@ describe('useAuthStore', () => {
       expect(useAuthStore.getState().token).toBeNull();
     });
 
-    it('broadcasts logout message when logout is called', async () => {
+    it('broadcasts logout message on unified bettapay-auth-sync channel when logout is called', async () => {
+      let createdChannelName = '';
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (global as any).BroadcastChannel = class BroadcastChannel {
+        name: string;
+        onmessage: ((event: MessageEvent) => void) | null = null;
+        constructor(name: string) {
+          this.name = name;
+          createdChannelName = name;
+        }
+        postMessage = mockPostMessage;
+        close = jest.fn();
+        addEventListener = jest.fn();
+        removeEventListener = jest.fn();
+      };
+
       global.fetch = jest.fn().mockResolvedValue({ ok: true });
       useAuthStore.getState().login('session-token', testUser);
       await useAuthStore.getState().logout();
 
+      expect(createdChannelName).toBe('bettapay-auth-sync');
       expect(mockPostMessage).toHaveBeenCalledWith('logout');
     });
   });
