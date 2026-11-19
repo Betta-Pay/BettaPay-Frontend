@@ -4,13 +4,15 @@ import { useEffect } from 'react';
 import { useOfflineStore } from '@/lib/store/offlineStore';
 import { resolveApiBaseUrl } from '@/lib/api/axios';
 
+const HEALTH_PING_TIMEOUT_MS = 12000;
+
 export async function pingApiHealth(): Promise<boolean> {
-  const url = `${resolveApiBaseUrl()}/healthz`;
+  const url = `${resolveApiBaseUrl()}/api/health`;
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => {
       controller.abort();
-    }, 4000);
+    }, HEALTH_PING_TIMEOUT_MS);
     const res = await fetch(url, {
       method: 'GET',
       signal: controller.signal,

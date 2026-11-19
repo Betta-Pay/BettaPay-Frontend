@@ -1,4 +1,4 @@
-import { SDKS, type SDKDefinition } from '@/lib/sdks';
+import { SDKS, type SDKDefinition } from './index';
 
 /**
  * Latest published version of each SDK, read from its package registry.

@@ -1,3 +1,5 @@
+process.env.NEXT_IGNORE_INCORRECT_LOCKFILE = "1";
+
 /** @type {import('next').NextConfig} */
 const withBundleAnalyzer = require("@next/bundle-analyzer")({
   enabled: process.env.ANALYZE === "true",
@@ -70,11 +72,11 @@ const csp = {
     isDev && "'unsafe-eval'",
     GOOGLE_ACCOUNTS,
   ]),
-  "style-src": ["'self'", "'unsafe-inline'", GOOGLE_ACCOUNTS],
+  "style-src": ["'self'", "'unsafe-inline'", GOOGLE_ACCOUNTS, "https://fonts.googleapis.com"],
   // `data:` covers QR codes and KYB upload previews; ui-avatars serves the
   // About page team avatars.
   "img-src": ["'self'", "data:", "https://ui-avatars.com"],
-  "font-src": ["'self'", "data:"],
+  "font-src": ["'self'", "data:", "https://fonts.gstatic.com"],
   "connect-src": connectSrc,
   "frame-src": [GOOGLE_ACCOUNTS],
   "worker-src": ["'self'"],

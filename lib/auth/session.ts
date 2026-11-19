@@ -1,5 +1,6 @@
 import type { NextRequest } from 'next/server';
 import type { User, Role } from '@/lib/types';
+import { stripLocalePrefix } from '@/lib/i18n/locales';
 
 /**
  * Single source of truth for BettaPay session cookie contract.
@@ -54,23 +55,25 @@ export function isSessionValid(session: Session): boolean {
 
 /** Route classification shared by middleware and client flash guard. */
 export function isPublicRoute(pathname: string): boolean {
+  const path = stripLocalePrefix(pathname);
   return (
-    pathname === '/' ||
-    pathname.startsWith('/pay') ||
-    pathname === '/contact' ||
-    pathname.startsWith('/docs') ||
-    pathname.startsWith('/privacy') ||
-    pathname.startsWith('/terms') ||
-    pathname.startsWith('/fiat-settlements') ||
-    pathname.startsWith('/pricing') ||
-    pathname.startsWith('/about') ||
-    pathname.startsWith('/guides') ||
-    pathname.startsWith('/sdks') ||
-    pathname.startsWith('/status')
+    path === '/' ||
+    path.startsWith('/pay') ||
+    path === '/contact' ||
+    path.startsWith('/docs') ||
+    path.startsWith('/privacy') ||
+    path.startsWith('/terms') ||
+    path.startsWith('/fiat-settlements') ||
+    path.startsWith('/pricing') ||
+    path.startsWith('/about') ||
+    path.startsWith('/guides') ||
+    path.startsWith('/sdks') ||
+    path.startsWith('/status')
   );
 }
 export function isAuthRoute(pathname: string): boolean {
-  return pathname.startsWith('/auth');
+  const path = stripLocalePrefix(pathname);
+  return path.startsWith('/auth');
 }
 
 /**
@@ -96,15 +99,41 @@ const MARKETING_ROUTE_PREFIXES = [
 ] as const;
 
 export function isMarketingRoute(pathname: string): boolean {
-  if (pathname === '/') return true;
+  const path = stripLocalePrefix(pathname);
+  if (path === '/') return true;
   return MARKETING_ROUTE_PREFIXES.some(
-    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+    (prefix) => path === prefix || path.startsWith(`${prefix}/`),
   );
 }
 
 /** Shape persisted in localStorage bp-session (zustand partialize). */
 export interface PersistedAuthState {
   isLoggedIn: boolean;
+}
+
+/**
+ * Safely extract an exact cookie value from a cookie string (`document.cookie`).
+ * Avoids false-positive substring matches when cookie names or values share substrings.
+ */
+export function getCookieValue(cookieString: string | undefined | null, cookieName: string): string | null {
+  if (!cookieString || typeof cookieString !== 'string') return null;
+  const pairs = cookieString.split(';');
+  for (const pair of pairs) {
+    const trimmed = pair.trim();
+    if (!trimmed) continue;
+    const eqIdx = trimmed.indexOf('=');
+    if (eqIdx === -1) continue;
+    const key = trimmed.slice(0, eqIdx).trim();
+    const val = trimmed.slice(eqIdx + 1).trim();
+    if (key === cookieName) {
+      try {
+        return decodeURIComponent(val);
+      } catch {
+        return val;
+      }
+    }
+  }
+  return null;
 }
 
 /**
@@ -118,10 +147,8 @@ export function isOnboardingCompleted(): boolean {
     const legacyVal = localStorage.getItem('onboardingCompleted');
     if (lsVal === 'true' || legacyVal === 'true') return true;
 
-    if (document.cookie.includes(`${MERCHANT_ONBOARDED_COOKIE}=true`)) {
-      return true;
-    }
-    return false;
+    const cookieVal = getCookieValue(document.cookie, MERCHANT_ONBOARDED_COOKIE);
+    return cookieVal === 'true';
   } catch {
     return false;
   }
@@ -134,17 +161,11 @@ export function isOnboardingCompleted(): boolean {
 export function setOnboardingCompleted(completed: boolean): void {
   if (typeof window === 'undefined') return;
   try {
-    if (completed) {
-      localStorage.setItem('bp_onboarded', 'true');
-      localStorage.removeItem('onboardingCompleted');
-      const secureFlag = process.env.NODE_ENV === 'production' ? '; Secure' : '';
-      document.cookie = `${MERCHANT_ONBOARDED_COOKIE}=true; Path=/; SameSite=Lax; Max-Age=86400${secureFlag}`;
-    } else {
-      localStorage.setItem('bp_onboarded', 'false');
-      localStorage.removeItem('onboardingCompleted');
-      const secureFlag = process.env.NODE_ENV === 'production' ? '; Secure' : '';
-      document.cookie = `${MERCHANT_ONBOARDED_COOKIE}=false; Path=/; SameSite=Lax; Max-Age=86400${secureFlag}`;
-    }
+    const value = completed ? 'true' : 'false';
+    localStorage.setItem('bp_onboarded', value);
+    localStorage.removeItem('onboardingCompleted');
+    const secureFlag = process.env.NODE_ENV === 'production' ? '; Secure' : '';
+    document.cookie = `${MERCHANT_ONBOARDED_COOKIE}=${value}; Path=/; SameSite=Lax; Max-Age=86400${secureFlag}`;
   } catch {
     // localStorage / cookie access error fallback
   }
