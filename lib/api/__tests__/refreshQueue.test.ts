@@ -1,15 +1,29 @@
 import type { AxiosInstance } from 'axios';
+import type { User } from '@/lib/types';
+
+jest.mock('sonner', () => ({
+  toast: {
+    error: jest.fn(),
+  },
+}));
 
 // Verifies the 401 token-refresh flow: while a refresh is in flight, other 401s
 // are queued and — once the refresh succeeds — re-issued so each caller receives
 // its ACTUAL retried response (regression guard against resolving `undefined`).
 describe('axios token-refresh queue', () => {
   let apiClient: AxiosInstance;
+  let offlineStore: typeof import('@/lib/store/offlineStore').useOfflineStore;
+  let authStore: typeof import('@/lib/store/authStore').useAuthStore;
+  let setAppRouter: typeof import('@/lib/navigation/appRouter').setAppRouter;
   let hits: Record<string, number>;
+  let refreshFails: boolean;
+  let networkFails: boolean;
 
   beforeEach(() => {
     jest.resetModules();
     hits = {};
+    refreshFails = false;
+    networkFails = false;
     // Require axios fresh in this module registry generation so the SUT (also
     // required below) shares the exact instance we configure the adapter on.
     // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -31,9 +45,23 @@ describe('axios token-refresh queue', () => {
     const adapter = (config: import("axios").InternalAxiosRequestConfig) => {
       const url = config.url || '';
       if (url.includes('/api/auth/refresh')) {
+        if (refreshFails) {
+          return Promise.reject(
+            new axios.AxiosError(
+              'Unauthorized',
+              'ERR_BAD_REQUEST',
+              config,
+              {},
+              makeResponse(config, 401, { message: 'unauthorized' })
+            )
+          );
+        }
         return new Promise((resolve) =>
           setTimeout(() => resolve(makeResponse(config, 200, { ok: true })), 20)
         );
+      }
+      if (networkFails) {
+        return Promise.reject(new axios.AxiosError('Network Error', 'ERR_NETWORK', config, {}));
       }
       hits[url] = (hits[url] || 0) + 1;
       if (hits[url] === 1) {
@@ -47,17 +75,31 @@ describe('axios token-refresh queue', () => {
           )
         );
       }
+      offlineStore.setState({ isApiReachable: false });
       return Promise.resolve(makeResponse(config, 200, { value: `real-${url}` }));
     };
 
     axios.defaults.adapter = adapter;
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     apiClient = require('@/lib/api/axios').apiClient;
+    // Use the store instance loaded with apiClient after resetModules.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    offlineStore = require('@/lib/store/offlineStore').useOfflineStore;
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    authStore = require('@/lib/store/authStore').useAuthStore;
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    setAppRouter = require('@/lib/navigation/appRouter').setAppRouter;
+    offlineStore.setState({ isOnline: true, isApiReachable: true });
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
   });
 
   it('re-issues the first 401 request and returns the real response', async () => {
     const res = await apiClient.get('/protected-a');
     expect(res.data).toEqual({ value: 'real-/protected-a' });
+    expect(offlineStore.getState().isApiReachable).toBe(true);
   });
 
   it('resolves a queued request with the real retried response, not undefined', async () => {
@@ -74,5 +116,86 @@ describe('axios token-refresh queue', () => {
     // AxiosResponse, not `undefined`.
     expect(second).toBeDefined();
     expect(second.data).toEqual({ value: 'real-/protected-b' });
+    expect(offlineStore.getState().isApiReachable).toBe(true);
+  });
+
+  it('resets expiry redirects after login and session token restoration', async () => {
+    refreshFails = true;
+    const push = jest.fn();
+    setAppRouter({ push });
+    global.fetch = jest.fn().mockResolvedValue({ ok: true });
+    const user: User = {
+      id: 'merchant-1',
+      email: 'merchant@example.com',
+      name: 'Merchant User',
+      role: 'merchant',
+      businessName: 'Merchant Co',
+    };
+    const token = [
+      Buffer.from('{"alg":"HS256","typ":"JWT"}').toString('base64url'),
+      Buffer.from(JSON.stringify({ exp: Math.floor(Date.now() / 1000) + 3600 })).toString('base64url'),
+      'signature',
+    ].join('.');
+
+    await expect(apiClient.get('/expiry-first')).rejects.toBeDefined();
+    expect(push).toHaveBeenCalledTimes(1);
+
+    authStore.getState().login(token, user);
+    await expect(apiClient.get('/expiry-after-login')).rejects.toBeDefined();
+    expect(push).toHaveBeenCalledTimes(2);
+
+    authStore.setState({
+      user,
+      role: 'merchant',
+      token: null,
+      isAuthenticated: true,
+      isLoggedIn: false,
+    });
+    authStore.getState().setToken(token);
+    await expect(apiClient.get('/expiry-after-token-restore')).rejects.toBeDefined();
+    expect(push).toHaveBeenCalledTimes(3);
+  });
+
+  it('avoids redirect loops on localized auth routes and preserves locale', async () => {
+    refreshFails = true;
+    const push = jest.fn();
+    setAppRouter({ push });
+    global.fetch = jest.fn().mockResolvedValue({ ok: true });
+
+    window.history.replaceState({}, '', '/fr/auth/login');
+    await expect(apiClient.get('/auth-page')).rejects.toBeDefined();
+    expect(push).not.toHaveBeenCalled();
+
+    window.history.replaceState({}, '', '/fr/dashboard');
+    await expect(apiClient.get('/dashboard')).rejects.toBeDefined();
+    expect(push).toHaveBeenCalledWith('/fr/auth/login');
+  });
+
+  it('cancels a pending error notification when logging out', async () => {
+    jest.useFakeTimers();
+    networkFails = true;
+    global.fetch = jest.fn().mockResolvedValue({ ok: true });
+    const { toast } = require('sonner');
+    (toast.error as jest.Mock).mockClear();
+    const user: User = {
+      id: 'merchant-1',
+      email: 'merchant@example.com',
+      name: 'Merchant User',
+      role: 'merchant',
+      businessName: 'Merchant Co',
+    };
+    const token = [
+      Buffer.from('{"alg":"HS256","typ":"JWT"}').toString('base64url'),
+      Buffer.from(JSON.stringify({ exp: Math.floor(Date.now() / 1000) + 3600 })).toString('base64url'),
+      'signature',
+    ].join('.');
+    authStore.getState().login(token, user);
+
+    await expect(apiClient.get('/network-failure')).rejects.toBeDefined();
+    expect(offlineStore.getState().isApiReachable).toBe(false);
+    await authStore.getState().logout();
+    jest.advanceTimersByTime(200);
+
+    expect(toast.error).not.toHaveBeenCalled();
   });
 });

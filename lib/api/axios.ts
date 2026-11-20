@@ -14,6 +14,7 @@ import { getAppRouter } from '../navigation/appRouter';
 import { ROUTES } from '../navigation/routes';
 import { isJwtExpiredOrInvalid } from '../utils/jwt';
 import { captureException } from '../errorReporting';
+import { extractLocaleFromPathname } from '../i18n/locales';
 
 // Deduplication: avoid showing multiple toasts for simultaneous errors
 const recentErrors = new Map<string, number>();
@@ -27,6 +28,14 @@ let pendingErrorBatch: {
 function showErrorToast(message: string) {
   toast.error(message, { duration: 5000 });
   announce(message);
+}
+
+function clearPendingErrorBatch() {
+  const timer = pendingErrorBatch?.timer;
+  if (timer !== null && timer !== undefined) {
+    clearTimeout(timer);
+  }
+  pendingErrorBatch = null;
 }
 
 function notifyError(message: string, key?: string) {
@@ -270,6 +279,14 @@ let isRefreshing = false;
 // refresh failure, so N queued 401s don't each fire their own redirect +
 // "session expired" toast (issue #487: "redirect once, without toast spam").
 let hasRedirectedForExpiry = false;
+useAuthStore.subscribe((state, previousState) => {
+  if (state.token && state.token !== previousState.token) {
+    hasRedirectedForExpiry = false;
+  }
+  if (previousState.isAuthenticated && !state.isAuthenticated) {
+    clearPendingErrorBatch();
+  }
+});
 // Auth is primarily cookie-based (the refresh endpoint sets a fresh HttpOnly
 // `auth_token` cookie), but it *also* returns the new access token so the
 // in-memory auth store can be updated atomically with the queued-retry path —
@@ -292,8 +309,17 @@ function processQueue(error: unknown) {
 }
 
 function redirectToLogin() {
+  const pathname = typeof window !== 'undefined' ? window.location.pathname : '';
+  const localePath = extractLocaleFromPathname(pathname);
+  const normalizedPathname = localePath?.stripped ?? pathname;
+  const loginPath = localePath ? `/${localePath.locale}${ROUTES.LOGIN}` : ROUTES.LOGIN;
+
   // Don't redirect if already on an auth page — prevents infinite redirect loops
-  if (typeof window !== 'undefined' && window.location.pathname.startsWith(ROUTES.AUTH_PREFIX)) {
+  if (
+    typeof window !== 'undefined' &&
+    (normalizedPathname === ROUTES.AUTH_PREFIX ||
+      normalizedPathname.startsWith(`${ROUTES.AUTH_PREFIX}/`))
+  ) {
     return;
   }
   // Bounce once. A burst of queued 401s all reach here; without this each one
@@ -311,9 +337,9 @@ function redirectToLogin() {
   // only when the router isn't available (SSR or before the provider mounts).
   const router = getAppRouter();
   if (router) {
-    router.push(ROUTES.LOGIN);
+    router.push(loginPath);
   } else if (typeof window !== 'undefined') {
-    window.location.href = ROUTES.LOGIN;
+    window.location.href = loginPath;
   }
 }
 
@@ -332,7 +358,12 @@ function reportApiFailure(error: AxiosError, kind: string) {
 }
 
 apiClient.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    if (response.status >= 200 && response.status < 300) {
+      useOfflineStore.getState().setIsApiReachable(true);
+    }
+    return response;
+  },
   async (error: AxiosError): Promise<never> => {
     // Requests refused by the shared rate-limit window never reached the
     // network. They still travel through this handler (a rejected request
