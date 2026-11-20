@@ -151,6 +151,20 @@ function mapQuery<T>(
   };
 }
 
+type AuditLogFilters = {
+  action?: string;
+  entityId?: string;
+  limit?: number;
+};
+
+function normalizeAuditLogFilters(filters?: AuditLogFilters): AuditLogFilters {
+  return Object.fromEntries(
+    Object.entries(filters ?? {})
+      .filter(([, value]) => value !== undefined)
+      .sort(([left], [right]) => left.localeCompare(right)),
+  ) as AuditLogFilters;
+}
+
 // Query keys are exported so callers can prefetch or invalidate caches
 // without relearning the underlying structure.
 export const queryKeys = {
@@ -159,6 +173,8 @@ export const queryKeys = {
   rates: ['rates'] as const,
   authSessions: ['auth', 'sessions'] as const,
   merchant: (id?: string) => ['merchant', id ?? null] as const,
+  auditLog: (filters?: AuditLogFilters) =>
+    ['admin', 'audit', normalizeAuditLogFilters(filters)] as const,
   adminStats: ['admin', 'stats'] as const,
 };
 
@@ -518,18 +534,14 @@ export function useKybMerchants(status?: string): HookShape<MerchantKybProfile[]
 
 // ─── useAuditLog ──────────────────────────────────────────────────────────────
 
-export function useAuditLog(options?: {
-  action?: string;
-  entityId?: string;
-  limit?: number;
-}): HookShape<AuditLogEntry[]> {
+export function useAuditLog(options?: AuditLogFilters): HookShape<AuditLogEntry[]> {
   const params = new URLSearchParams();
   if (options?.action) params.set('action', options.action);
   if (options?.entityId) params.set('entityId', options.entityId);
   if (options?.limit) params.set('limit', String(options.limit));
 
   const query = useQuery<AuditLogEntry[], Error>({
-    queryKey: ['admin', 'audit', options],
+    queryKey: queryKeys.auditLog(options),
     queryFn: async () => {
       const qs = params.toString() ? `?${params.toString()}` : '';
       const res = await apiClient.get<{ data: AuditLogEntry[] }>(

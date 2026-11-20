@@ -257,4 +257,29 @@ describe('queryKeys', () => {
     expect(queryKeys.merchant('m_1')).toEqual(['merchant', 'm_1']);
     expect(queryKeys.merchant(undefined)).toEqual(['merchant', null]);
   });
+
+  it('normalizes audit filters for stable cache keys', () => {
+    const first = queryKeys.auditLog({
+      action: 'LOGIN',
+      limit: 1,
+      entityId: 'user_1',
+    });
+    const reordered = queryKeys.auditLog({
+      entityId: 'user_1',
+      action: 'LOGIN',
+      limit: 1,
+    });
+
+    expect(JSON.stringify(first)).toBe(JSON.stringify(reordered));
+  });
+
+  it('omits undefined audit filters from cache keys', () => {
+    const withUndefined = queryKeys.auditLog({
+      action: 'LOGIN',
+      entityId: undefined,
+    });
+    const withoutUndefined = queryKeys.auditLog({ action: 'LOGIN' });
+
+    expect(JSON.stringify(withUndefined)).toBe(JSON.stringify(withoutUndefined));
+  });
 });
