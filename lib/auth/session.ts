@@ -1,6 +1,7 @@
 import type { NextRequest } from 'next/server';
 import type { User, Role } from '@/lib/types';
 import { stripLocalePrefix } from '@/lib/i18n/locales';
+import { isJwtExpiredOrInvalid } from '@/lib/utils/jwt';
 
 /**
  * Single source of truth for BettaPay session cookie contract.
@@ -43,14 +44,14 @@ export function getSessionFromCookies(
   const token = cookies.get(AUTH_TOKEN_COOKIE)?.value ?? null;
   const rawRole = cookies.get(USER_ROLE_COOKIE)?.value ?? null;
   const role = normalizeRole(rawRole);
-  const isAuthenticated = Boolean(token && token.trim().length > 0);
+  const isAuthenticated = !isJwtExpiredOrInvalid(token);
   // User not decoded here — hydrate via GET /api/auth/session in the hook
   return { user: null, token: isAuthenticated ? token : null, role, isAuthenticated };
 }
 
 /** Guard used by middleware and hooks — same predicate. */
 export function isSessionValid(session: Session): boolean {
-  return session.isAuthenticated && Boolean(session.token);
+  return session.isAuthenticated && !isJwtExpiredOrInvalid(session.token);
 }
 
 /** Route classification shared by middleware and client flash guard. */
@@ -153,4 +154,3 @@ export function setOnboardingCompleted(completed: boolean): void {
     // localStorage / cookie access error fallback
   }
 }
-
