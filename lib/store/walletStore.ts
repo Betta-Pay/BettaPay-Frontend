@@ -230,6 +230,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
 
   restoreSession: async (isAuthenticated: boolean) => {
     if (!isAuthenticated || get().isConnected) return;
+    if (get().isReconnecting) return;
 
     const persisted = readPersistedWalletSession();
     if (!persisted) return;
@@ -420,21 +421,28 @@ export const useWalletStore = create<WalletState>((set, get) => ({
   },
 
   signMessage: async (message: string): Promise<string> => {
-    const { connector, address } = get();
+    const { connector, address, isSigning } = get();
+    if (!address) throw new Error('No wallet address connected');
+    if (isSigning) throw new Error('Signing is already in progress');
 
-    if (connector === 'freighter') {
-      const { signChallenge } = await import('@/lib/stellar/freighter');
-      const sig = await signChallenge(address!, message);
-      if (!sig) throw new Error('Freighter rejected signing the message');
-      return sig;
+    set({ isSigning: true });
+    try {
+      if (connector === 'freighter') {
+        const { signChallenge } = await import('@/lib/stellar/freighter');
+        const sig = await signChallenge(address, message);
+        if (!sig) throw new Error('Freighter rejected signing the message');
+        return sig;
+      }
+
+      if (connector === 'walletconnect') {
+        const client = getWalletConnectClient();
+        return await client.signMessage(message, address);
+      }
+
+      throw new Error('No wallet connected');
+    } finally {
+      set({ isSigning: false });
     }
-
-    if (connector === 'walletconnect') {
-      const client = getWalletConnectClient();
-      return client.signMessage(message, address!);
-    }
-
-    throw new Error('No wallet connected');
   },
 
   // Every call refreshes immediately: the `refreshBalancesController` below
@@ -546,6 +554,7 @@ if (typeof window !== 'undefined') {
     if (event.key !== WALLET_SESSION_KEY) return;
 
     if (!event.newValue) {
+      resetWalletConnectClient();
       clearWalletConnectionState();
       return;
     }
