@@ -32,6 +32,22 @@ function isPrivateIPv4([a, b]: number[]): boolean {
   );
 }
 
+function parseHexMappedIPv4(host: string): number[] | null {
+  const match = host.match(/^(?:(?:0*:){1,5}|::)ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/i);
+  if (!match) return null;
+
+  const high = parseInt(match[1], 16);
+  const low = parseInt(match[2], 16);
+  if (high > 0xffff || low > 0xffff) return null;
+
+  return [
+    (high >> 8) & 0xff,
+    high & 0xff,
+    (low >> 8) & 0xff,
+    low & 0xff,
+  ];
+}
+
 export function isPrivateHost(rawHost: string): boolean {
   const host = rawHost.toLowerCase().replace(/^\[|\]$/g, '').replace(/\.$/, '');
   if (host === 'localhost' || host.endsWith('.localhost')) return true;
@@ -52,17 +68,8 @@ export function isPrivateHost(rawHost: string): boolean {
       return mv4 ? isPrivateIPv4(mv4) : true;
     }
 
-    const hexMapped = host.match(/^(?:(?:0*:){1,5}|::)ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/i);
-    if (hexMapped) {
-      const h1 = parseInt(hexMapped[1], 16);
-      const h2 = parseInt(hexMapped[2], 16);
-      return isPrivateIPv4([
-        (h1 >> 8) & 0xff,
-        h1 & 0xff,
-        (h2 >> 8) & 0xff,
-        h2 & 0xff,
-      ]);
-    }
+    const hexMapped = parseHexMappedIPv4(host);
+    if (hexMapped) return isPrivateIPv4(hexMapped);
   }
   return false;
 }
