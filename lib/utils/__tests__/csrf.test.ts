@@ -1,4 +1,11 @@
-import { generateCsrfToken, CSRF_TOKEN_HEX_LENGTH, deriveCsrfBinding, sessionKeyFromAuthToken } from '../csrf';
+import {
+  CSRF_COOKIE_NAME,
+  CSRF_TOKEN_HEX_LENGTH,
+  deriveCsrfBinding,
+  generateCsrfToken,
+  rotateCsrfToken,
+  sessionKeyFromAuthToken,
+} from '../csrf';
 
 jest.mock('next/headers', () => ({
   cookies: jest.fn().mockResolvedValue({
@@ -40,5 +47,40 @@ describe('CSRF token utilities', () => {
     const a = deriveCsrfBinding('tok1', 'sess');
     const b = deriveCsrfBinding('tok2', 'sess');
     expect(a).not.toBe(b);
+  });
+
+  it('sends credentialed, uncached requests when rotating the CSRF token', async () => {
+    const token = 'c'.repeat(CSRF_TOKEN_HEX_LENGTH);
+    const originalFetch = global.fetch;
+    const fetchMock = jest.fn().mockResolvedValue({ ok: true });
+    global.fetch = fetchMock as typeof fetch;
+    document.cookie = `${CSRF_COOKIE_NAME}=${token}; Path=/`;
+
+    try {
+      await expect(rotateCsrfToken()).resolves.toBe(token);
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/auth/csrf?rotate=1',
+        expect.objectContaining({
+          credentials: 'include',
+          cache: 'no-store',
+        }),
+      );
+    } finally {
+      global.fetch = originalFetch;
+      document.cookie = `${CSRF_COOKIE_NAME}=; Max-Age=0; Path=/`;
+    }
+  });
+
+  it('does not return a stale token when the rotation endpoint fails', async () => {
+    const originalFetch = global.fetch;
+    global.fetch = jest.fn().mockResolvedValue({ ok: false }) as typeof fetch;
+    document.cookie = `${CSRF_COOKIE_NAME}=${'d'.repeat(CSRF_TOKEN_HEX_LENGTH)}; Path=/`;
+
+    try {
+      await expect(rotateCsrfToken()).resolves.toBeNull();
+    } finally {
+      global.fetch = originalFetch;
+      document.cookie = `${CSRF_COOKIE_NAME}=; Max-Age=0; Path=/`;
+    }
   });
 });
