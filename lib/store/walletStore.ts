@@ -468,8 +468,10 @@ export const useWalletStore = create<WalletState>((set, get) => ({
 
     try {
       const result = await retryWithBackoff(
-        async () => {
-          const response = await fetch(`${horizonUrl}/accounts/${address}`, { signal });
+        async (retrySignal) => {
+          const response = await fetch(`${horizonUrl}/accounts/${address}`, {
+            signal: retrySignal,
+          });
 
           if (!response.ok) {
             if (response.status === 404) return 'NOT_FOUND' as const;
@@ -482,6 +484,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
           maxRetries: 3,
           baseDelay: 500,
           maxDelay: 3000,
+          signal,
           isRetryable: (e) => {
             if (e instanceof Error && e.name === 'AbortError') return false;
             return true;
