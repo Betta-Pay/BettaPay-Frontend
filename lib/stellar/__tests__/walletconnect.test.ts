@@ -29,6 +29,7 @@ import {
   type WalletConnectSession,
   getStellarWalletConnectChain,
   getWalletConnectClient,
+  normalizeWalletNetwork,
   resetWalletConnectClient,
   type WalletConnectStatus,
 } from '@/lib/stellar/walletconnect';
@@ -255,10 +256,23 @@ describe('relay heartbeat', () => {
 // ─── Phase timeouts ──────────────────────────────────────────────────────────
 
 describe('chain negotiation', () => {
-  it('maps the UI network to the matching chain id', () => {
+  it('maps every supported app network and CAIP-2 chain to the matching network', () => {
     expect(getStellarWalletConnectChain('testnet')).toBe('stellar:testnet');
     expect(getStellarWalletConnectChain('public')).toBe('stellar:pubnet');
     expect(getStellarWalletConnectChain('mainnet')).toBe('stellar:pubnet');
+    expect(getStellarWalletConnectChain('futurenet')).toBe('stellar:futurenet');
+    expect(normalizeWalletNetwork('stellar:testnet')).toBe('testnet');
+    expect(normalizeWalletNetwork('stellar:pubnet')).toBe('public');
+    expect(normalizeWalletNetwork('stellar:futurenet')).toBe('futurenet');
+  });
+
+  it('rejects unsupported networks instead of silently selecting another chain', () => {
+    expect(() => normalizeWalletNetwork('stellar:unknown')).toThrow(
+      'Unsupported Stellar WalletConnect network',
+    );
+    expect(() => getStellarWalletConnectChain('unknown')).toThrow(
+      'Unsupported Stellar WalletConnect network',
+    );
   });
 
   it('keeps the active chain when callers reuse the singleton without a network override', () => {

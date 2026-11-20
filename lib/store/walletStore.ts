@@ -6,6 +6,7 @@ import { retryWithBackoff } from '../utils/retry';
 import { setWalletContextProvider } from '../errorReporting/context';
 import { captureException } from '../errorReporting';
 import { StellarNetwork, STELLAR_NETWORKS, normalizeNetwork } from '@/lib/stellar/config';
+import { isValidStellarAddress } from '@/lib/stellar/utils';
 
 type Connector = 'freighter' | 'walletconnect' | null;
 
@@ -341,7 +342,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
 
   selectAccount: (address: string) => {
     const { stellarAccounts, address: currentAddress, connector, walletConnectSession } = get();
-    if (!address || address === currentAddress) return;
+    if (!isValidStellarAddress(address) || address === currentAddress) return;
     if (stellarAccounts.length > 0 && !stellarAccounts.includes(address)) return;
 
     set({ address, balances: [], isUnfunded: false, loading: true, error: null });

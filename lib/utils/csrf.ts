@@ -211,11 +211,12 @@ export function csrfHeader(): Record<string, string> {
 export async function rotateCsrfToken(): Promise<string | null> {
   if (typeof fetch === 'undefined') return null;
   try {
-    await fetch('/api/auth/csrf?rotate=1', {
+    const response = await fetch('/api/auth/csrf?rotate=1', {
       method: 'GET',
       credentials: 'include',
       cache: 'no-store',
     });
+    if (!response.ok) return null;
   } catch {
     return null;
   }

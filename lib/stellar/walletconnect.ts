@@ -26,6 +26,7 @@ import {
   WALLETCONNECT_PROJECT_ID,
   SITE_URL,
 } from '@/lib/config';
+import type { StellarNetwork } from './config';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -33,13 +34,16 @@ const RELAY_URL = WALLETCONNECT_RELAY_URL;
 
 const PROJECT_ID = WALLETCONNECT_PROJECT_ID;
 
-export type StellarWalletConnectNetwork = 'testnet' | 'public';
+export type StellarWalletConnectNetwork = StellarNetwork;
 export type StellarWalletConnectChainId =
-  typeof STELLAR_TESTNET_CHAIN | typeof STELLAR_PUBNET_CHAIN;
+  | typeof STELLAR_TESTNET_CHAIN
+  | typeof STELLAR_PUBNET_CHAIN
+  | typeof STELLAR_FUTURENET_CHAIN;
 
 /** CAIP-2 chain identifiers for Stellar. */
 export const STELLAR_TESTNET_CHAIN = 'stellar:testnet';
 export const STELLAR_PUBNET_CHAIN = 'stellar:pubnet';
+export const STELLAR_FUTURENET_CHAIN = 'stellar:futurenet';
 
 /** Maps the UI wallet network to the CAIP-2 Stellar chain used by WalletConnect. */
 export const STELLAR_WALLETCONNECT_CHAIN_BY_NETWORK: Record<
@@ -48,15 +52,28 @@ export const STELLAR_WALLETCONNECT_CHAIN_BY_NETWORK: Record<
 > = {
   testnet: STELLAR_TESTNET_CHAIN,
   public: STELLAR_PUBNET_CHAIN,
+  futurenet: STELLAR_FUTURENET_CHAIN,
 };
 
 export function normalizeWalletNetwork(
   network: string = 'testnet',
 ): StellarWalletConnectNetwork {
   const normalized = network.toLowerCase().trim();
-  return normalized === 'public' || normalized === 'mainnet' || normalized === 'pubnet'
-    ? 'public'
-    : 'testnet';
+  switch (normalized) {
+    case 'testnet':
+    case STELLAR_TESTNET_CHAIN:
+      return 'testnet';
+    case 'public':
+    case 'mainnet':
+    case 'pubnet':
+    case STELLAR_PUBNET_CHAIN:
+      return 'public';
+    case 'futurenet':
+    case STELLAR_FUTURENET_CHAIN:
+      return 'futurenet';
+    default:
+      throw new RangeError(`Unsupported Stellar WalletConnect network: "${network}"`);
+  }
 }
 
 export function getStellarWalletConnectChain(
@@ -362,12 +379,12 @@ function isEnvelopeFresh(envelope: WCEncryptedEnvelope, now: number): boolean {
 function getStellarChainFromAccount(accountId: string): StellarWalletConnectChainId | null {
   const match = accountId.match(/^stellar:([a-z]+):/i);
   if (!match) return null;
-  const normalized = match[1].toLowerCase();
-  if (normalized === 'testnet') return STELLAR_TESTNET_CHAIN;
-  if (normalized === 'public' || normalized === 'mainnet' || normalized === 'pubnet') {
-    return STELLAR_PUBNET_CHAIN;
+  try {
+    return getStellarWalletConnectChain(match[1]);
+  } catch (error) {
+    if (error instanceof RangeError) return null;
+    throw error;
   }
-  return null;
 }
 
 // ─── Base64url helpers ────────────────────────────────────────────────────────

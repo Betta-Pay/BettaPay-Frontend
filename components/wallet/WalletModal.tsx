@@ -6,6 +6,7 @@ import { useWalletStore } from "@/lib/store/walletStore";
 import { WalletConnectModal } from "./WalletConnectModal";
 import { WalletModalErrorBoundary } from "./WalletModalErrorBoundary";
 import {
+  isWalletConnectConfigured,
   normalizeWalletNetwork,
   type WalletConnectSession,
 } from "@/lib/stellar/walletconnect";
@@ -21,6 +22,7 @@ function WalletConnectOptions() {
   const connect = useWalletStore((s) => s.connect);
   const connectError = useWalletStore((s) => s.connectError);
   const clearConnectError = useWalletStore((s) => s.clearConnectError);
+  const walletConnectConfigured = isWalletConnectConfigured();
 
   const handleFreighterClick = async () => {
     clearConnectError();
@@ -32,6 +34,7 @@ function WalletConnectOptions() {
   };
 
   const handleWalletConnectClick = async () => {
+    if (!isWalletConnectConfigured()) return;
     clearConnectError();
     try {
       await connect("walletconnect");
@@ -146,16 +149,38 @@ function WalletConnectOptions() {
         </span>
       </button>
 
-      <button
-        type="button"
-        onClick={handleWalletConnectClick}
-        className="w-full flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors font-medium text-sm text-gray-700"
+      {!walletConnectConfigured && (
+        <p
+          id="walletconnect-configuration-notice"
+          role="status"
+          className="text-xs text-amber-800"
+        >
+          WalletConnect is unavailable. Set NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID to enable it.
+        </p>
+      )}
+      <span
+        className="block"
+        title={
+          walletConnectConfigured
+            ? undefined
+            : 'Set NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID to enable WalletConnect.'
+        }
       >
-        <span>WalletConnect</span>
-        <span className="text-xs bg-gray-100 px-2 py-0.5 rounded text-gray-500">
-          Universal
-        </span>
-      </button>
+        <button
+          type="button"
+          onClick={handleWalletConnectClick}
+          disabled={!walletConnectConfigured}
+          aria-describedby={
+            walletConnectConfigured ? undefined : 'walletconnect-configuration-notice'
+          }
+          className="w-full flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors font-medium text-sm text-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <span>WalletConnect</span>
+          <span className="text-xs bg-gray-100 px-2 py-0.5 rounded text-gray-500">
+            Universal
+          </span>
+        </button>
+      </span>
     </div>
   );
 }
@@ -163,6 +188,7 @@ function WalletConnectOptions() {
 export function WalletModal({ isOpen = true, onClose, onConnected }: WalletModalProps) {
   const walletModalOpen = useWalletStore((s) => s.walletModalOpen);
   const walletConnectPending = useWalletStore((s) => s.walletConnectPending);
+  const walletConnectConfigured = isWalletConnectConfigured();
   const network = useWalletStore((s) => s.network);
   const setWalletModalOpen = useWalletStore((s) => s.setWalletModalOpen);
   const cancelWalletConnect = useWalletStore((s) => s.cancelWalletConnect);
@@ -237,10 +263,9 @@ export function WalletModal({ isOpen = true, onClose, onConnected }: WalletModal
         </div>
       </div>
 
-      {/* WalletConnect only knows the testnet/pubnet chains; `normalizeWalletNetwork`
-          maps anything else (e.g. futurenet) onto the closest supported one. */}
+      {/* Keep the WalletConnect chain aligned with the selected Stellar network. */}
       <WalletConnectModal
-        open={walletModalOpen && walletConnectPending}
+        open={walletConnectConfigured && walletModalOpen && walletConnectPending}
         onOpenChange={handleWalletConnectOpenChange}
         network={normalizeWalletNetwork(network)}
         onConnected={handleWalletConnectSession}
