@@ -40,9 +40,18 @@
     "featuresTitle": "Propulsé par Stellar et Soroban",
     "featuresDescription": "Une infrastructure de paiement de niveau entreprise conçue pour la rapidité, des frais réduits et une transparence parfaite.",
     "features": {
-      "settlement": { "title": "Règlement instantané", "description": "Les transactions sont réglées en 3 à 5 secondes. Fini l'attente de plusieurs jours pour les virements transfrontaliers." },
-      "offRamps": { "title": "Rampes de sortie fiat SEP-24", "description": "Routage automatisé vers les ancres Stellar pour des versements directs en naira nigérian sur votre compte bancaire." },
-      "fees": { "title": "Répartition intelligente des frais", "description": "Les contrats Soroban calculent et répartissent automatiquement les frais de plateforme de manière fiable et on-chain." }
+      "settlement": {
+        "title": "Règlement instantané",
+        "description": "Les transactions sont réglées en 3 à 5 secondes. Fini l'attente de plusieurs jours pour les virements transfrontaliers."
+      },
+      "offRamps": {
+        "title": "Rampes de sortie fiat SEP-24",
+        "description": "Routage automatisé vers les ancres Stellar pour des versements directs en naira nigérian sur votre compte bancaire."
+      },
+      "fees": {
+        "title": "Répartition intelligente des frais",
+        "description": "Les contrats Soroban calculent et répartissent automatiquement les frais de plateforme de manière fiable et on-chain."
+      }
     }
   },
   "login": {
@@ -53,9 +62,18 @@
     "learnMore": "En savoir plus sur BettaPay",
     "forgotPassword": "Mot de passe oublié ?",
     "benefits": {
-      "settlement": { "title": "Règlement instantané", "description": "Les transactions sont réglées en quelques secondes sur Stellar Soroban" },
-      "currency": { "title": "Multidevise", "description": "Acceptez l'USDC, convertissez automatiquement en monnaie locale" },
-      "custody": { "title": "Non dépositaire", "description": "Vous gardez toujours le contrôle de vos fonds et de vos clés" }
+      "settlement": {
+        "title": "Règlement instantané",
+        "description": "Les transactions sont réglées en quelques secondes sur Stellar Soroban"
+      },
+      "currency": {
+        "title": "Multidevise",
+        "description": "Acceptez l'USDC, convertissez automatiquement en monnaie locale"
+      },
+      "custody": {
+        "title": "Non dépositaire",
+        "description": "Vous gardez toujours le contrôle de vos fonds et de vos clés"
+      }
     }
   },
   "forgotPassword": {
@@ -136,6 +154,90 @@
         "description": "Essayez l'environnement sandbox pour vérifier votre intégration avant de passer en production.",
         "cta": "Ouvrir le sandbox"
       }
+    }
+  },
+  "walletConnect": {
+    "title": "Connecter avec WalletConnect",
+    "description": "Scannez le QR code ou copiez l'URI pour jumeler votre portefeuille mobile.",
+    "scanPrompt": "Scannez ce QR code avec votre portefeuille mobile pour vous connecter.",
+    "qrAriaLabel": "QR code WalletConnect",
+    "copyUri": "Copier l'URI du lien",
+    "copyAriaLabel": "Copier l'URI WalletConnect dans le presse-papiers",
+    "copied": "URI copié",
+    "tryAgain": "Réessayer",
+    "status": {
+      "connecting": "Connexion…",
+      "reconnecting": "Reconnexion…",
+      "approving": "Approuvez la demande dans votre portefeuille…",
+      "connected": "Portefeuille connecté",
+      "signing": "Signez la demande dans votre portefeuille…",
+      "disconnected": "Portefeuille déconnecté",
+      "error": "Erreur de connexion"
+    },
+    "notConfigured": {
+      "title": "WalletConnect n'est pas configuré",
+      "description": "Cette application n'a pas d'identifiant de projet WalletConnect, le jumelage d'un portefeuille mobile est donc indisponible.",
+      "developerHintPrefix": "Définissez",
+      "developerHintSuffix": "avec un identifiant de projet WalletConnect Cloud pour activer cette fonctionnalité."
+    },
+    "errors": {
+      "unknown": "Une erreur s'est produite lors de la connexion.",
+      "startFailed": "Impossible de démarrer la session WalletConnect."
+    }
+  },
+  "validation": {
+    "paymentLink": {
+      "labelMin": "Le libellé du lien de paiement doit comporter au moins 2 caractères",
+      "amountCurrencyRequired": "Le montant et la devise sont requis"
+    },
+    "merchantProfile": {
+      "businessNameRequired": "Le nom de l'entreprise est requis",
+      "countryRequired": "Le pays est requis",
+      "industryRequired": "Le secteur est requis",
+      "websiteHttps": "Le site web doit être une URL HTTPS valide",
+      "emailInvalid": "Saisissez une adresse e-mail valide"
+    },
+    "editPaymentLink": {
+      "labelRequired": "Le libellé est requis",
+      "urlInvalid": "L'URL de redirection doit être une URL valide"
+    }
+  },
+  "zod": {
+    "errors": {
+      "invalidType": "Entrée invalide : attendu {{expected}}, reçu {{received}}",
+      "invalidTypeNoReceived": "Entrée invalide : attendu {{expected}}",
+      "tooSmall": {
+        "string": "Doit contenir au moins {{minimum}} caractères",
+        "stringExclusive": "Doit contenir plus de {{minimum}} caractères",
+        "number": "Doit être supérieur ou égal à {{minimum}}",
+        "numberExclusive": "Doit être supérieur à {{minimum}}",
+        "array": "Doit contenir au moins {{minimum}} éléments",
+        "arrayExclusive": "Doit contenir plus de {{minimum}} éléments",
+        "default": "Doit être supérieur ou égal à {{minimum}}",
+        "defaultExclusive": "Doit être supérieur à {{minimum}}"
+      },
+      "tooBig": {
+        "string": "Doit contenir au plus {{maximum}} caractères",
+        "stringExclusive": "Doit contenir moins de {{maximum}} caractères",
+        "number": "Doit être inférieur ou égal à {{maximum}}",
+        "numberExclusive": "Doit être inférieur à {{maximum}}",
+        "array": "Doit contenir au plus {{maximum}} éléments",
+        "arrayExclusive": "Doit contenir moins de {{maximum}} éléments",
+        "default": "Doit être inférieur ou égal à {{maximum}}",
+        "defaultExclusive": "Doit être inférieur à {{maximum}}"
+      },
+      "invalidFormat": {
+        "email": "Adresse e-mail invalide",
+        "url": "URL invalide",
+        "regex": "Chaîne invalide : doit respecter le format attendu",
+        "default": "Format invalide"
+      },
+      "invalidValue": "Valeur invalide : une des valeurs suivantes était attendue : {{values}}",
+      "notMultipleOf": "Entrée invalide : un multiple de {{divisor}} était attendu",
+      "unrecognizedKeys": "Clés non reconnues dans l'objet : {{keys}}",
+      "invalidUnion": "Entrée invalide",
+      "invalidKey": "Clé invalide dans l'objet",
+      "invalidElement": "Élément invalide dans le tableau"
     }
   }
 }

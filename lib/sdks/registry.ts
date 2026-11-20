@@ -1,11 +1,11 @@
-import { SDKS, type SDKDefinition } from '@/lib/sdks';
+import { SDKS, type SDKDefinition } from './index';
 
 /**
  * Latest published version of each SDK, read from its package registry.
  *
  * None of the SDKs are published yet, so every lookup is expected to miss
  * today. A miss is reported honestly: the version falls back to the one in
- * `lib/sdks.ts`, `source` is `"fallback"` and `status` stays `"coming-soon"`.
+ * `lib/sdks/index.ts`, `source` is `"fallback"` and `status` stays `"coming-soon"`.
  * The moment a registry returns a version, `status` flips to `"published"`
  * with no code change.
  */

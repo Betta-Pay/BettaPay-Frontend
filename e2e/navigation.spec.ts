@@ -1,5 +1,5 @@
 import { test, expect } from './fixtures';
-import { mockLogin, gotoAuthed } from './helpers/auth';
+import { AUTH_STORAGE_STATE, gotoAuthed } from './helpers/auth';
 import { mockMerchantApi } from './helpers/api';
 
 /**
@@ -7,9 +7,10 @@ import { mockMerchantApi } from './helpers/api';
  * the active one, and the top-bar user menu exposes account actions.
  */
 
+test.use({ storageState: AUTH_STORAGE_STATE });
+
 test.beforeEach(async ({ context, page }) => {
   await mockMerchantApi(context);
-  await mockLogin(context, 'merchant');
   await gotoAuthed(page, '/dashboard');
 });
 

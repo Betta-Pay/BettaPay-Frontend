@@ -1,5 +1,5 @@
 import { test, expect } from './fixtures';
-import { mockLogin, gotoAuthed } from './helpers/auth';
+import { AUTH_STORAGE_STATE, gotoAuthed } from './helpers/auth';
 import {
   mockMerchantApi,
   mockPaymentsList,
@@ -7,6 +7,8 @@ import {
   generatePayments,
   PAYMENTS_FIXTURE,
 } from './helpers/api';
+
+test.use({ storageState: AUTH_STORAGE_STATE });
 
 /**
  * Payment link flows: create, validate, edit, delete, copy, plus the
@@ -22,7 +24,6 @@ import {
 test.describe('Payment links — populated', () => {
   test.beforeEach(async ({ context, page }) => {
     await mockMerchantApi(context);
-    await mockLogin(context, 'merchant');
     await gotoAuthed(page, '/payments');
     await expect(page.getByRole('heading', { name: /payment links/i })).toBeVisible();
   });
@@ -155,7 +156,6 @@ test.describe('Payment links — pagination', () => {
   test.beforeEach(async ({ context, page }) => {
     await mockMerchantApi(context);
     await mockPaymentsList(context, generatePayments(8)); // pageSize is 6 → 2 pages
-    await mockLogin(context, 'merchant');
     await gotoAuthed(page, '/payments');
   });
 
@@ -173,7 +173,6 @@ test.describe('Payment links — empty state', () => {
   test('prompts to create the first link when there are none', async ({ context, page }) => {
     await mockMerchantApi(context);
     await mockPaymentsList(context, []);
-    await mockLogin(context, 'merchant');
     await gotoAuthed(page, '/payments');
 
     await expect(page.getByText(/no payment links yet/i)).toBeVisible();
@@ -185,7 +184,6 @@ test.describe('Payment links — error state', () => {
   test('shows an error with a retry action when the API fails', async ({ context, page }) => {
     await mockMerchantApi(context);
     await failPaymentsApi(context);
-    await mockLogin(context, 'merchant');
     await gotoAuthed(page, '/payments');
 
     // The list surface toggles into an error with a retry affordance. (The page

@@ -41,30 +41,49 @@ function useIsMobileViewport() {
   const [isMobile, setIsMobile] = useState(false)
 
   useEffect(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
+      return
+    }
+
     const mq = window.matchMedia(MOBILE_VIEWPORT_QUERY)
     setIsMobile(mq.matches)
+
     const onChange = (event: MediaQueryListEvent) => setIsMobile(event.matches)
-    mq.addEventListener("change", onChange)
-    return () => mq.removeEventListener("change", onChange)
+
+    if (mq.addEventListener) {
+      mq.addEventListener("change", onChange)
+      return () => mq.removeEventListener("change", onChange)
+    } else if (mq.addListener) {
+      mq.addListener(onChange)
+      return () => mq.removeListener(onChange)
+    }
   }, [])
 
   return isMobile
 }
 
-const Toaster = ({ ...props }: ToasterProps) => {
+const Toaster = ({
+  position,
+  offset,
+  mobileOffset,
+  ...props
+}: ToasterProps) => {
   const { theme = "system" } = useTheme()
   const isMobileViewport = useIsMobileViewport()
+
+  const resolvedPosition = position ?? (isMobileViewport ? "top-center" : "bottom-right")
+  const isTopPosition = resolvedPosition.startsWith("top")
+  const defaultMobileOffset = isMobileViewport && isTopPosition ? MOBILE_OFFSET : undefined
 
   return (
     <Sonner
       theme={theme as ToasterProps["theme"]}
       className="toaster group"
       // Keep toasts off the mobile bottom nav, but preserve the desktop
-      // bottom-right default. A caller-supplied `position` still wins, since
-      // `props` is spread last.
-      position={isMobileViewport ? "top-center" : "bottom-right"}
-      offset={isMobileViewport ? MOBILE_OFFSET : undefined}
-      mobileOffset={isMobileViewport ? MOBILE_OFFSET : undefined}
+      // bottom-right default. A caller-supplied `position` still wins.
+      position={resolvedPosition}
+      offset={offset ?? defaultMobileOffset}
+      mobileOffset={mobileOffset ?? defaultMobileOffset}
       icons={{
         success: (
           <CircleCheckIcon className="size-4" />

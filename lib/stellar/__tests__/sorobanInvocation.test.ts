@@ -3,6 +3,13 @@
  * operation should decode into a readable contract id / function name / args
  * shape, and anything that isn't a Soroban contract invocation (an ordinary
  * payment, or unparseable XDR) should decode to `null` rather than throw.
+ *
+ * Runs in the node environment: @stellar/stellar-sdk's key generation passes
+ * the npm `buffer` package's Buffer into @noble/ed25519, whose Bytes check
+ * rejects Buffers from the jsdom realm ("expected Uint8Array ... got
+ * type=object"). This suite has no DOM dependencies.
+ *
+ * @jest-environment node
  */
 import {
   Account,

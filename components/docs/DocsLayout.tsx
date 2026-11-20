@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from 'react';
+import { usePathname } from 'next/navigation';
 import { Menu } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
-import { docsSectionIds } from '@/lib/docs/navigation';
+import { docsSectionIds, findNavItemByHref } from '@/lib/docs/navigation';
 import { useScrollSpy } from '@/lib/hooks/useScrollSpy';
 import { DocsSidebar } from './DocsSidebar';
 import { DocsTOC } from './DocsTOC';
@@ -22,7 +23,10 @@ interface DocsLayoutProps {
  */
 export function DocsLayout({ children }: DocsLayoutProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const activeSection = useScrollSpy(docsSectionIds);
+  const pathname = usePathname();
+  const scrolledSection = useScrollSpy(docsSectionIds);
+  const routeItem = pathname ? findNavItemByHref(pathname) : undefined;
+  const activeSection = routeItem?.id ?? scrolledSection;
 
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground">

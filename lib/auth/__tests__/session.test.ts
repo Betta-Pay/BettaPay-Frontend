@@ -6,6 +6,7 @@ import {
   isSessionValid,
   isPublicRoute,
   isAuthRoute,
+  isMarketingRoute,
 } from '@/lib/auth/session';
 
 function mockCookies(entries: Record<string, string | undefined>) {
@@ -76,7 +77,15 @@ describe('lib/auth/session — single session contract for middleware, hooks, st
     expect(isPublicRoute('/settlement')).toBe(false);
     expect(isAuthRoute('/auth/login')).toBe(true);
     expect(isAuthRoute('/auth/register')).toBe(true);
+    expect(isAuthRoute('/en/auth/login')).toBe(true);
+    expect(isAuthRoute('/fr/auth/register')).toBe(true);
     expect(isAuthRoute('/dashboard')).toBe(false);
+    expect(isPublicRoute('/fr/pay/link123')).toBe(true);
+    expect(isPublicRoute('/pt/about')).toBe(true);
+    expect(isPublicRoute('/en/dashboard')).toBe(false);
+    expect(isMarketingRoute('/en')).toBe(true);
+    expect(isMarketingRoute('/pt/about')).toBe(true);
+    expect(isMarketingRoute('/en/auth/login')).toBe(false);
   });
 
   it('persisted BP_SESSION_KEY shape is isLoggedIn flag (store <-> e2e helper alignment)', () => {

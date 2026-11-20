@@ -47,6 +47,7 @@ import {
 import { Label } from "@/components/ui";
 import { RateLimitDisplay } from "@/components/developers/RateLimitDisplay";
 import { WebhookTester } from "@/components/developers/WebhookTester";
+import { SignatureVerifier } from "@/components/developers/SignatureVerifier";
 import { KeyUsagePanel } from "@/components/developers/KeyUsagePanel";
 
 const CodeExample = dynamic(
@@ -382,6 +383,8 @@ export default function DevelopersPage() {
       </Card>
 
       <WebhookTester initialEndpointUrl={webhookUrl} />
+
+      <SignatureVerifier />
 
       {/* New API Key Dialog */}
       <Dialog open={isCreateKeyOpen} onOpenChange={setIsCreateKeyOpen}>

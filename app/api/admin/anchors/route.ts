@@ -9,7 +9,7 @@
 import { NextResponse } from "next/server";
 import { guardAdminApi } from "@/lib/auth/adminApiGuard";
 import { anchorStore } from "@/lib/mock/anchors";
-import type { Anchor, KycLevel } from "@/lib/types";
+import type { Anchor, KycLevel, SepProtocol } from "@/lib/types";
 
 export const runtime = "nodejs";
 
@@ -34,7 +34,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const { name, code, currency, country, flag, kycLevels, settlementTime, websiteUrl } = body as {
+  const { name, code, currency, country, flag, kycLevels, settlementTime, protocols, websiteUrl } = body as {
     name?: string;
     code?: string;
     currency?: string;
@@ -42,6 +42,7 @@ export async function POST(request: Request) {
     flag?: string;
     kycLevels?: KycLevel[];
     settlementTime?: string;
+    protocols?: SepProtocol[];
     websiteUrl?: string | null;
   };
 
@@ -69,6 +70,7 @@ export async function POST(request: Request) {
     flag: flag ?? "",
     kycLevels: kycLevels ?? ["basic"],
     settlementTime: settlementTime ?? "Pending",
+    protocols: protocols ?? ["SEP-24", "SEP-31"],
     websiteUrl: websiteUrl ?? null,
     enabled: true,
     createdAt: now,

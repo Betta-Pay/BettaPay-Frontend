@@ -1,5 +1,5 @@
 import { test, expect } from './fixtures';
-import { mockLogin, gotoAuthed } from './helpers/auth';
+import { AUTH_STORAGE_STATE, gotoAuthed } from './helpers/auth';
 import { mockMerchantApi } from './helpers/api';
 
 /**
@@ -9,9 +9,10 @@ import { mockMerchantApi } from './helpers/api';
  * resolves; the other tabs are client-side and surface toasts we assert on.
  */
 
+test.use({ storageState: AUTH_STORAGE_STATE });
+
 test.beforeEach(async ({ context, page }) => {
   await mockMerchantApi(context);
-  await mockLogin(context, 'merchant');
   await gotoAuthed(page, '/settings');
   await expect(page.getByRole('heading', { name: /^settings$/i })).toBeVisible();
 });

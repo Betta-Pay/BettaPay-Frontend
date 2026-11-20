@@ -1,3 +1,4 @@
+import i18n from '@/lib/i18n/config';
 import {
   paymentLinkSchema,
   editPaymentLinkSchema,

@@ -14,7 +14,11 @@ type Fallback = ReactNode | ((reset: () => void) => ReactNode);
 interface ErrorBoundaryProps {
   children: ReactNode;
   pathname?: string;
-  fallback?: ReactNode;
+  fallback?: Fallback;
+  /** Label for the default retry button. */
+  retryLabel?: string;
+  /** Optional callback fired when the user resets the boundary. */
+  onReset?: () => void;
   /**
    * Increment (or otherwise change) to remount the children with a clean
    * state after an error — the React-recommended way for a parent to offer a

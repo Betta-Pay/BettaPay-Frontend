@@ -66,6 +66,14 @@ export interface MerchantBankAccount {
 
 export type KycLevel = 'basic' | 'intermediate' | 'advanced';
 
+/**
+ * Stellar anchor protocols supported by an anchor.
+ * - SEP-24: interactive deposit / withdrawal
+ * - SEP-31: cross-border direct payments
+ * @see https://github.com/stellar/stellar-protocol/tree/master/ecosystem
+ */
+export type SepProtocol = 'SEP-24' | 'SEP-31';
+
 export interface Anchor {
   id: string;
   name: string;
@@ -75,6 +83,7 @@ export interface Anchor {
   flag: string;
   kycLevels: KycLevel[];
   settlementTime: string;
+  protocols: SepProtocol[];
   websiteUrl: string | null;
   enabled: boolean;
   createdAt: string;

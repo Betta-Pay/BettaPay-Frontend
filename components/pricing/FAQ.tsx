@@ -107,6 +107,8 @@ function FaqStructuredData() {
 
 export function FAQ() {
   const [query, setQuery] = useState('');
+  /** Base-UI accordion value (array); one open at a time like Radix's type="single". */
+  const [openQuestion, setOpenQuestion] = useState<string[]>([]);
   const normalizedQuery = query.trim();
   const matchingEntries = useMemo(() => {
     if (!normalizedQuery) return FAQ_ENTRIES;
@@ -154,7 +156,11 @@ export function FAQ() {
         </p>
       </div>
       {matchingEntries.length ? (
-        <Accordion id="pricing-faq-results" type="single" collapsible>
+        <Accordion
+          id="pricing-faq-results"
+          value={openQuestion}
+          onValueChange={(next) => setOpenQuestion([next[next.length - 1]])}
+        >
           {matchingEntries.map((entry) => (
             <AccordionItem key={entry.question} value={entry.question}>
               <AccordionTrigger>{entry.question}</AccordionTrigger>

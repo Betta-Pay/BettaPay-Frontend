@@ -1,5 +1,5 @@
 import { test, expect } from './fixtures';
-import { mockLogin, gotoAuthed } from './helpers/auth';
+import { AUTH_STORAGE_STATE, gotoAuthed } from './helpers/auth';
 import { mockMerchantApi } from './helpers/api';
 import { VIEWPORTS } from './helpers/viewports';
 
@@ -10,10 +10,10 @@ import { VIEWPORTS } from './helpers/viewports';
  */
 
 test.use({ viewport: VIEWPORTS.mobile });
+test.use({ storageState: AUTH_STORAGE_STATE });
 
 test.beforeEach(async ({ context, page }) => {
   await mockMerchantApi(context);
-  await mockLogin(context, 'merchant');
   await gotoAuthed(page, '/dashboard');
 });
 

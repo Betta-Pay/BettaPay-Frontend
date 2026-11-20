@@ -5,7 +5,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useAuthStore } from "@/lib/store/authStore";
 import { useWalletStore } from "@/lib/store/walletStore";
-import { useSessionCheck } from "@/lib/hooks/useSessionCheck";
+import { useAuthSession } from "@/lib/hooks/useAuthSession";
 import { useCrossTabAuth } from "@/lib/hooks/useCrossTabAuth";
 import { useRateLimitCountdown } from "@/lib/hooks/useRateLimitCountdown";
 import { warnIfApiUnreachable } from "@/lib/config/api";
@@ -115,17 +115,13 @@ export function AppProviders({ children }: { children: ReactNode }) {
   // hydration.  The store defaults to `true` so SSR and initial client render
   // agree; this effect reconciles with `navigator.onLine` on mount.
   useSyncOnlineStatus();
-  const { isVerifying } = useSessionCheck();
+  const { isVerifying, isSessionValid } = useAuthSession();
   useCrossTabAuth();
   const pathname = usePathname();
-  const isLoggedIn = useAuthStore((s) => s.isLoggedIn);
-  // Prevent flash of protected page for logged-out users (fix #575):
-  // when we have a persisted isLoggedIn but no in-memory auth, hook is
-  // re-verifying via GET /api/auth/session — same contract as middleware's
-  // getSessionFromCookies/isSessionValid on auth_token+user_role. Hold
-  // protected content until the check settles.
+  // Persisted Zustand flags are cache only. Do not render protected content
+  // until the server confirms the HttpOnly-cookie-backed session.
   const isProtectedRoute = Boolean(pathname && !isPublicRoute(pathname) && !isAuthRoute(pathname));
-  const showFlashGuard = isVerifying && !isAuthenticated && isLoggedIn && isProtectedRoute;
+  const showFlashGuard = isProtectedRoute && (isVerifying || !isSessionValid || !isAuthenticated);
   useCrossTabRateLimit();
   useRateLimitCountdown();
 

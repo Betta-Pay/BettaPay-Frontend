@@ -35,9 +35,13 @@ const verifySignature = `import crypto from 'node:crypto';
 
 // Express example. Read the RAW body — HMAC is computed over the exact bytes.
 app.post('/webhooks/bettapay', express.raw({ type: 'application/json' }), (req, res) => {
+  const timestamp = req.header('X-BettaPay-Timestamp') ?? '';           // unix seconds
   const signature = req.header('X-BettaPay-Signature') ?? '';           // "sha256=<hex>"
+
+  // Canonical signed string: \`\${timestamp}.\${rawBody}\`.
   const expected = 'sha256=' + crypto
     .createHmac('sha256', process.env.BETTAPAY_WEBHOOK_SECRET)
+    .update(\`\${timestamp}.\`)
     .update(req.body)                                                    // Buffer of raw bytes
     .digest('hex');
 
@@ -46,7 +50,11 @@ app.post('/webhooks/bettapay', express.raw({ type: 'application/json' }), (req, 
     signature.length === expected.length &&
     crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected));
 
-  if (!ok) return res.status(400).send('invalid signature');
+  // Optionally reject stale deliveries (for example, older than 5 minutes).
+  const ageSeconds = Math.abs(Date.now() / 1000 - Number(timestamp));
+  if (!ok || !Number.isFinite(ageSeconds) || ageSeconds > 300) {
+    return res.status(400).send('invalid signature');
+  }
 
   const event = JSON.parse(req.body.toString('utf8'));
   // ... handle event.type, dedupe on event.id ...
@@ -95,15 +103,34 @@ export function WebhookEvents() {
 
       <SubSection id="webhook-signature" title="Signature verification">
         <P>
-          Each request carries an <Code>X-BettaPay-Signature</Code> header of the form{' '}
-          <Code>sha256=&lt;hex&gt;</Code> — an HMAC-SHA256 of the raw request body keyed with your
-          webhook secret. Recompute it and compare in constant time before trusting the payload.
+          Every delivery carries a <Code>X-BettaPay-Timestamp</Code> header (unix seconds) and an{' '}
+          <Code>X-BettaPay-Signature</Code> header of the form <Code>sha256=&lt;hex&gt;</Code>.
+          The signature is an HMAC-SHA256 keyed with your webhook secret over the canonical string{' '}
+          <Code>{'`${timestamp}.${rawBody}`'}</Code>:
+        </P>
+        <Snippet
+          code={'canonical = `${X-BettaPay-Timestamp}.${raw request body bytes}`'}
+          lang="bash"
+          filename="Canonical signed string"
+        />
+        <P>
+          Read the raw bytes before parsing, recompute the HMAC and compare it in constant time
+          (for example with <Code>crypto.timingSafeEqual</Code> or a length-safe byte loop). Never use{' '}
+          <Code>===</Code> on secrets, and never parse the JSON before the check passes.
         </P>
         <Snippet code={verifySignature} lang="javascript" filename="webhook-handler.js" />
         <Callout variant="warning" title="Verify against the raw body">
           Compute the HMAC over the exact received bytes — parsing and re-serializing the JSON first
-          will change the bytes and break verification.
+          will change the bytes and break verification. Prefer including the timestamp in the signed
+          string and rejecting stale timestamps so a captured delivery cannot be replayed later.
         </Callout>
+        <P>
+          You can paste a payload, timestamp and signature into the{' '}
+          <a href="/developers" className="text-primary underline-offset-4 hover:underline">
+            client-side signature verifier
+          </a>{' '}
+          on the Developers page to see a valid and a tampered signature side by side.
+        </P>
       </SubSection>
 
       <SubSection id="webhook-retries" title="Retry policy">

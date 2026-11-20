@@ -29,6 +29,7 @@ export const docsNavigation: NavGroup[] = [
     id: 'api-reference',
     title: 'API Reference',
     items: [
+      { id: 'api-explorer', title: 'API Explorer', href: '/docs/api' },
       { id: 'merchants', title: 'Merchants' },
       { id: 'payments', title: 'Payments' },
       { id: 'settlements', title: 'Settlements' },
@@ -55,8 +56,11 @@ export const docsNavigation: NavGroup[] = [
   },
 ];
 
-/** Flat, in-order list of every section for scroll-spy and prev/next logic. */
-export const docsSections: NavItem[] = docsNavigation.flatMap((group) => group.items);
+/** Flat, in-order list of every item in the sidebar. */
+export const docsNavItems: NavItem[] = docsNavigation.flatMap((group) => group.items);
+
+/** In-page sections only (route links such as `/docs/api` are excluded). */
+export const docsSections: NavItem[] = docsNavItems.filter((item) => !item.href);
 
 /** Every section id, in document order. */
 export const docsSectionIds: string[] = docsSections.map((item) => item.id);
@@ -70,5 +74,10 @@ export function findNavGroup(sectionId: string): NavGroup | undefined {
 
 /** Resolve a section's nav item by id. */
 export function findNavItem(sectionId: string): NavItem | undefined {
-  return docsSections.find((item) => item.id === sectionId);
+  return docsNavItems.find((item) => item.id === sectionId);
+}
+
+/** Resolve a route-linked nav item (e.g. `/docs/api`) by its pathname. */
+export function findNavItemByHref(href: string): NavItem | undefined {
+  return docsNavItems.find((item) => item.href === href);
 }

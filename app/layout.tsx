@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
-import { Fraunces, DM_Sans } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import { Toaster } from "@/components/ui";
 import { ConditionalAppProviders } from "@/components/providers/ConditionalAppProviders";
@@ -19,18 +18,7 @@ import {
 } from "@/lib/metadata";
 
 
-const fraunces = Fraunces({
-  subsets: ["latin", "latin-ext"],
-  display: "swap",
-  variable: "--font-heading",
-});
 
-const dmSans = DM_Sans({
-  weight: ["400", "500", "600", "700"],
-  subsets: ["latin", "latin-ext"],
-  display: "swap",
-  variable: "--font-body",
-});
 
 
 export function generateMetadata(): Metadata {
@@ -97,7 +85,7 @@ export default async function RootLayout({
   );
 
   return (
-    <html lang={htmlLang} dir={documentDirection} suppressHydrationWarning className={cn("font-sans antialiased", fraunces.variable, dmSans.variable)}>
+    <html lang={htmlLang} dir={documentDirection} suppressHydrationWarning className={cn("font-sans antialiased")}>
       <body className="min-h-screen bg-background text-foreground">
         <RouteProgress />
         <a

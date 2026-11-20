@@ -1,3 +1,5 @@
+process.env.NEXT_IGNORE_INCORRECT_LOCKFILE = "1";
+
 /** @type {import('next').NextConfig} */
 const withBundleAnalyzer = require("@next/bundle-analyzer")({
   enabled: process.env.ANALYZE === "true",
@@ -40,6 +42,9 @@ const connectSrc = unique([
   "'self'",
   // Backend API — same fallback as lib/api/axios.ts DEFAULT_API_BASE_URL.
   originOf(process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"),
+  // Public gateway used by the docs explorer's "Try it" requests
+  // (lib/docs/navigation.ts DOCS_BASE_URL).
+  originOf(process.env.NEXT_PUBLIC_DOCS_API_URL || "https://bettapay-backend.onrender.com"),
   // Horizon + Soroban RPCs: configured endpoints plus the public SDF defaults.
   originOf(process.env.NEXT_PUBLIC_STELLAR_HORIZON_URL),
   "https://horizon-testnet.stellar.org",
@@ -67,11 +72,11 @@ const csp = {
     isDev && "'unsafe-eval'",
     GOOGLE_ACCOUNTS,
   ]),
-  "style-src": ["'self'", "'unsafe-inline'", GOOGLE_ACCOUNTS],
+  "style-src": ["'self'", "'unsafe-inline'", GOOGLE_ACCOUNTS, "https://fonts.googleapis.com"],
   // `data:` covers QR codes and KYB upload previews; ui-avatars serves the
   // About page team avatars.
   "img-src": ["'self'", "data:", "https://ui-avatars.com"],
-  "font-src": ["'self'", "data:"],
+  "font-src": ["'self'", "data:", "https://fonts.gstatic.com"],
   "connect-src": connectSrc,
   "frame-src": [GOOGLE_ACCOUNTS],
   "worker-src": ["'self'"],
@@ -89,6 +94,12 @@ const contentSecurityPolicy = [
 
 const nextConfig = {
   reactStrictMode: true,
+  // Transpile @noble/* under Jest (next/jest consults this list to build its
+  // transformIgnorePatterns): @noble/hashes and @noble/ed25519 ship ESM-only
+  // sources, so without it the suites that import @stellar/stellar-sdk fail
+  // with "Cannot use import statement outside a module". Effect on the
+  // production build is negligible (tiny pure-JS packages).
+  transpilePackages: ["@noble/hashes", "@noble/ed25519", "uint8array-extras"],
   experimental: {
     // `isomorphic-dompurify` (used by components/shared/SafeHtmlRenderer.tsx)
     // falls back to jsdom on the server, and jsdom reads its own files off
@@ -125,10 +136,10 @@ const nextConfig = {
     ignoreDuringBuilds: true,
   },
   typescript: {
-    // Allow local builds to complete even when tests or other files have
-    // type errors that are out-of-scope for this change. CI should not
-    // rely on this flag; remove before final production gating if desired.
-    ignoreBuildErrors: true,
+    // Type errors fail the production build (default). The codebase's
+    // typecheck is clean (`npm run typecheck` runs tsc with the same config
+    // in CI), so keep Next's own check enabled.
+    ignoreBuildErrors: false,
   },
   async headers() {
     return [

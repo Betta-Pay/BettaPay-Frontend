@@ -38,11 +38,13 @@ export function configureZodI18n(): void {
           });
         }
         case "too_small":
-          return translate(sizeKey("tooSmall", issue.origin, issue.inclusive), {
+          // `inclusive` is optional in the issue type; unspecified means the
+          // boundary is included, same as Zod's runtime behaviour.
+          return translate(sizeKey("tooSmall", issue.origin, issue.inclusive ?? true), {
             minimum: issue.minimum,
           });
         case "too_big":
-          return translate(sizeKey("tooBig", issue.origin, issue.inclusive), {
+          return translate(sizeKey("tooBig", issue.origin, issue.inclusive ?? true), {
             maximum: issue.maximum,
           });
         case "invalid_format":

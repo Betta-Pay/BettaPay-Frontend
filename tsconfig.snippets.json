@@ -14,7 +14,7 @@
     }
   },
   "include": [
-    "next-env.d.ts",
+    "types/next-fetch-augment.d.ts",
     "lib/docs/**/*.ts",
     "lib/status/**/*.ts",
     "lib/a11y/**/*.ts",

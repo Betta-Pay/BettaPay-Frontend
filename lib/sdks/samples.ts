@@ -5,7 +5,7 @@ import { SDKS } from '@/lib/sdks';
  * Per-SDK code paths shown by the playground: how to install it, and a
  * quickstart that makes the same quote request the "Try it" panel runs.
  *
- * Install commands come from `lib/sdks.ts`; the quickstart for the four
+ * Install commands come from `lib/sdks/index.ts`; the quickstart for the four
  * languages that `codeSnippets.ts` covers is that file's `get-fx-quote`
  * operation, so the playground and the developer console can never show two
  * different samples for the same call.

@@ -1,4 +1,5 @@
 import { NextResponse, NextRequest } from 'next/server';
+import { decodeJwtPayload } from '@/lib/utils/jwt';
 import {
   generateCsrfToken,
   buildCsrfCookieHeader,
@@ -12,8 +13,22 @@ export async function GET(req: NextRequest) {
   const token = req.cookies.get('auth_token')?.value;
   const role = req.cookies.get('user_role')?.value;
 
-  if (!token) {
-    return NextResponse.json({ error: 'Session expired' }, { status: 401 });
+  // The HttpOnly cookie is the credential, but a present cookie alone does
+  // not mean its JWT is still usable. Reject malformed/expired tokens before
+  // returning an authenticated session snapshot. Signature verification and
+  // revocation checks remain the backend's responsibility.
+  if (!token || !decodeJwtPayload(token).ok) {
+    const res = NextResponse.json({ error: 'Session expired' }, { status: 401 });
+    const secureFlag = process.env.NODE_ENV === 'production' ? '; Secure' : '';
+    res.headers.set(
+      'Set-Cookie',
+      `auth_token=; HttpOnly; Path=/; Max-Age=0; SameSite=Lax${secureFlag}`,
+    );
+    res.headers.append(
+      'Set-Cookie',
+      `user_role=; Path=/; Max-Age=0; SameSite=Lax${secureFlag}`,
+    );
+    return res;
   }
 
   // In production, validate the token and fetch real user data.

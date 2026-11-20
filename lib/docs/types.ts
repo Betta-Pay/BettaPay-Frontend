@@ -32,6 +32,11 @@ export interface NavItem {
   id: string;
   /** Human label shown in the sidebar, TOC and breadcrumbs. */
   title: string;
+  /**
+   * When set, the item is a route link (e.g. `/docs/api`) rather than an
+   * in-page anchor. Route items are excluded from the scroll-spy id list.
+   */
+  href?: string;
 }
 
 /** A top-level collapsible group in the sidebar (e.g. "API Reference"). */

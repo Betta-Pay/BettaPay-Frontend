@@ -16,7 +16,8 @@ interface CodeBlockProps {
 
 /**
  * Presentational syntax-highlighted code block. Highlighting is done on the
- * server (see `lib/docs/highlight.ts`); this component only renders the markup
+ * server (see `lib/docs/highlight.ts`, which shares the singleton highlighter
+ * from `lib/utils/highlighter.ts`); this component only renders the markup
  * and a copy button, so it stays a shared component usable from both server and
  * client parents.
  */
