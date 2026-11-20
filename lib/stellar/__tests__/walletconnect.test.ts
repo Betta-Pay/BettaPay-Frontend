@@ -29,6 +29,7 @@ import {
   type WalletConnectSession,
   getStellarWalletConnectChain,
   getWalletConnectClient,
+  normalizeWalletNetwork,
   resetWalletConnectClient,
   type WalletConnectStatus,
 } from '@/lib/stellar/walletconnect';
@@ -121,6 +122,20 @@ afterEach(() => {
 // ─── Reconnect ───────────────────────────────────────────────────────────────
 
 describe('relay reconnection', () => {
+  it('schedules only one reconnect timer for repeated close events', async () => {
+    const { client } = makeClient();
+    await client.connect();
+    const first = latest();
+    first.accept();
+
+    first.dropFromServer();
+    first.dropFromServer();
+
+    expect(MockRelaySocket.instances).toHaveLength(1);
+    await jest.advanceTimersByTimeAsync(1_300);
+    expect(MockRelaySocket.instances).toHaveLength(2);
+  });
+
   it('reconnects with backoff after an unexpected close and restores status', async () => {
     const { client, statuses } = makeClient();
     await client.connect();
@@ -241,10 +256,23 @@ describe('relay heartbeat', () => {
 // ─── Phase timeouts ──────────────────────────────────────────────────────────
 
 describe('chain negotiation', () => {
-  it('maps the UI network to the matching chain id', () => {
+  it('maps every supported app network and CAIP-2 chain to the matching network', () => {
     expect(getStellarWalletConnectChain('testnet')).toBe('stellar:testnet');
     expect(getStellarWalletConnectChain('public')).toBe('stellar:pubnet');
     expect(getStellarWalletConnectChain('mainnet')).toBe('stellar:pubnet');
+    expect(getStellarWalletConnectChain('futurenet')).toBe('stellar:futurenet');
+    expect(normalizeWalletNetwork('stellar:testnet')).toBe('testnet');
+    expect(normalizeWalletNetwork('stellar:pubnet')).toBe('public');
+    expect(normalizeWalletNetwork('stellar:futurenet')).toBe('futurenet');
+  });
+
+  it('rejects unsupported networks instead of silently selecting another chain', () => {
+    expect(() => normalizeWalletNetwork('stellar:unknown')).toThrow(
+      'Unsupported Stellar WalletConnect network',
+    );
+    expect(() => getStellarWalletConnectChain('unknown')).toThrow(
+      'Unsupported Stellar WalletConnect network',
+    );
   });
 
   it('keeps the active chain when callers reuse the singleton without a network override', () => {
@@ -480,6 +508,28 @@ function publishedEnvelopes(sock: MockRelaySocket) {
 }
 
 describe('session expiry', () => {
+  it('rejects signing immediately after the session expiry deadline', async () => {
+    const { client } = makeClient();
+    const sessionKeyHex = 'ab'.repeat(32);
+
+    await client.restoreSession({
+      topic: 'session-topic',
+      peerMetadata: { name: 'Test Wallet', description: '', url: '', icons: [] },
+      stellarAccounts: [`G${'A'.repeat(55)}`],
+      address: `G${'A'.repeat(55)}`,
+      sessionKey: sessionKeyHex,
+      expiry: nowS() + 60,
+    });
+    const sock = latest();
+    sock.accept();
+    sock.sent.length = 0;
+
+    jest.setSystemTime(Date.now() + 61 * 1000);
+
+    await expect(client.signTransaction('AAAA')).rejects.toBeInstanceOf(WalletConnectExpiredError);
+    expect(sock.parsedSent().filter((message) => message.method === 'irn_publish')).toHaveLength(0);
+  });
+
   it('rejects an expired session proposal instead of settling it', async () => {
     const { client, statuses } = makeClient();
     const uri = await client.connect();

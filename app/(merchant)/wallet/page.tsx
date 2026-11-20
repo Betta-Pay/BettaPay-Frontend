@@ -41,6 +41,7 @@ export default function WalletPage() {
     address: walletAddress,
     isConnected,
     balances,
+    isUnfunded,
     loading,
     isReconnecting,
     error,
@@ -137,7 +138,7 @@ export default function WalletPage() {
 
         <div className="flex flex-wrap items-center gap-3">
           {/* Network Switcher */}
-          <Select value={network} onValueChange={(val) => val && setNetwork(val as 'testnet' | 'public')}>
+          <Select value={network} onValueChange={(val) => val && setNetwork(val as 'testnet' | 'public' | 'futurenet')}>
             <SelectTrigger className="w-[140px] bg-card border-border">
               <Globe className="w-3.5 h-3.5 mr-2 text-primary" />
               <SelectValue />
@@ -145,6 +146,7 @@ export default function WalletPage() {
             <SelectContent>
               <SelectItem value="testnet">Testnet</SelectItem>
               <SelectItem value="public">Mainnet</SelectItem>
+              <SelectItem value="futurenet">Futurenet</SelectItem>
             </SelectContent>
           </Select>
 
@@ -195,7 +197,7 @@ export default function WalletPage() {
             </div>
             <div className="flex items-center gap-2">
               <span className="text-xs bg-background/10 px-3 py-1 rounded-full font-mono uppercase">
-                Stellar {network}
+                Stellar {network === 'public' ? 'Mainnet' : network === 'futurenet' ? 'Futurenet' : 'Testnet'}
               </span>
               {isConnected && (
                 <span className="text-xs bg-emerald-500/20 text-emerald-300 px-2.5 py-1 rounded-full font-medium inline-flex items-center gap-1">
@@ -309,8 +311,10 @@ export default function WalletPage() {
           <CardContent>
             <EmptyState
               icon={Wallet}
-              title="No assets found"
-              description="This account has no balances yet. Fund it with XLM or add a trustline to start receiving payments."
+              title={isUnfunded ? "Account not funded" : "No assets found"}
+              description={isUnfunded
+                ? "This Stellar account has not been funded. Fund it with XLM to activate it."
+                : "This account has no balances yet. Fund it with XLM or add a trustline to start receiving payments."}
               action={{ label: "Refresh Balances", onClick: handleRefresh }}
             />
           </CardContent>

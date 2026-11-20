@@ -58,11 +58,13 @@ export function generateCsrfToken(): string {
   return nodeCrypto.randomBytes(CSRF_TOKEN_BYTE_LENGTH).toString('hex');
 }
 
-/** A short, stable per-session key derived from the auth token — enough to
+/** A stable per-session key derived from the auth token (via SHA-256) — enough to
  *  differentiate one session from another without storing the token itself. */
 export function sessionKeyFromAuthToken(authToken: string | undefined | null): string {
   if (!authToken) return 'anon';
-  return authToken.slice(0, 24);
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const nodeCrypto = require('crypto') as typeof import('crypto');
+  return nodeCrypto.createHash('sha256').update(authToken).digest('hex');
 }
 
 /** `sha256(csrfToken + '.' + sessionKey)` as hex. Sync in all runtimes. */
@@ -177,9 +179,16 @@ export function getCsrfTokenFromCookie(): string | null {
 
   if (!match) return null;
 
-  const value = decodeURIComponent(match.split('=')[1]);
-  // Basic sanity check — reject obviously invalid values before sending as a header.
-  return value.length === CSRF_TOKEN_HEX_LENGTH ? value : null;
+  const rawValue = match.substring(CSRF_COOKIE_NAME.length + 1);
+  if (!rawValue) return null;
+
+  try {
+    const value = decodeURIComponent(rawValue);
+    // Basic sanity check — reject obviously invalid values before sending as a header.
+    return value.length === CSRF_TOKEN_HEX_LENGTH ? value : null;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -202,11 +211,12 @@ export function csrfHeader(): Record<string, string> {
 export async function rotateCsrfToken(): Promise<string | null> {
   if (typeof fetch === 'undefined') return null;
   try {
-    await fetch('/api/auth/csrf?rotate=1', {
+    const response = await fetch('/api/auth/csrf?rotate=1', {
       method: 'GET',
       credentials: 'include',
       cache: 'no-store',
     });
+    if (!response.ok) return null;
   } catch {
     return null;
   }

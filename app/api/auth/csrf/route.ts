@@ -1,6 +1,12 @@
 import { NextResponse } from 'next/server';
 import { NextRequest } from 'next/server';
-import { generateCsrfToken, CSRF_COOKIE_NAME } from '@/lib/utils/csrf';
+import {
+  buildCsrfSidCookieHeader,
+  CSRF_COOKIE_NAME,
+  deriveCsrfBinding,
+  generateCsrfToken,
+  sessionKeyFromAuthToken,
+} from '@/lib/utils/csrf';
 
 /**
  * GET /api/auth/csrf
@@ -9,9 +15,8 @@ import { generateCsrfToken, CSRF_COOKIE_NAME } from '@/lib/utils/csrf';
  *
  * Call this once before the React app hydrates (e.g. from the root layout
  * server component) to guarantee the `csrf_token` cookie is present.
- * Subsequent calls are cheap: if a valid token is already in the request
- * cookies the same value is echoed back so the existing cookie is refreshed
- * rather than rotated unnecessarily.
+ * Subsequent calls reuse a valid CSRF token, but rebind it to the active
+ * auth_token so a login or token refresh cannot leave a stale session binding.
  *
  * The token IS rotated on every new session (login sets a fresh one via
  * POST /api/auth/session) and on every token refresh (POST /api/auth/refresh).
@@ -37,6 +42,8 @@ export async function GET(req: NextRequest) {
   const existing = cookieStore.get(CSRF_COOKIE_NAME)?.value;
   const token =
     !forceRotate && existing && existing.length === 64 ? existing : generateCsrfToken();
+  const authToken = cookieStore.get('auth_token')?.value;
+  const binding = deriveCsrfBinding(token, sessionKeyFromAuthToken(authToken));
 
   const cookieParts = [
     `${CSRF_COOKIE_NAME}=${token}`,
@@ -57,6 +64,7 @@ export async function GET(req: NextRequest) {
       },
     }
   );
+  res.headers.append('Set-Cookie', buildCsrfSidCookieHeader(binding));
 
   return res;
 }

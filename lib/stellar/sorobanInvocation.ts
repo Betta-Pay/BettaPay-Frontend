@@ -33,7 +33,9 @@ export async function fetchTransactionEnvelope(
   network: StellarNetwork | string,
 ): Promise<string | null> {
   try {
-    const res = await fetch(`${getHorizonUrl(network)}/transactions/${txHash}`);
+    const res = await fetch(`${getHorizonUrl(network)}/transactions/${txHash}`, {
+      signal: AbortSignal.timeout(8000),
+    });
     if (!res.ok) return null;
     const data = (await res.json()) as HorizonTransactionResponse;
     return data.envelope_xdr ?? null;
@@ -67,7 +69,13 @@ export function decodeSorobanInvocation(
     const invokeArgs = hostFunction.invokeContract();
     const contractId = Address.fromScAddress(invokeArgs.contractAddress()).toString();
     const functionName = invokeArgs.functionName().toString();
-    const args = invokeArgs.args().map((arg) => scValToNative(arg));
+    const args = invokeArgs.args().map((arg) => {
+      try {
+        return scValToNative(arg);
+      } catch {
+        return '<unavailable>';
+      }
+    });
 
     return { contractId, functionName, args };
   } catch {

@@ -1,4 +1,4 @@
-import { middleware, config } from '../middleware';
+import { middleware, config, isSafeRedirect, normalizeTrailingSlash, extractLocaleFromPathname } from '../middleware';
 import type { NextRequest } from 'next/server';
 
 jest.mock('next/server', () => {
@@ -35,11 +35,17 @@ describe('Next.js Middleware Auth & RBAC', () => {
     jest.clearAllMocks();
   });
 
-  const mockRequest = (pathname: string, cookies: Record<string, string> = {}, headers: Record<string, string> = {}) => {
+  const mockRequest = (urlOrPath: string, cookies: Record<string, string> = {}, headers: Record<string, string> = {}) => {
+    const fullUrl = urlOrPath.startsWith('http') ? urlOrPath : `http://localhost:3000${urlOrPath}`;
+    const parsed = new URL(fullUrl);
+    const pathname = parsed.pathname;
+    const search = parsed.search;
     return {
-      url: `http://localhost:3000${pathname}`,
+      url: fullUrl,
       nextUrl: {
         pathname,
+        search,
+        searchParams: parsed.searchParams,
         clone: jest.fn().mockImplementation(function (this: any) {
           return { ...this, pathname: this.pathname };
         }),
@@ -142,6 +148,7 @@ describe('Next.js Middleware Auth & RBAC', () => {
       expect(NextResponse.redirect).toHaveBeenCalled();
       const redirectUrl = (NextResponse.redirect as jest.Mock).mock.calls[0][0];
       expect(redirectUrl.pathname).toBe('/en/auth/login');
+      expect(redirectUrl.searchParams.get('redirect')).toBe('/en/dashboard');
     });
 
     it('redirects unauthenticated user to /en/auth/login for /en/overview', () => {
@@ -150,6 +157,121 @@ describe('Next.js Middleware Auth & RBAC', () => {
       expect(NextResponse.redirect).toHaveBeenCalled();
       const redirectUrl = (NextResponse.redirect as jest.Mock).mock.calls[0][0];
       expect(redirectUrl.pathname).toBe('/en/auth/login');
+      expect(redirectUrl.searchParams.get('redirect')).toBe('/en/overview');
+    });
+
+    it('preserves requested path and query string when redirecting to login', () => {
+      const req = mockRequest('/en/settlement/?tab=rules');
+      middleware(req);
+      expect(NextResponse.redirect).toHaveBeenCalled();
+      const redirectUrl = (NextResponse.redirect as jest.Mock).mock.calls[0][0];
+      expect(redirectUrl.pathname).toBe('/en/auth/login');
+      expect(redirectUrl.searchParams.get('redirect')).toBe('/en/settlement/?tab=rules');
+      expect(redirectUrl.toString()).toBe('http://localhost:3000/en/auth/login?redirect=%2Fen%2Fsettlement%2F%3Ftab%3Drules');
+    });
+  });
+
+  describe('Open-redirect validation', () => {
+    it('rejects external URLs in redirect validation', () => {
+      expect(isSafeRedirect('https://evil.com')).toBe(false);
+      expect(isSafeRedirect('http://evil.com')).toBe(false);
+      expect(isSafeRedirect('//evil.com')).toBe(false);
+      expect(isSafeRedirect('//evil.com/path')).toBe(false);
+      expect(isSafeRedirect('/\\evil.com')).toBe(false);
+      expect(isSafeRedirect('\\evil.com')).toBe(false);
+      expect(isSafeRedirect('javascript:alert(1)')).toBe(false);
+      expect(isSafeRedirect('data:text/html;base64,bad')).toBe(false);
+      expect(isSafeRedirect('')).toBe(false);
+      expect(isSafeRedirect(null as any)).toBe(false);
+      expect(isSafeRedirect(undefined as any)).toBe(false);
+    });
+
+    it('accepts safe relative redirect paths', () => {
+      expect(isSafeRedirect('/en/settlement/?tab=rules')).toBe(true);
+      expect(isSafeRedirect('/dashboard')).toBe(true);
+      expect(isSafeRedirect('/en/dashboard/')).toBe(true);
+      expect(isSafeRedirect('/overview?filter=pending')).toBe(true);
+    });
+
+    it('strips external redirect URL passed in query string when redirecting to login', () => {
+      const req = mockRequest('/en/dashboard?redirect=https://evil.com');
+      middleware(req);
+      expect(NextResponse.redirect).toHaveBeenCalled();
+      const redirectUrl = (NextResponse.redirect as jest.Mock).mock.calls[0][0];
+      expect(redirectUrl.pathname).toBe('/en/auth/login');
+      expect(redirectUrl.searchParams.get('redirect')).toBe('/en/dashboard');
+    });
+  });
+
+  describe('Trailing slash normalization', () => {
+    it('normalizes trailing slashes while preserving root slash', () => {
+      expect(normalizeTrailingSlash('/dashboard/')).toBe('/dashboard');
+      expect(normalizeTrailingSlash('/dashboard///')).toBe('/dashboard');
+      expect(normalizeTrailingSlash('/dashboard')).toBe('/dashboard');
+      expect(normalizeTrailingSlash('/')).toBe('/');
+    });
+
+    it('extractLocaleFromPathname normalizes trailing slash on stripped path', () => {
+      expect(extractLocaleFromPathname('/en/dashboard/')).toEqual({
+        locale: 'en',
+        stripped: '/dashboard',
+      });
+      expect(extractLocaleFromPathname('/fr/settings/profile/')).toEqual({
+        locale: 'fr',
+        stripped: '/settings/profile',
+      });
+      expect(extractLocaleFromPathname('/en/')).toEqual({
+        locale: 'en',
+        stripped: '/',
+      });
+    });
+
+    it('matches route guards identically for trailing-slash paths like /dashboard/', () => {
+      // Unauthenticated redirect with trailing slash preserved in redirect param
+      const unauthReq = mockRequest('/en/dashboard/');
+      middleware(unauthReq);
+      expect(NextResponse.redirect).toHaveBeenCalled();
+      const unauthRedirect = (NextResponse.redirect as jest.Mock).mock.calls[0][0];
+      expect(unauthRedirect.pathname).toBe('/en/auth/login');
+      expect(unauthRedirect.searchParams.get('redirect')).toBe('/en/dashboard/');
+
+      jest.clearAllMocks();
+
+      // Merchant allowed to access /en/dashboard/
+      const merchantReq = mockRequest('/en/dashboard/', { auth_token: 'valid_token', user_role: 'merchant' });
+      middleware(merchantReq);
+      expect(NextResponse.rewrite).toHaveBeenCalled();
+      expect(NextResponse.redirect).not.toHaveBeenCalled();
+
+      jest.clearAllMocks();
+
+      // Admin redirected away from /en/dashboard/
+      const adminReq = mockRequest('/en/dashboard/', { auth_token: 'valid_token', user_role: 'admin' });
+      middleware(adminReq);
+      expect(NextResponse.redirect).toHaveBeenCalled();
+      const adminRedirect = (NextResponse.redirect as jest.Mock).mock.calls[0][0];
+      expect(adminRedirect.pathname).toBe('/en/overview');
+
+      jest.clearAllMocks();
+
+      // Merchant redirected away from /en/overview/
+      const merchantAdminReq = mockRequest('/en/overview/', { auth_token: 'valid_token', user_role: 'merchant' });
+      middleware(merchantAdminReq);
+      expect(NextResponse.redirect).toHaveBeenCalled();
+      const merchantRedirect = (NextResponse.redirect as jest.Mock).mock.calls[0][0];
+      expect(merchantRedirect.pathname).toBe('/en/dashboard');
+
+      jest.clearAllMocks();
+
+      // Onboarded merchant redirected away from /en/onboarding/
+      const onboardedReq = mockRequest(
+        '/en/onboarding/',
+        { auth_token: 'valid_token', user_role: 'merchant', merchant_onboarded: 'true' }
+      );
+      middleware(onboardedReq);
+      expect(NextResponse.redirect).toHaveBeenCalled();
+      const onboardedRedirect = (NextResponse.redirect as jest.Mock).mock.calls[0][0];
+      expect(onboardedRedirect.pathname).toBe('/en/dashboard');
     });
   });
 

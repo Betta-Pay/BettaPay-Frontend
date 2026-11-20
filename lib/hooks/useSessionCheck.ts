@@ -14,6 +14,7 @@ export function useSessionCheck() {
   const logout = useAuthStore((s) => s.logout);
   const router = useRouter();
   const lastCheckRef = useRef<number>(0);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchSession = useCallback(async (signal?: AbortSignal) => {
     setIsVerifying(true);
@@ -22,8 +23,8 @@ export function useSessionCheck() {
       if (!res.ok) {
         // Session expired or rotated away — clear persisted state and redirect
         // Aligns with middleware's getSessionFromCookies/isSessionValid on auth_token + user_role
-        logout();
-        router.push(ROUTES.LOGIN);
+        await logout();
+        router.replace(ROUTES.LOGIN);
         return null;
       }
       const data = (await res.json().catch(() => null)) as SessionCheckResponse | null;
@@ -62,8 +63,13 @@ export function useSessionCheck() {
       // so a revoked/rotated session is caught before rendering protected content.
       const ctrl = new AbortController();
       void fetchSession(ctrl.signal);
-      // Abort not needed beyond this call — fire-and-forget
-      setTimeout(() => ctrl.abort(), 5000);
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+      timeoutRef.current = setTimeout(() => {
+        ctrl.abort();
+        timeoutRef.current = null;
+      }, 5000);
     };
     const onVisibility = () => {
       if (document.visibilityState === 'visible') onFocus();
@@ -71,6 +77,10 @@ export function useSessionCheck() {
     window.addEventListener('focus', onFocus);
     document.addEventListener('visibilitychange', onVisibility);
     return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
       window.removeEventListener('focus', onFocus);
       document.removeEventListener('visibilitychange', onVisibility);
     };

@@ -42,8 +42,24 @@ export const STELLAR_NETWORKS: Record<StellarNetwork, NetworkConfig> = {
 export function normalizeNetwork(net?: string | null): StellarNetwork {
   if (!net) return 'testnet';
   const lower = net.toLowerCase().trim();
-  if (lower === 'futurenet') return 'futurenet';
-  if (lower === 'public' || lower === 'mainnet') return 'public';
+  const caipAlias = lower.startsWith('stellar:')
+    ? lower.split(':')[1]
+    : lower;
+
+  if (
+    caipAlias === 'futurenet'
+    || lower === 'test sdf future network ; october 2022'
+  ) return 'futurenet';
+  if (
+    caipAlias === 'public'
+    || caipAlias === 'pubnet'
+    || caipAlias === 'mainnet'
+    || lower === 'public global stellar network ; september 2015'
+  ) return 'public';
+  if (
+    caipAlias === 'testnet'
+    || lower === 'test sdf network ; september 2015'
+  ) return 'testnet';
   return 'testnet';
 }
 

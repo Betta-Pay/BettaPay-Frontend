@@ -9,15 +9,18 @@
  *   import { isValidStellarAddress, extractStellarAddress } from '@bettapay/stellar-utils';
  */
 
-const STELLAR_ADDRESS_PREFIX_REGEX = /^stellar:[a-z]+:/i;
-const STELLAR_PUBLIC_KEY_REGEX = /^G[A-Z2-7]{55}$/;
+import { StrKey } from '@stellar/stellar-sdk';
+
+const STELLAR_ADDRESS_PREFIX_REGEX = /^stellar:[a-z0-9_-]+:/i;
 
 /**
  * Validates whether a string is a valid Stellar public key (address).
  * Valid addresses are 56-character strings starting with 'G' (G-address format).
  */
 export function isValidStellarAddress(address: string): boolean {
-  return STELLAR_PUBLIC_KEY_REGEX.test(address);
+  return typeof address === 'string'
+    && address === address.trim()
+    && StrKey.isValidEd25519PublicKey(address);
 }
 
 /**
@@ -29,7 +32,7 @@ export function isValidStellarAddress(address: string): boolean {
  *   "GAXY...7QF" → "GAXY...7QF"
  */
 export function extractStellarAddress(accountId: string): string {
-  return accountId.replace(STELLAR_ADDRESS_PREFIX_REGEX, '');
+  return accountId.trim().replace(STELLAR_ADDRESS_PREFIX_REGEX, '').trim();
 }
 
 /**
@@ -37,9 +40,14 @@ export function extractStellarAddress(accountId: string): string {
  * Returns only valid addresses, filtering out invalid ones.
  */
 export function extractValidStellarAddresses(accountIds: string[]): string[] {
-  return accountIds
-    .map(extractStellarAddress)
-    .filter((address) => address.length > 0 && isValidStellarAddress(address));
+  const uniqueAddresses = new Set<string>();
+  for (const accountId of accountIds) {
+    const address = extractStellarAddress(accountId);
+    if (address.length > 0 && isValidStellarAddress(address)) {
+      uniqueAddresses.add(address);
+    }
+  }
+  return [...uniqueAddresses];
 }
 
 const MAX_PUBLIC_KEY_LENGTH = 56;

@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import type { NextRequest } from "next/server";
 import type { AppRole } from "./routeAccess";
+import { decodeJwtPayload } from "@/lib/utils/jwt";
 
 /**
  * Server-side role check for route handlers (issue #492).
@@ -53,7 +54,7 @@ export async function requireRoleFromCookies(required: AppRole): Promise<RoleChe
   return verifyRoleFromCookieHeader(cookieHeader, required);
 }
 
-async function verifyRoleFromCookieHeader(
+export async function verifyRoleFromCookieHeader(
   cookieHeader: string,
   required: AppRole,
 ): Promise<RoleCheckResult> {
@@ -75,6 +76,7 @@ async function verifyRoleFromCookieHeader(
         headers: { "Content-Type": "application/json", cookie: cookieHeader },
         body: JSON.stringify({ token: authToken }),
         cache: "no-store",
+        signal: AbortSignal.timeout(5000),
       });
       if (res.status === 401 || res.status === 403) {
         return { ok: false, role: null, status: 401, reason: "session rejected" };
@@ -88,18 +90,23 @@ async function verifyRoleFromCookieHeader(
         if (raw === "admin" || raw === "merchant") confirmedRole = raw;
       }
     } catch {
-      // Auth service unreachable — fail closed for privileged checks.
+      // Auth service unreachable or timed out — fail closed for privileged checks.
       return { ok: false, role: null, status: 403, reason: "role could not be verified" };
     }
   } else {
-    // Local/mock mode: decode the (already structurally-checked) JWT payload.
-    try {
-      const payload = JSON.parse(
-        Buffer.from(authToken.split(".")[1] ?? "", "base64url").toString("utf8"),
-      ) as { role?: unknown };
-      if (payload.role === "admin" || payload.role === "merchant") confirmedRole = payload.role;
-    } catch {
-      confirmedRole = null;
+    // Local/mock mode: decode and validate JWT payload expiry before checking role claims.
+    const decoded = decodeJwtPayload(authToken);
+    if (!decoded.ok) {
+      return {
+        ok: false,
+        role: null,
+        status: 401,
+        reason: decoded.error === "expired" ? "session expired" : "session rejected",
+      };
+    }
+    const payload = decoded.payload as { role?: unknown };
+    if (payload.role === "admin" || payload.role === "merchant") {
+      confirmedRole = payload.role;
     }
   }
 

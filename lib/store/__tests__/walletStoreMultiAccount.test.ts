@@ -2,6 +2,11 @@ import { useWalletStore } from '../walletStore';
 import type { WalletConnectSession } from '@/lib/stellar/walletconnect';
 import { createMockFreighterStore } from '../__mocks__/freighterProvider';
 
+const firstAddress = `G${'A'.repeat(55)}`;
+const secondAddress = `G${'B'.repeat(55)}`;
+const unpresentedAddress = `G${'C'.repeat(55)}`;
+const originalRefreshBalances = useWalletStore.getState().refreshBalances;
+
 const mockWalletConnectClient = {
   restoreSession: jest.fn().mockResolvedValue(undefined),
   onStatus: jest.fn(),
@@ -19,6 +24,7 @@ describe('useWalletStore - Multi Account Support (#503)', () => {
       walletConnectPending: false,
       walletConnectSession: null,
       walletModalOpen: false,
+      refreshBalances: originalRefreshBalances,
     });
     jest.restoreAllMocks();
   });
@@ -27,18 +33,15 @@ describe('useWalletStore - Multi Account Support (#503)', () => {
     const mockSession: WalletConnectSession = {
       topic: 'topic-123',
       peerMetadata: { name: 'Test Wallet', description: '', url: '', icons: [] },
-      stellarAccounts: [
-        'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF',
-        'GBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB321',
-      ],
-      address: 'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF',
+      stellarAccounts: [firstAddress, secondAddress],
+      address: firstAddress,
     };
 
     useWalletStore.getState().resolveWalletConnect(mockSession);
 
     const state = useWalletStore.getState();
     expect(state.isConnected).toBe(true);
-    expect(state.address).toBe('GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF');
+    expect(state.address).toBe(firstAddress);
     expect(state.stellarAccounts).toHaveLength(2);
     expect(state.stellarAccounts).toEqual(mockSession.stellarAccounts);
   });
@@ -53,16 +56,12 @@ describe('useWalletStore - Multi Account Support (#503)', () => {
     const mockSession: WalletConnectSession = {
       topic: 'topic-123',
       peerMetadata: { name: 'Test Wallet', description: '', url: '', icons: [] },
-      stellarAccounts: [
-        'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF',
-        'GBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB321',
-      ],
-      address: 'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF',
+      stellarAccounts: [firstAddress, secondAddress],
+      address: firstAddress,
     };
 
     useWalletStore.getState().resolveWalletConnect(mockSession);
 
-    const secondAddress = 'GBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB321';
     useWalletStore.getState().selectAccount(secondAddress);
 
     const state = useWalletStore.getState();
@@ -74,18 +73,37 @@ describe('useWalletStore - Multi Account Support (#503)', () => {
     );
   });
 
+  it('rejects invalid addresses without changing wallet state or refreshing balances', () => {
+    const refreshBalances = jest.fn();
+    useWalletStore.setState({
+      ...createMockFreighterStore({ address: firstAddress }),
+      stellarAccounts: [firstAddress, secondAddress],
+      balances: [{ assetCode: 'XLM', balance: '42' }],
+      refreshBalances,
+    });
+
+    useWalletStore.getState().selectAccount('not-a-stellar-address');
+
+    const state = useWalletStore.getState();
+    expect(state.address).toBe(firstAddress);
+    expect(state.stellarAccounts).toEqual([firstAddress, secondAddress]);
+    expect(state.balances).toEqual([{ assetCode: 'XLM', balance: '42' }]);
+    expect(state.loading).toBe(false);
+    expect(refreshBalances).not.toHaveBeenCalled();
+  });
+
   it('ignores account selection for unpresented accounts', () => {
     const mockSession: WalletConnectSession = {
       topic: 'topic-123',
       peerMetadata: { name: 'Test Wallet', description: '', url: '', icons: [] },
-      stellarAccounts: ['GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF'],
-      address: 'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF',
+      stellarAccounts: [firstAddress],
+      address: firstAddress,
     };
 
     useWalletStore.getState().resolveWalletConnect(mockSession);
-    useWalletStore.getState().selectAccount('GCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC123');
+    useWalletStore.getState().selectAccount(unpresentedAddress);
 
-    expect(useWalletStore.getState().address).toBe('GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF');
+    expect(useWalletStore.getState().address).toBe(firstAddress);
   });
 
   it('resets stellarAccounts on disconnect', () => {

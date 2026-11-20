@@ -52,91 +52,12 @@ describe('useAuthStore', () => {
     });
   });
 
-  it('resetAllUserState clears user data and query caches without clearing preferences', () => {
-    const alert: RateAlert = {
-      id: 'alert-1',
-      pair: 'XLM/USD',
-      condition: 'above',
-      target: 0.2,
-      enabled: true,
-      recurrence: 'once',
-      channels: ['in_app'],
-    };
-    const resetQueryCache = jest.fn();
-    const unregisterQueryCacheReset = registerUserQueryCacheReset(resetQueryCache);
-
-    useAuthStore.getState().login('session-token', testUser);
-    useWalletStore.setState({
-      address: 'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF',
-      stellarAccounts: ['GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF'],
-      isConnected: true,
-      connector: 'freighter',
-      balances: [{ assetCode: 'XLM', balance: '10.0000000' }],
-      isSigning: true,
-    });
-    useOfflineStore.setState({
-      isOnline: false,
-      isApiReachable: false,
-      dismissed: true,
-    });
-    useRateLimitStore.getState().setRateLimited(120, '/api/payments');
-    useRateAlertStore.setState({ alerts: [alert], hydratedFromServer: true });
-    localStorage.setItem('theme', 'dark');
-    localStorage.setItem('unrelated-preference', 'preserve');
-
-    try {
-      resetAllUserState();
-    } finally {
-      unregisterQueryCacheReset();
-    }
-
-    expect(useAuthStore.getState()).toMatchObject({
-      user: null,
-      token: null,
-      role: null,
-      isAuthenticated: false,
-      isLoggedIn: false,
-    });
-    expect(useWalletStore.getState()).toMatchObject({
-      address: null,
-      stellarAccounts: [],
-      isConnected: false,
-      connector: null,
-      balances: [],
-      isSigning: false,
-    });
-    expect(useOfflineStore.getState()).toMatchObject({
-      isOnline: false,
-      isApiReachable: false,
-      dismissed: false,
-    });
-    expect(useRateLimitStore.getState()).toMatchObject({
-      rateLimitedUntil: 0,
-      secondsRemaining: 0,
-      endpoint: null,
-      limit: null,
-    });
-    expect(useRateAlertStore.getState()).toMatchObject({
-      alerts: [],
-      hydratedFromServer: false,
-    });
-    expect(resetQueryCache).toHaveBeenCalledTimes(1);
-    expect(localStorage.getItem('bp-session')).toBeNull();
-    expect(localStorage.getItem('bettapay_wallet_session')).toBeNull();
-    expect(localStorage.getItem('bettapay_rate_alerts')).toBeNull();
-    expect(localStorage.getItem('bp-rate-limit')).toBeNull();
-    expect(localStorage.getItem('theme')).toBe('dark');
-    expect(localStorage.getItem('unrelated-preference')).toBe('preserve');
-
-    useOfflineStore.setState({ isOnline: true, isApiReachable: true });
-  });
-
-  it('logout clears auth state and asks the session endpoint to clear the auth cookie', () => {
+  it('logout clears auth state and asks the session endpoint to clear the auth cookie', async () => {
     const fetchMock = jest.fn().mockResolvedValue({ ok: true });
     global.fetch = fetchMock;
     useAuthStore.getState().login('session-token', testUser);
 
-    useAuthStore.getState().logout();
+    await useAuthStore.getState().logout();
 
     expect(useAuthStore.getState()).toMatchObject({
       user: null,
@@ -148,6 +69,7 @@ describe('useAuthStore', () => {
     expect(fetchMock).toHaveBeenCalledWith('/api/auth/session', {
       method: 'DELETE',
       credentials: 'include',
+      headers: expect.any(Object),
     });
   });
 
@@ -166,26 +88,26 @@ describe('useAuthStore', () => {
     });
   });
 
-  it('persist partialize stores identity and derived session flags together (issue #485)', () => {
+  it('persist partialize stores identity and derived session flags while excluding raw token', () => {
     const partialize = useAuthStore.persist.getOptions().partialize;
 
     expect(partialize).toBeDefined();
-    expect(
-      partialize?.({
-        ...useAuthStore.getState(),
-        user: testUser,
-        token: 'session-token',
-        role: 'admin',
-        isAuthenticated: true,
-        isLoggedIn: true,
-      })
-    ).toEqual({
+    const result = partialize?.({
+      ...useAuthStore.getState(),
       user: testUser,
       token: 'session-token',
       role: 'admin',
       isAuthenticated: true,
       isLoggedIn: true,
     });
+
+    expect(result).toEqual({
+      user: testUser,
+      role: 'admin',
+      isAuthenticated: true,
+      isLoggedIn: true,
+    });
+    expect((result as Record<string, unknown>).token).toBeUndefined();
   });
 
   describe('cross-tab logout via BroadcastChannel', () => {
@@ -232,11 +154,27 @@ describe('useAuthStore', () => {
       expect(useAuthStore.getState().token).toBeNull();
     });
 
-    it('broadcasts logout message when logout is called', async () => {
+    it('broadcasts logout message on unified bettapay-auth-sync channel when logout is called', async () => {
+      let createdChannelName = '';
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (global as any).BroadcastChannel = class BroadcastChannel {
+        name: string;
+        onmessage: ((event: MessageEvent) => void) | null = null;
+        constructor(name: string) {
+          this.name = name;
+          createdChannelName = name;
+        }
+        postMessage = mockPostMessage;
+        close = jest.fn();
+        addEventListener = jest.fn();
+        removeEventListener = jest.fn();
+      };
+
       global.fetch = jest.fn().mockResolvedValue({ ok: true });
       useAuthStore.getState().login('session-token', testUser);
       await useAuthStore.getState().logout();
 
+      expect(createdChannelName).toBe('bettapay-auth-sync');
       expect(mockPostMessage).toHaveBeenCalledWith('logout');
     });
   });

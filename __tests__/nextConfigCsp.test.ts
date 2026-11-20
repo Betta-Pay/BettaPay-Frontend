@@ -75,4 +75,25 @@ describe('next.config.js Content-Security-Policy', () => {
     const csp = await loadCsp({ NEXT_PUBLIC_SOROBAN_RPC_URL: 'not a url' });
     expect(csp.get('connect-src')).not.toContain('not');
   });
+
+  it('excludes the local API origin in production', async () => {
+    const csp = await loadCsp({
+      NODE_ENV: 'production',
+      NEXT_PUBLIC_API_URL: 'http://localhost:3001',
+    });
+    expect(csp.get('connect-src')).not.toContain('http://localhost:3001');
+  });
+
+  it('includes the local API origin outside production', async () => {
+    const csp = await loadCsp({ NODE_ENV: 'development' });
+    expect(csp.get('connect-src')).toContain('http://localhost:3001');
+  });
+
+  it('does not configure Next.js to ignore lint failures during builds', () => {
+    jest.isolateModules(() => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const config = require('../next.config.js');
+      expect(config.eslint).toBeUndefined();
+    });
+  });
 });

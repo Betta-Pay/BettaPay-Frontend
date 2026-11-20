@@ -22,11 +22,23 @@ function upstreamHeaders(request: NextRequest): HeadersInit {
   return headers;
 }
 
+const NO_STORE = { 'Cache-Control': 'no-store' };
+const SESSION_REQUEST_TIMEOUT_MS = 8000;
+
 export async function GET(request: NextRequest) {
+  const authToken = request.cookies.get('auth_token')?.value;
+  if (!authToken) {
+    return NextResponse.json(
+      { error: 'Unauthorized' },
+      { status: 401, headers: NO_STORE },
+    );
+  }
+
   try {
     const response = await fetch(`${getApiUrl()}/api/auth/sessions`, {
       headers: upstreamHeaders(request),
       cache: 'no-store',
+      signal: AbortSignal.timeout(SESSION_REQUEST_TIMEOUT_MS),
     });
     const body = await response.text();
 
@@ -37,10 +49,11 @@ export async function GET(request: NextRequest) {
         'Cache-Control': 'no-store',
       },
     });
-  } catch {
+  } catch (err) {
+    const timedOut = err instanceof Error && (err.name === 'TimeoutError' || err.name === 'AbortError');
     return NextResponse.json(
-      { error: 'Session service unavailable' },
-      { status: 503, headers: { 'Cache-Control': 'no-store' } },
+      { error: timedOut ? 'Session service timed out' : 'Session service unavailable' },
+      { status: timedOut ? 504 : 503, headers: NO_STORE },
     );
   }
 }
