@@ -13,6 +13,9 @@ import {
   getCookieValue,
 } from '@/lib/auth/session';
 
+const VALID_JWT = 'eyJhbGciOiJIUzI1NiJ9.eyJleHAiOjQxMDI0NDQ4MDB9.signature';
+const EXPIRED_JWT = 'eyJhbGciOiJIUzI1NiJ9.eyJleHAiOjF9.signature';
+
 function mockCookies(entries: Record<string, string | undefined>) {
   return {
     get: (name: string) => {
@@ -43,31 +46,78 @@ describe('lib/auth/session — single session contract for middleware, hooks, st
     expect(isSessionValid(s)).toBe(false);
   });
 
+  it('rejects expired auth tokens', () => {
+    const session = getSessionFromCookies(mockCookies({
+      [AUTH_TOKEN_COOKIE]: EXPIRED_JWT,
+      [USER_ROLE_COOKIE]: 'merchant',
+    }));
+
+    expect(session.isAuthenticated).toBe(false);
+    expect(session.token).toBeNull();
+    expect(isSessionValid(session)).toBe(false);
+  });
+
+  it('rejects malformed auth tokens without throwing', () => {
+    expect(() => getSessionFromCookies(mockCookies({
+      [AUTH_TOKEN_COOKIE]: 'not-a-jwt',
+      [USER_ROLE_COOKIE]: 'merchant',
+    }))).not.toThrow();
+
+    const session = getSessionFromCookies(mockCookies({
+      [AUTH_TOKEN_COOKIE]: 'not-a-jwt',
+      [USER_ROLE_COOKIE]: 'merchant',
+    }));
+    expect(session.isAuthenticated).toBe(false);
+    expect(session.token).toBeNull();
+    expect(isSessionValid(session)).toBe(false);
+  });
+
+  it('revalidates tokens in an already-authenticated session', () => {
+    expect(isSessionValid({
+      user: null,
+      token: EXPIRED_JWT,
+      role: 'merchant',
+      isAuthenticated: true,
+    })).toBe(false);
+    expect(isSessionValid({
+      user: null,
+      token: 'not-a-jwt',
+      role: 'merchant',
+      isAuthenticated: true,
+    })).toBe(false);
+  });
+
   it('valid session with token and merchant role', () => {
-    const s = getSessionFromCookies(mockCookies({ [AUTH_TOKEN_COOKIE]: 'tok123', [USER_ROLE_COOKIE]: 'merchant' }));
+    const s = getSessionFromCookies(mockCookies({ [AUTH_TOKEN_COOKIE]: VALID_JWT, [USER_ROLE_COOKIE]: 'merchant' }));
     expect(s.isAuthenticated).toBe(true);
-    expect(s.token).toBe('tok123');
+    expect(s.token).toBe(VALID_JWT);
     expect(s.role).toBe('merchant');
     expect(isSessionValid(s)).toBe(true);
   });
 
   it('normalizes role case and mainnet alias handling (via shared normalizeRole)', () => {
-    const admin = getSessionFromCookies(mockCookies({ [AUTH_TOKEN_COOKIE]: 't', [USER_ROLE_COOKIE]: 'ADMIN' }));
+    const admin = getSessionFromCookies(mockCookies({ [AUTH_TOKEN_COOKIE]: VALID_JWT, [USER_ROLE_COOKIE]: 'ADMIN' }));
     expect(admin.role).toBe('admin');
-    const merchant = getSessionFromCookies(mockCookies({ [AUTH_TOKEN_COOKIE]: 't', [USER_ROLE_COOKIE]: '  MERCHANT  ' }));
+    const merchant = getSessionFromCookies(mockCookies({ [AUTH_TOKEN_COOKIE]: VALID_JWT, [USER_ROLE_COOKIE]: '  MERCHANT  ' }));
     expect(merchant.role).toBe('merchant');
-    const unknown = getSessionFromCookies(mockCookies({ [AUTH_TOKEN_COOKIE]: 't', [USER_ROLE_COOKIE]: 'unknown' }));
+    const unknown = getSessionFromCookies(mockCookies({ [AUTH_TOKEN_COOKIE]: VALID_JWT, [USER_ROLE_COOKIE]: 'unknown' }));
     expect(unknown.role).toBeNull();
     expect(isSessionValid(unknown)).toBe(true); // token valid still, role nullable
   });
 
   it('hooks and middleware agree on login state after refresh rotation', () => {
     // Simulate rotation: old token replaced with new one, same role
-    const before = getSessionFromCookies(mockCookies({ [AUTH_TOKEN_COOKIE]: 'old', [USER_ROLE_COOKIE]: 'merchant' }));
-    const after = getSessionFromCookies(mockCookies({ [AUTH_TOKEN_COOKIE]: 'new', [USER_ROLE_COOKIE]: 'merchant' }));
+    const before = getSessionFromCookies(mockCookies({
+      [AUTH_TOKEN_COOKIE]: VALID_JWT,
+      [USER_ROLE_COOKIE]: 'merchant',
+    }));
+    const after = getSessionFromCookies(mockCookies({
+      [AUTH_TOKEN_COOKIE]: VALID_JWT.replace('signature', 'rotated-signature'),
+      [USER_ROLE_COOKIE]: 'merchant',
+    }));
     expect(isSessionValid(before)).toBe(true);
     expect(isSessionValid(after)).toBe(true);
-    expect(after.token).toBe('new');
+    expect(after.token).toBe(VALID_JWT.replace('signature', 'rotated-signature'));
     // Logged-out after rotation (token cleared)
     const loggedOut = getSessionFromCookies(mockCookies({ [USER_ROLE_COOKIE]: 'merchant' }));
     expect(isSessionValid(loggedOut)).toBe(false);

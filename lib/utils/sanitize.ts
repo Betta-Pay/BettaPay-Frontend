@@ -1,4 +1,5 @@
 const SEARCH_QUERY_MAX_LENGTH = 100;
+const FILENAME_MAX_LENGTH = 255;
 
 export function trimInput(value: string): string {
   return value.trim();
@@ -9,7 +10,12 @@ export function normalizeEmail(email: string): string {
 }
 
 export function sanitizeSearchQuery(query: string): string {
-  return query.trim().slice(0, SEARCH_QUERY_MAX_LENGTH);
+  return query
+    .replace(/[\x00-\x1F\x7F]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, SEARCH_QUERY_MAX_LENGTH)
+    .trimEnd();
 }
 
 /**
@@ -31,6 +37,7 @@ export function sanitizeFilename(name: string): string {
     )
     .filter(Boolean)
     .join('-')
+    .slice(0, FILENAME_MAX_LENGTH)
     .replace(/-+/g, '-')
     .replace(/^-|-$/g, '');
 }

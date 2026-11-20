@@ -25,6 +25,15 @@ interface AuthState {
   logout: () => Promise<{ serverInvalidated: boolean }>;
 }
 
+const userQueryCacheResetters = new Set<() => void>();
+
+export function registerUserQueryCacheReset(reset: () => void): () => void {
+  userQueryCacheResetters.add(reset);
+  return () => {
+    userQueryCacheResetters.delete(reset);
+  };
+}
+
 /** Belt-and-braces client-side cookie expiry for when DELETE /api/auth/session
  *  is unreachable (issue #491). The HttpOnly `auth_token` can't be cleared
  *  this way, but the readable ones can, and the server call is retried. */
@@ -39,23 +48,42 @@ function expireAuthCookiesClientSide() {
 export function resetAllUserState() {
   if (typeof window === "undefined") return;
 
-  const stores = [BP_SESSION_KEY, "bettapay_rate_alerts", "bp-rate-limit"];
-
-  stores.forEach((key) => {
-    try {
-      localStorage.removeItem(key);
-    } catch (e) {
-      console.error(`Failed to clear ${key}`, e);
-    }
+  useAuthStore.setState({
+    user: null,
+    token: null,
+    role: null,
+    isAuthenticated: false,
+    isLoggedIn: false,
   });
+  try {
+    useAuthStore.persist.clearStorage();
+  } catch (error) {
+    console.error("Failed to clear persisted session", error);
+  }
+
+  userQueryCacheResetters.forEach((reset) => reset());
 
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { useWalletStore } = require("@/lib/store/walletStore");
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { useOfflineStore } = require("@/lib/store/offlineStore");
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { useRateLimitStore } = require("@/lib/store/rateLimitStore");
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { useRateAlertStore } = require("@/lib/store/rateAlertStore");
 
   useWalletStore.getState().disconnect();
   useOfflineStore.setState({ dismissed: false });
+  useRateLimitStore.getState().clearRateLimit();
+  useRateAlertStore.setState({ alerts: [], hydratedFromServer: false });
+
+  [BP_SESSION_KEY, "bettapay_rate_alerts", "bp-rate-limit"].forEach((key) => {
+    try {
+      localStorage.removeItem(key);
+    } catch (error) {
+      console.error(`Failed to clear ${key}`, error);
+    }
+  });
 }
 
 /** The single source of truth for "is there a real session" — a login flag is
