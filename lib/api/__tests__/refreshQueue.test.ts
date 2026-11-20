@@ -156,6 +156,21 @@ describe('axios token-refresh queue', () => {
     expect(push).toHaveBeenCalledTimes(3);
   });
 
+  it('avoids redirect loops on localized auth routes and preserves locale', async () => {
+    refreshFails = true;
+    const push = jest.fn();
+    setAppRouter({ push });
+    global.fetch = jest.fn().mockResolvedValue({ ok: true });
+
+    window.history.replaceState({}, '', '/fr/auth/login');
+    await expect(apiClient.get('/auth-page')).rejects.toBeDefined();
+    expect(push).not.toHaveBeenCalled();
+
+    window.history.replaceState({}, '', '/fr/dashboard');
+    await expect(apiClient.get('/dashboard')).rejects.toBeDefined();
+    expect(push).toHaveBeenCalledWith('/fr/auth/login');
+  });
+
   it('cancels a pending error notification when logging out', async () => {
     jest.useFakeTimers();
     networkFails = true;

@@ -10,6 +10,7 @@ import { getAppRouter } from '../navigation/appRouter';
 import { ROUTES } from '../navigation/routes';
 import { isJwtExpiredOrInvalid } from '../utils/jwt';
 import { captureException } from '../errorReporting';
+import { extractLocaleFromPathname } from '../i18n/locales';
 
 // Deduplication: avoid showing multiple toasts for simultaneous errors
 const recentErrors = new Map<string, number>();
@@ -304,8 +305,17 @@ function processQueue(error: unknown) {
 }
 
 function redirectToLogin() {
+  const pathname = typeof window !== 'undefined' ? window.location.pathname : '';
+  const localePath = extractLocaleFromPathname(pathname);
+  const normalizedPathname = localePath?.stripped ?? pathname;
+  const loginPath = localePath ? `/${localePath.locale}${ROUTES.LOGIN}` : ROUTES.LOGIN;
+
   // Don't redirect if already on an auth page — prevents infinite redirect loops
-  if (typeof window !== 'undefined' && window.location.pathname.startsWith(ROUTES.AUTH_PREFIX)) {
+  if (
+    typeof window !== 'undefined' &&
+    (normalizedPathname === ROUTES.AUTH_PREFIX ||
+      normalizedPathname.startsWith(`${ROUTES.AUTH_PREFIX}/`))
+  ) {
     return;
   }
   // Bounce once. A burst of queued 401s all reach here; without this each one
@@ -323,9 +333,9 @@ function redirectToLogin() {
   // only when the router isn't available (SSR or before the provider mounts).
   const router = getAppRouter();
   if (router) {
-    router.push(ROUTES.LOGIN);
+    router.push(loginPath);
   } else if (typeof window !== 'undefined') {
-    window.location.href = ROUTES.LOGIN;
+    window.location.href = loginPath;
   }
 }
 
