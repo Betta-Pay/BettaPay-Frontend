@@ -23,6 +23,14 @@ describe('utils/sanitize', () => {
       const long = 'a'.repeat(200);
       expect(sanitizeSearchQuery(long)).toHaveLength(100);
     });
+
+    it('removes control characters and normalizes whitespace', () => {
+      expect(sanitizeSearchQuery('  alpha\u0000\t beta\n gamma\u007f  ')).toBe('alpha beta gamma');
+    });
+
+    it('preserves regex punctuation for literal substring searches', () => {
+      expect(sanitizeSearchQuery('price.*(USD)')).toBe('price.*(USD)');
+    });
   });
 
   describe('sanitizeFilename()', () => {
@@ -52,6 +60,10 @@ describe('utils/sanitize', () => {
 
     it('strips path-ish characters', () => {
       expect(sanitizeFilename('../../etc/passwd')).toBe('etc-passwd');
+    });
+
+    it('caps the sanitized filename length', () => {
+      expect(sanitizeFilename(`${'a'.repeat(300)}.pdf`)).toHaveLength(255);
     });
   });
 });
