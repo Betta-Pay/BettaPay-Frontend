@@ -23,6 +23,7 @@ function upstreamHeaders(request: NextRequest): HeadersInit {
 }
 
 const NO_STORE = { 'Cache-Control': 'no-store' };
+const SESSION_REQUEST_TIMEOUT_MS = 8000;
 
 export async function GET(request: NextRequest) {
   const authToken = request.cookies.get('auth_token')?.value;
@@ -37,7 +38,7 @@ export async function GET(request: NextRequest) {
     const response = await fetch(`${getApiUrl()}/api/auth/sessions`, {
       headers: upstreamHeaders(request),
       cache: 'no-store',
-      signal: AbortSignal.timeout(8000),
+      signal: AbortSignal.timeout(SESSION_REQUEST_TIMEOUT_MS),
     });
     const body = await response.text();
 
