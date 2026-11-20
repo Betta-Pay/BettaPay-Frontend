@@ -237,8 +237,7 @@ export function WalletModal({ isOpen = true, onClose, onConnected }: WalletModal
         </div>
       </div>
 
-      {/* WalletConnect only knows the testnet/pubnet chains; `normalizeWalletNetwork`
-          maps anything else (e.g. futurenet) onto the closest supported one. */}
+      {/* Keep the WalletConnect chain aligned with the selected Stellar network. */}
       <WalletConnectModal
         open={walletModalOpen && walletConnectPending}
         onOpenChange={handleWalletConnectOpenChange}
