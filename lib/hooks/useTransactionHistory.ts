@@ -8,6 +8,7 @@ import { STELLAR_NETWORK } from '@/lib/config';
 const NETWORK_URLS: Record<string, string> = {
   testnet: 'https://horizon-testnet.stellar.org',
   public: 'https://horizon.stellar.org',
+  futurenet: 'https://horizon-futurenet.stellar.org',
 };
 
 export interface StellarPayment {
@@ -61,9 +62,10 @@ interface HorizonPaymentsPage {
   };
 }
 
-function getNetwork(): 'testnet' | 'public' {
-  const val = STELLAR_NETWORK.toLowerCase();
-  if (val === 'mainnet' || val === 'public') return 'public';
+function getNetwork(): 'testnet' | 'public' | 'futurenet' {
+  const val = STELLAR_NETWORK.toLowerCase().trim();
+  if (val === 'mainnet' || val === 'public' || val === 'pubnet') return 'public';
+  if (val === 'futurenet') return 'futurenet';
   return 'testnet';
 }
 

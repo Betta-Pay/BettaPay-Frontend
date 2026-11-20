@@ -22,8 +22,14 @@ describe('explorer URL helpers', () => {
       expect(normalizeStellarNetwork('PUBLIC')).toBe('public');
       expect(normalizeStellarNetwork('mainnet')).toBe('public');
       expect(normalizeStellarNetwork('MAINNET')).toBe('public');
+      expect(normalizeStellarNetwork('pubnet')).toBe('public');
       expect(normalizeStellarNetwork('  public  ')).toBe('public');
       expect(normalizeStellarNetwork('  mainnet  ')).toBe('public');
+    });
+
+    it('maps futurenet variants to futurenet', () => {
+      expect(normalizeStellarNetwork('futurenet')).toBe('futurenet');
+      expect(normalizeStellarNetwork('  FUTURENET  ')).toBe('futurenet');
     });
   });
 
@@ -39,6 +45,12 @@ describe('explorer URL helpers', () => {
     it('builds mainnet explorer URL when network is public', () => {
       expect(getStellarExplorerTxUrl(hash, 'public')).toBe(
         `https://stellar.expert/explorer/public/tx/${hash}`,
+      );
+    });
+
+    it('builds futurenet explorer URL when network is futurenet', () => {
+      expect(getStellarExplorerTxUrl(hash, 'futurenet')).toBe(
+        `https://stellar.expert/explorer/futurenet/tx/${hash}`,
       );
     });
 
@@ -93,6 +105,12 @@ describe('explorer URL helpers', () => {
     it('builds public account URL', () => {
       expect(getStellarExplorerAccountUrl(addr, 'public')).toBe(
         `https://stellar.expert/explorer/public/account/${addr}`,
+      );
+    });
+
+    it('builds futurenet account URL', () => {
+      expect(getStellarExplorerAccountUrl(addr, 'futurenet')).toBe(
+        `https://stellar.expert/explorer/futurenet/account/${addr}`,
       );
     });
 

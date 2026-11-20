@@ -9,6 +9,7 @@ import { useTransactionHistory } from '@/lib/hooks/useTransactionHistory';
 
 const mockAddress = 'GABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
 const secondAddress = 'GBCDEFGHIJKLMNOPQRSTUVWXYZ234567A';
+let mockNetwork = 'testnet';
 
 function createWrapper(queryClient = new QueryClient()) {
   queryClient.setDefaultOptions({
@@ -21,7 +22,7 @@ function createWrapper(queryClient = new QueryClient()) {
 
 jest.mock('@/lib/store/walletStore', () => ({
   useWalletStore: (selector: (s: { address: string; network: string }) => unknown) =>
-    selector({ address: mockAddress, network: 'testnet' }),
+    selector({ address: mockAddress, network: mockNetwork }),
 }));
 
 function makeRecord(id: string, pagingToken: string) {
@@ -47,7 +48,26 @@ describe('useTransactionHistory pagination (#515)', () => {
 
   afterEach(() => {
     global.fetch = originalFetch;
+    mockNetwork = 'testnet';
     jest.clearAllMocks();
+  });
+
+  it('queries the futurenet Horizon endpoint', async () => {
+    mockNetwork = 'futurenet';
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ _embedded: { records: [] }, _links: {} }),
+    });
+
+    const { result } = renderHook(
+      () => useTransactionHistory({ address: mockAddress }),
+      { wrapper: createWrapper() },
+    );
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(global.fetch).toHaveBeenCalledWith(
+      expect.stringContaining('https://horizon-futurenet.stellar.org/accounts/'),
+    );
   });
 
   it('fetches the first page and exposes loadMore with a cursor', async () => {
