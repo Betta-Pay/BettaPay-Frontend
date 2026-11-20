@@ -266,7 +266,7 @@ npm run lint && npm run typecheck && npm run build && npm test
 
 ## Security & auth
 
-- Frontend uses cookie-based auth. The server sets `HttpOnly`, `Secure`, `SameSite` cookies for auth tokens.
+- Auth tokens are stored in server-set cookies with `HttpOnly`, `Secure`, and `SameSite` attributes.
 - Avoid storing tokens in `localStorage`. This repo keeps minimal client state in memory.
 - Implement CSRF protection (double submit cookie or same-site cookie + anti-CSRF tokens) on state-changing endpoints.
 
