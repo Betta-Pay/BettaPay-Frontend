@@ -25,6 +25,14 @@ function showErrorToast(message: string) {
   announce(message);
 }
 
+function clearPendingErrorBatch() {
+  const timer = pendingErrorBatch?.timer;
+  if (timer !== null && timer !== undefined) {
+    clearTimeout(timer);
+  }
+  pendingErrorBatch = null;
+}
+
 function notifyError(message: string, key?: string) {
   const dedupKey = key || message;
   const now = Date.now();
@@ -266,6 +274,14 @@ let isRefreshing = false;
 // refresh failure, so N queued 401s don't each fire their own redirect +
 // "session expired" toast (issue #487: "redirect once, without toast spam").
 let hasRedirectedForExpiry = false;
+useAuthStore.subscribe((state, previousState) => {
+  if (state.token && state.token !== previousState.token) {
+    hasRedirectedForExpiry = false;
+  }
+  if (previousState.isAuthenticated && !state.isAuthenticated) {
+    clearPendingErrorBatch();
+  }
+});
 // Auth is primarily cookie-based (the refresh endpoint sets a fresh HttpOnly
 // `auth_token` cookie), but it *also* returns the new access token so the
 // in-memory auth store can be updated atomically with the queued-retry path —
@@ -328,7 +344,12 @@ function reportApiFailure(error: AxiosError, kind: string) {
 }
 
 apiClient.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    if (response.status >= 200 && response.status < 300) {
+      useOfflineStore.getState().setIsApiReachable(true);
+    }
+    return response;
+  },
   async (error: AxiosError): Promise<never> => {
     // Requests refused by the shared rate-limit window never reached the
     // network. They still travel through this handler (a rejected request
