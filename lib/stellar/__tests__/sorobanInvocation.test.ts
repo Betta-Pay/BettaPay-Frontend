@@ -11,6 +11,14 @@
  *
  * @jest-environment node
  */
+jest.mock('@stellar/stellar-sdk', () => {
+  const actual = jest.requireActual('@stellar/stellar-sdk');
+  return {
+    ...actual,
+    scValToNative: jest.fn(actual.scValToNative),
+  };
+});
+
 import {
   Account,
   Address,
@@ -20,6 +28,7 @@ import {
   Operation,
   TransactionBuilder,
   nativeToScVal,
+  scValToNative,
 } from '@stellar/stellar-sdk';
 import { decodeSorobanInvocation, fetchTransactionEnvelope } from '../sorobanInvocation';
 
@@ -84,6 +93,27 @@ describe('decodeSorobanInvocation', () => {
   it('returns null instead of throwing for unparseable XDR', () => {
     expect(decodeSorobanInvocation('not-valid-xdr', 'testnet')).toBeNull();
   });
+
+  it('preserves contract and function details when one argument cannot be decoded', () => {
+    const { envelopeXdr, contractId, recipient } = buildInvokeContractEnvelope();
+    const actualScValToNative = jest.requireActual('@stellar/stellar-sdk').scValToNative;
+    (scValToNative as jest.Mock)
+      .mockImplementationOnce(actualScValToNative)
+      .mockImplementationOnce(() => {
+        throw new Error('unsupported ScVal');
+      });
+
+    const decoded = decodeSorobanInvocation(envelopeXdr, 'testnet');
+
+    expect(decoded).toEqual({
+      contractId,
+      functionName: 'transfer',
+      args: [recipient, '<unavailable>'],
+    });
+    (scValToNative as jest.Mock).mockImplementation(
+      jest.requireActual('@stellar/stellar-sdk').scValToNative,
+    );
+  });
 });
 
 describe('fetchTransactionEnvelope', () => {
@@ -100,7 +130,20 @@ describe('fetchTransactionEnvelope', () => {
     }) as unknown as typeof fetch;
 
     await expect(fetchTransactionEnvelope('hash1', 'testnet')).resolves.toBe('AAAA...');
-    expect(global.fetch).toHaveBeenCalledWith('https://horizon-testnet.stellar.org/transactions/hash1');
+    expect(global.fetch).toHaveBeenCalledWith(
+      'https://horizon-testnet.stellar.org/transactions/hash1',
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    );
+  });
+
+  it('passes an 8-second timeout to Horizon', async () => {
+    const timeoutSpy = jest.spyOn(AbortSignal, 'timeout');
+    global.fetch = jest.fn().mockResolvedValue({ ok: false }) as unknown as typeof fetch;
+
+    await fetchTransactionEnvelope('hash1', 'testnet');
+
+    expect(timeoutSpy).toHaveBeenCalledWith(8000);
+    timeoutSpy.mockRestore();
   });
 
   it('returns null on a non-OK response', async () => {

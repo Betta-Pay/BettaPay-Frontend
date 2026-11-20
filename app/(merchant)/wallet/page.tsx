@@ -41,6 +41,7 @@ export default function WalletPage() {
     address: walletAddress,
     isConnected,
     balances,
+    isUnfunded,
     loading,
     isReconnecting,
     error,
@@ -309,8 +310,10 @@ export default function WalletPage() {
           <CardContent>
             <EmptyState
               icon={Wallet}
-              title="No assets found"
-              description="This account has no balances yet. Fund it with XLM or add a trustline to start receiving payments."
+              title={isUnfunded ? "Account not funded" : "No assets found"}
+              description={isUnfunded
+                ? "This Stellar account has not been funded. Fund it with XLM to activate it."
+                : "This account has no balances yet. Fund it with XLM or add a trustline to start receiving payments."}
               action={{ label: "Refresh Balances", onClick: handleRefresh }}
             />
           </CardContent>
