@@ -2,6 +2,8 @@ import {
   useRateLimitStore,
   getRateLimitWindow,
   isRequestRateLimited,
+  MAX_RETRY_AFTER_MS,
+  parseRetryAfterSeconds,
   RATE_LIMIT_STORAGE_KEY,
 } from '@/lib/store/rateLimitStore';
 
@@ -28,6 +30,32 @@ describe('rateLimitStore', () => {
     useRateLimitStore.getState().setRateLimited(5, '/api/payments');
 
     expect(useRateLimitStore.getState().rateLimitedUntil).toBe(until);
+  });
+
+  it('ignores negative and non-finite retry-after durations', () => {
+    useRateLimitStore.getState().setRateLimited(-5, '/api/payments');
+    useRateLimitStore.getState().setRateLimited(Number.NaN, '/api/payments');
+
+    expect(useRateLimitStore.getState().rateLimitedUntil).toBe(0);
+    expect(isRequestRateLimited('/api/payments')).toBe(false);
+  });
+
+  it('clamps extreme retry-after durations to the maximum cooldown', () => {
+    const now = Date.now();
+    useRateLimitStore.getState().setRateLimited(9_999_999, '/api/payments');
+
+    expect(useRateLimitStore.getState().rateLimitedUntil - now).toBeLessThanOrEqual(
+      MAX_RETRY_AFTER_MS,
+    );
+    expect(useRateLimitStore.getState().secondsRemaining).toBe(900);
+  });
+
+  it('parses and bounds Retry-After header values', () => {
+    expect(parseRetryAfterSeconds('-5')).toBeNull();
+    expect(parseRetryAfterSeconds('NaN')).toBeNull();
+    expect(parseRetryAfterSeconds('9999999')).toBe(900);
+    expect(parseRetryAfterSeconds(new Date(Date.now() + 10_000).toUTCString()))
+      .toBeLessThanOrEqual(10);
   });
 
   it('widens to a global window when a second endpoint is limited', () => {
@@ -79,6 +107,18 @@ describe('rateLimitStore', () => {
       });
 
       expect(useRateLimitStore.getState().rateLimitedUntil).toBe(0);
+    });
+
+    it('clamps remote windows to the maximum cooldown', () => {
+      useRateLimitStore.getState().applyRemoteWindow({
+        rateLimitedUntil: Date.now() + MAX_RETRY_AFTER_MS * 10,
+        endpoint: '/api/payments',
+        limit: null,
+      });
+
+      expect(useRateLimitStore.getState().rateLimitedUntil - Date.now()).toBeLessThanOrEqual(
+        MAX_RETRY_AFTER_MS,
+      );
     });
   });
 

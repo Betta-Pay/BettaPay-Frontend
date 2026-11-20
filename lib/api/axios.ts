@@ -1,6 +1,10 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { useAuthStore } from '../store/authStore';
-import { useRateLimitStore, isRequestRateLimited } from '../store/rateLimitStore';
+import {
+  useRateLimitStore,
+  isRequestRateLimited,
+  parseRetryAfterSeconds,
+} from '../store/rateLimitStore';
 import { useOfflineStore } from '../store/offlineStore';
 import { getCsrfTokenFromCookie, csrfHeader, CSRF_HEADER_NAME } from '../utils/csrf';
 import { toast } from 'sonner';
@@ -381,12 +385,19 @@ apiClient.interceptors.response.use(
     // Handle 429 rate limiting
     if (error.response?.status === 429) {
       const retryAfter = error.response?.headers?.['retry-after'];
-      const seconds = parseInt(String(retryAfter), 10) || 30;
+      const seconds = retryAfter == null ? 30 : parseRetryAfterSeconds(retryAfter);
       const endpoint = originalRequest?.url || error.config?.url || 'unknown';
       const rawLimit = error.response?.headers?.['x-ratelimit-limit'] || error.response?.headers?.['X-RateLimit-Limit'];
       const limit = rawLimit ? parseInt(String(rawLimit), 10) : undefined;
-      useRateLimitStore.getState().setRateLimited(seconds, endpoint, limit);
-      notifyError(`Too many attempts. Please try again in ${seconds} seconds.`, `429_${endpoint}`);
+      if (seconds !== null) {
+        useRateLimitStore.getState().setRateLimited(seconds, endpoint, limit);
+        notifyError(
+          `Too many attempts. Please try again in ${Math.ceil(seconds)} seconds.`,
+          `429_${endpoint}`,
+        );
+      } else {
+        notifyError('Too many attempts. Please try again shortly.', `429_${endpoint}`);
+      }
     } else if (isTimeoutError(error)) {
       // Axios aborts timed-out requests and surfaces an ECONNABORTED error.
       // Avoid the generic network message so the user knows the request was
