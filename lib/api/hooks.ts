@@ -297,7 +297,7 @@ export function usePayment(id: string | null): HookShape<ApiPayment | null> {
     queryFn: async () => {
       if (!id) return null;
       const res = await apiClient.get<ItemEnvelope<ApiPayment> | ApiPayment>(
-        `/api/payments/${id}`,
+        `/api/payments/${encodeURIComponent(id)}`,
       );
       const payload = res.data;
       const raw = (payload as ItemEnvelope<ApiPayment>).data ?? payload;
@@ -395,7 +395,7 @@ export function useMerchantBankAccount(
     queryFn: async () => {
       const res = await apiClient.get<
         ItemEnvelope<MerchantBankAccount> | MerchantBankAccount
-      >(`/api/merchants/${merchantId}/bank-account`);
+      >(`/api/merchants/${encodeURIComponent(merchantId)}/bank-account`);
       const payload = res.data;
       if (payload && !Array.isArray(payload) && 'bankName' in payload) {
         return payload as MerchantBankAccount;
@@ -433,7 +433,7 @@ export function useMerchantProfile(
     staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       const res = await apiClient.get<ItemEnvelope<MerchantProfile> | MerchantProfile>(
-        `/api/merchants/${merchantId}`,
+        `/api/merchants/${encodeURIComponent(merchantId)}`,
       );
       const payload = res.data;
       if (payload && !Array.isArray(payload) && 'businessName' in payload) {
@@ -506,7 +506,7 @@ export function useKybMerchants(status?: string): HookShape<MerchantKybProfile[]
   const query = useQuery<MerchantKybProfile[], Error>({
     queryKey: ['admin', 'kyb-list', status ?? 'all'],
     queryFn: async () => {
-      const params = status && status !== 'all' ? `?status=${status}` : '';
+      const params = status && status !== 'all' ? `?status=${encodeURIComponent(status)}` : '';
       const res = await apiClient.get<{ data: MerchantKybProfile[] }>(
         `/api/admin/merchants/kyb${params}`,
       );
