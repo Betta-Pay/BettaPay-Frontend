@@ -3,7 +3,11 @@ import { guardAdminApi } from '../adminApiGuard';
 jest.mock('next/server', () => ({
   NextResponse: {
     json(data: unknown, init?: ResponseInit) {
-      return { status: init?.status ?? 200, json: async () => data };
+      return {
+        status: init?.status ?? 200,
+        headers: init?.headers,
+        json: async () => data,
+      };
     },
   },
 }));
@@ -55,6 +59,7 @@ describe('guardAdminApi (issue #779)', () => {
     mockBackendRole('merchant');
     const res = await guardAdminApi();
     expect(res?.status).toBe(403);
+    expect(res?.headers).toEqual({ 'Cache-Control': 'no-store' });
     await expect(res?.json()).resolves.toEqual({ error: 'Forbidden' });
   });
 
@@ -63,6 +68,7 @@ describe('guardAdminApi (issue #779)', () => {
     mockBackendRole('merchant');
     const res = await guardAdminApi();
     expect(res?.status).toBe(403);
+    expect(res?.headers).toEqual({ 'Cache-Control': 'no-store' });
   });
 
   it('returns 401 when there is no auth token', async () => {
@@ -70,6 +76,7 @@ describe('guardAdminApi (issue #779)', () => {
     mockBackendRole('admin');
     const res = await guardAdminApi();
     expect(res?.status).toBe(401);
+    expect(res?.headers).toEqual({ 'Cache-Control': 'no-store' });
     expect(global.fetch).not.toHaveBeenCalled();
   });
 
@@ -77,6 +84,7 @@ describe('guardAdminApi (issue #779)', () => {
     mockBackendRole(null, 401);
     const res = await guardAdminApi();
     expect(res?.status).toBe(401);
+    expect(res?.headers).toEqual({ 'Cache-Control': 'no-store' });
   });
 
   it('fails closed when the auth service is unreachable', async () => {
