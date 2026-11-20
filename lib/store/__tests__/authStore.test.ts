@@ -1,4 +1,12 @@
-import { useAuthStore } from '../authStore';
+import {
+  registerUserQueryCacheReset,
+  resetAllUserState,
+  useAuthStore,
+} from '../authStore';
+import { useOfflineStore } from '../offlineStore';
+import { useRateAlertStore, type RateAlert } from '../rateAlertStore';
+import { useRateLimitStore } from '../rateLimitStore';
+import { useWalletStore } from '../walletStore';
 import type { User } from '../../types';
 
 describe('useAuthStore', () => {
@@ -42,6 +50,85 @@ describe('useAuthStore', () => {
       isAuthenticated: true,
       isLoggedIn: true,
     });
+  });
+
+  it('resetAllUserState clears user data and query caches without clearing preferences', () => {
+    const alert: RateAlert = {
+      id: 'alert-1',
+      pair: 'XLM/USD',
+      condition: 'above',
+      target: 0.2,
+      enabled: true,
+      recurrence: 'once',
+      channels: ['in_app'],
+    };
+    const resetQueryCache = jest.fn();
+    const unregisterQueryCacheReset = registerUserQueryCacheReset(resetQueryCache);
+
+    useAuthStore.getState().login('session-token', testUser);
+    useWalletStore.setState({
+      address: 'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF',
+      stellarAccounts: ['GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF'],
+      isConnected: true,
+      connector: 'freighter',
+      balances: [{ assetCode: 'XLM', balance: '10.0000000' }],
+      isSigning: true,
+    });
+    useOfflineStore.setState({
+      isOnline: false,
+      isApiReachable: false,
+      dismissed: true,
+    });
+    useRateLimitStore.getState().setRateLimited(120, '/api/payments');
+    useRateAlertStore.setState({ alerts: [alert], hydratedFromServer: true });
+    localStorage.setItem('theme', 'dark');
+    localStorage.setItem('unrelated-preference', 'preserve');
+
+    try {
+      resetAllUserState();
+    } finally {
+      unregisterQueryCacheReset();
+    }
+
+    expect(useAuthStore.getState()).toMatchObject({
+      user: null,
+      token: null,
+      role: null,
+      isAuthenticated: false,
+      isLoggedIn: false,
+    });
+    expect(useWalletStore.getState()).toMatchObject({
+      address: null,
+      stellarAccounts: [],
+      isConnected: false,
+      connector: null,
+      balances: [],
+      isSigning: false,
+    });
+    expect(useOfflineStore.getState()).toMatchObject({
+      isOnline: false,
+      isApiReachable: false,
+      dismissed: false,
+    });
+    expect(useRateLimitStore.getState()).toMatchObject({
+      rateLimitedUntil: 0,
+      secondsRemaining: 0,
+      endpoint: null,
+      limit: null,
+    });
+    expect(useRateAlertStore.getState()).toMatchObject({
+      alerts: [],
+      hydratedFromServer: false,
+    });
+    expect(resetQueryCache).toHaveBeenCalledTimes(1);
+    expect(localStorage.getItem('bp-session')).toBeNull();
+    expect(localStorage.getItem('bettapay_wallet_session')).toBeNull();
+    expect(localStorage.getItem('bettapay_rate_alerts')).toBeNull();
+    expect(localStorage.getItem('bp-rate-limit')).toBeNull();
+    expect(localStorage.getItem('theme')).toBe('dark');
+    expect(localStorage.getItem('unrelated-preference')).toBe('preserve');
+
+    useOfflineStore.setState({ isOnline: true, isApiReachable: true });
   });
 
   it('logout clears auth state and asks the session endpoint to clear the auth cookie', () => {

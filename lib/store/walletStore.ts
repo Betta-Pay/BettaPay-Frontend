@@ -79,6 +79,7 @@ function clearWalletConnectionState() {
     balances: [],
     loading: false,
     isReconnecting: false,
+    isSigning: false,
     error: null,
     connectError: null,
     walletConnectPending: false,

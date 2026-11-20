@@ -3,7 +3,7 @@
 import { ReactNode, useEffect, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { useAuthStore } from "@/lib/store/authStore";
+import { registerUserQueryCacheReset, useAuthStore } from "@/lib/store/authStore";
 import { useWalletStore } from "@/lib/store/walletStore";
 import { useAuthSession } from "@/lib/hooks/useAuthSession";
 import { useCrossTabAuth } from "@/lib/hooks/useCrossTabAuth";
@@ -62,6 +62,10 @@ export function AppProviders({ children }: { children: ReactNode }) {
         },
       })
   );
+
+  useEffect(() => {
+    return registerUserQueryCacheReset(() => queryClient.clear());
+  }, [queryClient]);
 
   // Purge cached merchant data when the user logs out so the next account
   // never sees stale payment/settlement/rate/profile data from the previous
