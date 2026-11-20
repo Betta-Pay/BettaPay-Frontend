@@ -45,9 +45,15 @@ interface TransactionHistoryPage {
 interface HorizonPaymentRecord {
   id: string;
   paging_token: string;
-  from: string;
-  to: string;
-  amount: string;
+  type?: string;
+  from?: string;
+  to?: string;
+  funder?: string;
+  account?: string;
+  amount?: string;
+  starting_balance?: string;
+  source_amount?: string;
+  destination_amount?: string;
   asset_type: string;
   asset_code?: string;
   created_at: string;
@@ -89,20 +95,27 @@ function resolveOptions(
   };
 }
 
-function mapRecord(record: HorizonPaymentRecord, address: string): StellarPayment {
-  const isReceive = record.to === address;
+export function mapRecord(record: HorizonPaymentRecord, address: string): StellarPayment {
+  const isCreateAccount = record.type === 'create_account';
+  const sender = isCreateAccount ? record.funder : record.from;
+  const recipient = isCreateAccount ? record.account : record.to;
+  const isReceive = recipient === address;
   const assetCode =
     record.asset_type === 'native' ? 'XLM' : record.asset_code || 'USDC';
-  const counterparty = isReceive ? record.from : record.to;
+  const counterparty = isReceive ? sender : recipient;
   const shortAddress = counterparty
     ? `${counterparty.slice(0, 4)}...${counterparty.slice(-4)}`
     : '—';
+  const amountValue = isCreateAccount
+    ? record.starting_balance
+    : record.amount ?? record.destination_amount ?? record.source_amount;
+  const parsedAmount = amountValue ? Number.parseFloat(amountValue) : 0;
 
   return {
     id: record.id,
     type: isReceive ? 'receive' : 'send',
     label: `Payment ${isReceive ? 'from' : 'to'} ${shortAddress}`,
-    amount: parseFloat(record.amount),
+    amount: Number.isFinite(parsedAmount) ? parsedAmount : 0,
     assetCode,
     timestamp: formatRelativeTime(record.created_at) || 'Just now',
     formattedDate: formatDate(record.created_at),
@@ -135,7 +148,7 @@ export function useTransactionHistory(
     queryKey: ['transactionHistory', network, address, pageSize, order],
     enabled: Boolean(address),
     initialPageParam: null as string | null,
-    queryFn: async ({ pageParam }): Promise<TransactionHistoryPage> => {
+    queryFn: async ({ pageParam, signal }): Promise<TransactionHistoryPage> => {
       if (!address) {
         return { payments: [], nextCursor: null, hasNext: false };
       }
@@ -149,6 +162,7 @@ export function useTransactionHistory(
 
       const response = await fetch(
         `${horizonUrl}/accounts/${address}/payments?${params.toString()}`,
+        { signal },
       );
 
       if (!response.ok) {
