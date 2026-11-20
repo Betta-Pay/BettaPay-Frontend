@@ -86,10 +86,11 @@ export function resetAllUserState() {
   });
 }
 
-/** The single source of truth for "is there a real session" — a login flag is
- *  only meaningful with an identity attached (issue #485). */
-export function hasRealSession(s: Pick<AuthState, "isAuthenticated" | "user">): boolean {
-  return s.isAuthenticated && s.user != null;
+/** A persisted identity is not a session until a server-verified token exists. */
+export function hasRealSession(
+  s: Pick<AuthState, "isAuthenticated" | "user" | "token">,
+): boolean {
+  return s.isAuthenticated && s.user != null && Boolean(s.token);
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -105,14 +106,14 @@ export const useAuthStore = create<AuthState>()(
       // Silent JWT refresh (lib/api/axios.ts, useSessionTimeout): swap the token
       // in place and keep the login flag consistent with the identity.
       setToken: (token: string) =>
-        set((state) => ({ token, isLoggedIn: hasRealSession(state) })),
+        set((state) => ({ token, isLoggedIn: hasRealSession({ ...state, token }) })),
       login: (token, user) =>
         set({
           user,
           token,
           role: user.role,
           isAuthenticated: true,
-          isLoggedIn: true,
+          isLoggedIn: hasRealSession({ isAuthenticated: true, user, token }),
         }),
       logout: async () => {
         if (typeof window !== "undefined") {
@@ -180,14 +181,16 @@ export const useAuthStore = create<AuthState>()(
       }),
       onRehydrateStorage: () => (state) => {
         if (state) {
-          // Defensive: an old/partial snapshot with a flag but no user is not
-          // a session — treat it as logged out rather than half-authenticated.
-          if ((state.isLoggedIn || state.isAuthenticated) && state.user == null) {
+          // Tokens are intentionally not persisted, so hydrated identity and
+          // flags must be revalidated against the HttpOnly session cookie.
+          if (!hasRealSession(state)) {
             state.user = null;
             state.token = null;
             state.role = null;
             state.isAuthenticated = false;
             state.isLoggedIn = false;
+          } else {
+            state.isLoggedIn = true;
           }
           state.setHasHydrated(true);
         }

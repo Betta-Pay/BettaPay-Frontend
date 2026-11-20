@@ -1,4 +1,5 @@
 import {
+  hasRealSession,
   registerUserQueryCacheReset,
   resetAllUserState,
   useAuthStore,
@@ -50,6 +51,30 @@ describe('useAuthStore', () => {
       isAuthenticated: true,
       isLoggedIn: true,
     });
+  });
+
+  it('only treats an authenticated identity with a token as a real session', () => {
+    expect(hasRealSession({
+      isAuthenticated: true,
+      user: testUser,
+      token: 'verified-session-token',
+    })).toBe(true);
+
+    expect(hasRealSession({
+      isAuthenticated: true,
+      user: testUser,
+      token: null,
+    })).toBe(false);
+    expect(hasRealSession({
+      isAuthenticated: false,
+      user: testUser,
+      token: 'verified-session-token',
+    })).toBe(false);
+    expect(hasRealSession({
+      isAuthenticated: true,
+      user: null,
+      token: 'verified-session-token',
+    })).toBe(false);
   });
 
   it('logout clears auth state and asks the session endpoint to clear the auth cookie', async () => {
