@@ -10,15 +10,21 @@ import { buildCsv, escapeCsvField } from '@/lib/utils/csv';
  * Serialize a single CSV cell.
  *
  * Numbers and booleans are emitted raw (unquoted) so spreadsheet tools keep
- * them arithmetic-friendly; every other value goes through `escapeCsvField`,
- * which quotes it and doubles embedded quotes so commas, newlines and unicode
- * characters survive a round-trip through Excel / Google Sheets.
+ * them arithmetic-friendly; formula-triggering characters (=, +, -, @, \t, \r)
+ * in string values are prefixed with a single quote to neutralize formula injection;
+ * every other value goes through `escapeCsvField`, which quotes it and doubles
+ * embedded quotes so commas, newlines and unicode characters survive a round-trip
+ * through Excel / Google Sheets.
  */
-function serializeCell(value: unknown): string {
+export function serializeCell(value: unknown): string {
   if (typeof value === 'number' || typeof value === 'boolean') {
     return String(value);
   }
-  return escapeCsvField(value);
+  let str = value == null ? '' : String(value);
+  if (/^[=+\-@\t\r]/.test(str)) {
+    str = `'${str}`;
+  }
+  return escapeCsvField(str);
 }
 
 /** Yield to the main thread so a large export never freezes the tab. */
@@ -35,10 +41,15 @@ function triggerDownload(csv: string, filename: string): void {
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement('a');
-  anchor.href = url;
-  anchor.download = filename;
-  anchor.click();
-  URL.revokeObjectURL(url);
+  try {
+    anchor.href = url;
+    anchor.download = filename;
+    document.body.appendChild(anchor);
+    anchor.click();
+  } finally {
+    anchor.remove();
+    URL.revokeObjectURL(url);
+  }
 }
 
 interface ExportMenuProps {
@@ -128,6 +139,8 @@ export function ExportMenu({
       const date = new Date().toISOString().slice(0, 10);
       triggerDownload(csv, `bettapay_${filename}_${date}.csv`);
       notify.success(`Exported ${rows.length} rows`);
+    } catch {
+      notify.error('Failed to export CSV');
     } finally {
       setIsPreparing(false);
     }
