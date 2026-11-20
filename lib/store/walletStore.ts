@@ -111,6 +111,7 @@ export interface WalletState {
   connector: Connector;
   network: StellarNetwork;
   balances: AssetBalance[];
+  isUnfunded: boolean;
   loading: boolean;
   isReconnecting: boolean;
   error: string | null;
@@ -154,6 +155,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
   connector: null,
   network: getNetwork(),
   balances: [],
+  isUnfunded: false,
   loading: false,
   isReconnecting: false,
   error: null,
@@ -286,6 +288,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
         isConnected: false,
         connector: null,
         balances: [],
+        isUnfunded: false,
         loading: false,
         isReconnecting: false,
         walletConnectSession: null,
@@ -340,7 +343,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
     if (!address || address === currentAddress) return;
     if (stellarAccounts.length > 0 && !stellarAccounts.includes(address)) return;
 
-    set({ address, balances: [], loading: true, error: null });
+    set({ address, balances: [], isUnfunded: false, loading: true, error: null });
     if (connector === 'walletconnect' && walletConnectSession) {
       set({ walletConnectSession: { ...walletConnectSession, address, stellarAccounts } });
     }
@@ -383,7 +386,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
   setNetwork: (network: StellarNetwork) => {
     const current = get().network;
     if (current === network) return;
-    set({ network, balances: [], loading: true, error: null });
+    set({ network, balances: [], isUnfunded: false, loading: true, error: null });
     const persisted = readPersistedWalletSession();
     if (persisted) {
       persistWalletSession({ ...persisted, network });
@@ -449,7 +452,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
     refreshBalancesController = new AbortController();
     const signal = refreshBalancesController.signal;
 
-    set({ loading: true, error: null, isReconnecting: false });
+    set({ loading: true, isUnfunded: false, error: null, isReconnecting: false });
 
     const horizonUrl = NETWORK_URLS[network];
 
@@ -483,7 +486,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
 
       if (result === 'NOT_FOUND') {
         if (get().address === address && get().network === network) {
-          set({ balances: [], loading: false });
+          set({ balances: [], isUnfunded: true, loading: false, error: null });
         }
         return;
       }
@@ -494,16 +497,26 @@ export const useWalletStore = create<WalletState>((set, get) => ({
           balance: string;
           asset_code?: string;
           asset_issuer?: string;
+          liquidity_pool_id?: string;
         }>;
       };
 
       const balances: AssetBalance[] = data.balances.map((b) => {
         if (b.asset_type === 'native') return { assetCode: 'XLM', balance: b.balance };
-        return { assetCode: b.asset_code!, balance: b.balance, assetIssuer: b.asset_issuer };
-      });
+        if (b.asset_type === 'liquidity_pool_shares') {
+          return {
+            assetCode: b.liquidity_pool_id
+              ? `LP:${b.liquidity_pool_id}`
+              : 'LIQUIDITY_POOL_SHARES',
+            balance: b.balance,
+          };
+        }
+        if (!b.asset_code) return null;
+        return { assetCode: b.asset_code, balance: b.balance, assetIssuer: b.asset_issuer };
+      }).filter((balance): balance is AssetBalance => balance !== null);
 
       if (get().address === address && get().network === network) {
-        set({ balances, loading: false, error: null });
+        set({ balances, isUnfunded: false, loading: false, error: null });
       }
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') {
