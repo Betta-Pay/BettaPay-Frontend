@@ -76,6 +76,46 @@ describe('useWalletStore wallet session persistence', () => {
     });
   });
 
+  it('coalesces simultaneous restoreSession calls', async () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      version: 1,
+      connector: 'freighter',
+      address: ADDRESS,
+      stellarAccounts: [ADDRESS],
+      network: 'testnet',
+    }));
+
+    let resolveRestore: ((address: string | null) => void) | undefined;
+    (restoreFreighterSession as jest.Mock).mockImplementation(() =>
+      new Promise<string | null>((resolve) => {
+        resolveRestore = resolve;
+      }),
+    );
+
+    const first = useWalletStore.getState().restoreSession(true);
+    const second = useWalletStore.getState().restoreSession(true);
+
+    expect(restoreFreighterSession).toHaveBeenCalledTimes(1);
+    resolveRestore?.(ADDRESS);
+    await Promise.all([first, second]);
+  });
+
+  it('rejects signMessage while disconnected', async () => {
+    useWalletStore.setState({ address: null, isSigning: false, connector: null });
+
+    await expect(useWalletStore.getState().signMessage('challenge')).rejects.toThrow(
+      'No wallet address connected',
+    );
+  });
+
+  it('rejects signMessage while signing is already in progress', async () => {
+    useWalletStore.setState({ address: ADDRESS, isSigning: true, connector: 'freighter' });
+
+    await expect(useWalletStore.getState().signMessage('challenge')).rejects.toThrow(
+      'Signing is already in progress',
+    );
+  });
+
   it('restores an authenticated WalletConnect session and refreshes balances', async () => {
     const walletConnectSession = {
       topic: 'topic-123',

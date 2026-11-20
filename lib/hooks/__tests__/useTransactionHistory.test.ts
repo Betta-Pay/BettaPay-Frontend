@@ -5,10 +5,11 @@
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
-import { useTransactionHistory } from '@/lib/hooks/useTransactionHistory';
+import { mapRecord, useTransactionHistory } from '@/lib/hooks/useTransactionHistory';
 
 const mockAddress = 'GABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
 const secondAddress = 'GBCDEFGHIJKLMNOPQRSTUVWXYZ234567A';
+let mockNetwork = 'testnet';
 
 function createWrapper(queryClient = new QueryClient()) {
   queryClient.setDefaultOptions({
@@ -21,7 +22,7 @@ function createWrapper(queryClient = new QueryClient()) {
 
 jest.mock('@/lib/store/walletStore', () => ({
   useWalletStore: (selector: (s: { address: string; network: string }) => unknown) =>
-    selector({ address: mockAddress, network: 'testnet' }),
+    selector({ address: mockAddress, network: mockNetwork }),
 }));
 
 function makeRecord(id: string, pagingToken: string) {
@@ -45,9 +46,101 @@ describe('useTransactionHistory pagination (#515)', () => {
     global.fetch = jest.fn();
   });
 
+  describe('mapRecord', () => {
+    it('maps a payment record', () => {
+      const record = makeRecord('payment', 'payment-token');
+      expect(mapRecord(record, mockAddress)).toMatchObject({
+        id: 'payment',
+        type: 'receive',
+        amount: 10,
+        assetCode: 'USDC',
+        pagingToken: 'payment-token',
+      });
+    });
+
+    it('uses starting_balance for a create_account record', () => {
+      const record = {
+        id: 'create',
+        paging_token: 'create-token',
+        type: 'create_account',
+        funder: 'GFUNDERXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX',
+        account: mockAddress,
+        starting_balance: '25.5000000',
+        asset_type: 'native',
+        created_at: '2026-08-01T10:00:00Z',
+        transaction_hash: 'hash_create',
+      };
+
+      expect(mapRecord(record, mockAddress)).toMatchObject({
+        id: 'create',
+        type: 'receive',
+        amount: 25.5,
+        assetCode: 'XLM',
+      });
+    });
+
+    it('maps path payment amounts without returning NaN', () => {
+      const record = {
+        id: 'path',
+        paging_token: 'path-token',
+        type: 'path_payment_strict_receive',
+        from: 'GFROMXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX',
+        to: mockAddress,
+        amount: '7.2500000',
+        asset_type: 'native',
+        created_at: '2026-08-01T10:00:00Z',
+        transaction_hash: 'hash_path',
+      };
+
+      expect(mapRecord(record, mockAddress)).toMatchObject({
+        id: 'path',
+        type: 'receive',
+        amount: 7.25,
+        assetCode: 'XLM',
+      });
+    });
+
+    it('passes an AbortSignal to each Horizon request', async () => {
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ _embedded: { records: [] }, _links: {} }),
+      });
+      const queryClient = new QueryClient();
+      queryClient.setDefaultOptions({ queries: { retry: false } });
+
+      const { result } = renderHook(
+        () => useTransactionHistory({ address: mockAddress }),
+        { wrapper: createWrapper(queryClient) },
+      );
+
+      await waitFor(() => expect(result.current.loading).toBe(false));
+      const init = (global.fetch as jest.Mock).mock.calls[0][1] as RequestInit;
+      expect(init.signal).toBeInstanceOf(AbortSignal);
+    });
+  });
+
   afterEach(() => {
     global.fetch = originalFetch;
+    mockNetwork = 'testnet';
     jest.clearAllMocks();
+  });
+
+  it('queries the futurenet Horizon endpoint', async () => {
+    mockNetwork = 'futurenet';
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ _embedded: { records: [] }, _links: {} }),
+    });
+
+    const { result } = renderHook(
+      () => useTransactionHistory({ address: mockAddress }),
+      { wrapper: createWrapper() },
+    );
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(global.fetch).toHaveBeenCalledWith(
+      expect.stringContaining('https://horizon-futurenet.stellar.org/accounts/'),
+    );
   });
 
   it('fetches the first page and exposes loadMore with a cursor', async () => {

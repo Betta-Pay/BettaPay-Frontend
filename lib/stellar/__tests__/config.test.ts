@@ -82,6 +82,23 @@ describe('normalizeNetwork', () => {
     expect(normalizeNetwork('PUBLIC')).toBe('public');
   });
 
+  it('normalizes whitespace-padded public aliases to public', () => {
+    expect(normalizeNetwork(' PUBLIC ')).toBe('public');
+    expect(normalizeNetwork('  pubnet  ')).toBe('public');
+  });
+
+  it('normalizes WalletConnect CAIP-2 aliases', () => {
+    expect(normalizeNetwork('stellar:pubnet')).toBe('public');
+    expect(normalizeNetwork('stellar:testnet')).toBe('testnet');
+    expect(normalizeNetwork('stellar:futurenet')).toBe('futurenet');
+  });
+
+  it('normalizes Stellar network passphrase aliases', () => {
+    expect(normalizeNetwork('Public Global Stellar Network ; September 2015')).toBe('public');
+    expect(normalizeNetwork('Test SDF Network ; September 2015')).toBe('testnet');
+    expect(normalizeNetwork('Test SDF Future Network ; October 2022')).toBe('futurenet');
+  });
+
   it('normalizes "futurenet" to futurenet', () => {
     expect(normalizeNetwork('futurenet')).toBe('futurenet');
   });
@@ -111,6 +128,11 @@ describe('getNetworkConfig', () => {
     const config = getNetworkConfig('unknown');
     expect(config).toEqual(STELLAR_NETWORKS.testnet);
   });
+
+  it('uses normalized aliases for network config', () => {
+    expect(getNetworkConfig(' PUBLIC ')).toEqual(STELLAR_NETWORKS.public);
+    expect(getNetworkConfig('stellar:pubnet')).toEqual(STELLAR_NETWORKS.public);
+  });
 });
 
 describe('getHorizonUrl', () => {
@@ -124,6 +146,11 @@ describe('getHorizonUrl', () => {
 
   it('returns the correct Horizon URL for public', () => {
     expect(getHorizonUrl('public')).toBe('https://horizon.stellar.org');
+  });
+
+  it('returns public Horizon URL for CAIP-2 and passphrase aliases', () => {
+    expect(getHorizonUrl('stellar:pubnet')).toBe('https://horizon.stellar.org');
+    expect(getHorizonUrl('Public Global Stellar Network ; September 2015')).toBe('https://horizon.stellar.org');
   });
 });
 
@@ -139,6 +166,10 @@ describe('getRpcUrl', () => {
   it('returns the correct RPC URL for public', () => {
     expect(getRpcUrl('public')).toBe('https://mainnet.sorobanrpc.com');
   });
+
+  it('returns public RPC URL for pubnet and whitespace aliases', () => {
+    expect(getRpcUrl(' PUBNET ')).toBe('https://mainnet.sorobanrpc.com');
+  });
 });
 
 describe('getNetworkPassphrase', () => {
@@ -152,5 +183,9 @@ describe('getNetworkPassphrase', () => {
 
   it('returns the correct passphrase for public', () => {
     expect(getNetworkPassphrase('public')).toBe('Public Global Stellar Network ; September 2015');
+  });
+
+  it('returns testnet passphrase for CAIP-2 testnet aliases', () => {
+    expect(getNetworkPassphrase('stellar:testnet')).toBe('Test SDF Network ; September 2015');
   });
 });

@@ -805,8 +805,8 @@ export class WalletConnectClient {
   }
 
   private handleDeadSocket() {
+    if (this.reconnectTimer || this.intentionalClose) return;
     this.stopHeartbeat();
-    if (this.intentionalClose) return;
     try {
       this.ws?.close();
     } catch {
@@ -1255,6 +1255,12 @@ export class WalletConnectClient {
     method: string,
     params: Record<string, unknown>,
   ): Promise<T> {
+    if (this.sessionExpiresAt && Date.now() >= this.sessionExpiresAt) {
+      throw new WalletConnectExpiredError(
+        'WalletConnect session has expired. Please reconnect your wallet.',
+        'signing',
+      );
+    }
     if (!this.sessionKey || !this.sessionTopic) {
       throw new WalletConnectError(
         'No active WalletConnect session.',

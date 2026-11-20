@@ -63,21 +63,37 @@ function fail(error: JwtDecodeErrorCode, message: string): JwtDecodeResult {
   return { ok: false, error, message };
 }
 
-function base64UrlDecode(base64Url: string): string {
-  const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-  const padded = base64 + '='.repeat((4 - (base64.length % 4)) % 4);
+export function base64UrlDecode(base64Url: string): string | null {
+  if (typeof base64Url !== 'string') return null;
 
-  if (typeof atob === 'function') {
-    return atob(padded);
+  try {
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = base64 + '='.repeat((4 - (base64.length % 4)) % 4);
+
+    if (typeof atob === 'function') {
+      const binary = atob(padded);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+      }
+      return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+    }
+
+    if (typeof Buffer !== 'undefined') {
+      return Buffer.from(padded, 'base64').toString('utf-8');
+    }
+
+    return null;
+  } catch {
+    return null;
   }
-
-  const binary = Uint8Array.from(padded, (c) => c.charCodeAt(0));
-  return new TextDecoder().decode(binary);
 }
 
 function decodeSegment(segment: string): Record<string, unknown> | null {
   try {
-    const parsed = JSON.parse(base64UrlDecode(segment));
+    const decoded = base64UrlDecode(segment);
+    if (!decoded) return null;
+    const parsed = JSON.parse(decoded);
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
     return parsed as Record<string, unknown>;
   } catch {

@@ -32,6 +32,22 @@ function isPrivateIPv4([a, b]: number[]): boolean {
   );
 }
 
+function parseHexMappedIPv4(host: string): number[] | null {
+  const match = host.match(/^(?:(?:0*:){1,5}|::)ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/i);
+  if (!match) return null;
+
+  const high = parseInt(match[1], 16);
+  const low = parseInt(match[2], 16);
+  if (high > 0xffff || low > 0xffff) return null;
+
+  return [
+    (high >> 8) & 0xff,
+    high & 0xff,
+    (low >> 8) & 0xff,
+    low & 0xff,
+  ];
+}
+
 export function isPrivateHost(rawHost: string): boolean {
   const host = rawHost.toLowerCase().replace(/^\[|\]$/g, '').replace(/\.$/, '');
   if (host === 'localhost' || host.endsWith('.localhost')) return true;
@@ -45,11 +61,15 @@ export function isPrivateHost(rawHost: string): boolean {
     if (host === '::' || host === '::1') return true;
     if (/^f[cd]/.test(host)) return true; // fc00::/7 unique local
     if (/^fe[89ab]/.test(host)) return true; // fe80::/10 link-local
-    const mapped = host.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/);
-    if (mapped) {
-      const mv4 = parseIPv4(mapped[1]);
+
+    const dottedMapped = host.match(/^(?:(?:0*:){1,5}|::)ffff:(\d+\.\d+\.\d+\.\d+)$/);
+    if (dottedMapped) {
+      const mv4 = parseIPv4(dottedMapped[1]);
       return mv4 ? isPrivateIPv4(mv4) : true;
     }
+
+    const hexMapped = parseHexMappedIPv4(host);
+    if (hexMapped) return isPrivateIPv4(hexMapped);
   }
   return false;
 }

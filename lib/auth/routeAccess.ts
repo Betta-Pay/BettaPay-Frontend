@@ -38,19 +38,41 @@ const MERCHANT_EXACT = new Set<string>([
   "/fx",
   "/developers",
   "/settings",
+  "/payment-links",
+  "/notifications",
 ]);
-const MERCHANT_PREFIXES = ["/payments", "/settlement", "/settings/"];
+const MERCHANT_PREFIXES = [
+  "/payments",
+  "/settlement",
+  "/settings",
+  "/payment-links",
+  "/notifications",
+];
+
+function normalizePath(pathname: string): string {
+  if (pathname.length > 1 && pathname.endsWith("/")) {
+    return pathname.replace(/\/+$/, "") || "/";
+  }
+  return pathname;
+}
+
+function matchesSegmentPrefix(pathname: string, prefix: string): boolean {
+  const p = prefix.endsWith("/") ? prefix.slice(0, -1) : prefix;
+  return pathname === p || pathname.startsWith(`${p}/`);
+}
 
 export function isAdminRoute(pathname: string): boolean {
+  const normalized = normalizePath(pathname);
   return (
-    ADMIN_EXACT.has(pathname) ||
-    ADMIN_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`) || pathname.startsWith(p))
+    ADMIN_EXACT.has(normalized) ||
+    ADMIN_PREFIXES.some((p) => matchesSegmentPrefix(normalized, p))
   );
 }
 
 export function isMerchantRoute(pathname: string): boolean {
+  const normalized = normalizePath(pathname);
   return (
-    MERCHANT_EXACT.has(pathname) ||
-    MERCHANT_PREFIXES.some((p) => pathname === p || pathname.startsWith(p))
+    MERCHANT_EXACT.has(normalized) ||
+    MERCHANT_PREFIXES.some((p) => matchesSegmentPrefix(normalized, p))
   );
 }

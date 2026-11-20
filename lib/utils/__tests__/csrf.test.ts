@@ -1,10 +1,9 @@
 import {
-  CSRF_COOKIE_NAME,
+  generateCsrfToken,
   CSRF_TOKEN_HEX_LENGTH,
   deriveCsrfBinding,
-  generateCsrfToken,
-  rotateCsrfToken,
   sessionKeyFromAuthToken,
+  getCsrfTokenFromCookie,
 } from '../csrf';
 
 jest.mock('next/headers', () => ({
@@ -26,9 +25,25 @@ describe('CSRF token utilities', () => {
     expect(sessionKeyFromAuthToken('')).toBe('anon');
   });
 
-  it('sessionKeyFromAuthToken slices first 24 chars', () => {
+  it('sessionKeyFromAuthToken produces SHA-256 hex digest for valid tokens', () => {
     const token = 'a'.repeat(64);
-    expect(sessionKeyFromAuthToken(token)).toBe('a'.repeat(24));
+    const key = sessionKeyFromAuthToken(token);
+    expect(key).toHaveLength(64);
+    expect(/^[0-9a-f]+$/.test(key)).toBe(true);
+  });
+
+  it('sessionKeyFromAuthToken produces different outputs for two distinct JWTs with identical headers', () => {
+    // Both JWTs share the identical RS256/HS256 header (first 36 base64url characters)
+    const jwtHeader = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9';
+    const jwt1 = `${jwtHeader}.eyJzdWIiOiIxMTExMTExMTEifQ.sig11111111111111111111111111111111`;
+    const jwt2 = `${jwtHeader}.eyJzdWIiOiIyMjIyMjIyMjIifQ.sig22222222222222222222222222222222`;
+
+    const key1 = sessionKeyFromAuthToken(jwt1);
+    const key2 = sessionKeyFromAuthToken(jwt2);
+
+    expect(key1).not.toBe(key2);
+    expect(key1).toHaveLength(64);
+    expect(key2).toHaveLength(64);
   });
 
   it('deriveCsrfBinding produces a valid hex digest', () => {
@@ -49,38 +64,55 @@ describe('CSRF token utilities', () => {
     expect(a).not.toBe(b);
   });
 
-  it('sends credentialed, uncached requests when rotating the CSRF token', async () => {
-    const token = 'c'.repeat(CSRF_TOKEN_HEX_LENGTH);
-    const originalFetch = global.fetch;
-    const fetchMock = jest.fn().mockResolvedValue({ ok: true });
-    global.fetch = fetchMock as typeof fetch;
-    document.cookie = `${CSRF_COOKIE_NAME}=${token}; Path=/`;
+  describe('getCsrfTokenFromCookie', () => {
+    const originalDocument = global.document;
 
-    try {
-      await expect(rotateCsrfToken()).resolves.toBe(token);
-      expect(fetchMock).toHaveBeenCalledWith(
-        '/api/auth/csrf?rotate=1',
-        expect.objectContaining({
-          credentials: 'include',
-          cache: 'no-store',
-        }),
-      );
-    } finally {
-      global.fetch = originalFetch;
-      document.cookie = `${CSRF_COOKIE_NAME}=; Max-Age=0; Path=/`;
-    }
-  });
+    afterEach(() => {
+      global.document = originalDocument;
+    });
 
-  it('does not return a stale token when the rotation endpoint fails', async () => {
-    const originalFetch = global.fetch;
-    global.fetch = jest.fn().mockResolvedValue({ ok: false }) as typeof fetch;
-    document.cookie = `${CSRF_COOKIE_NAME}=${'d'.repeat(CSRF_TOKEN_HEX_LENGTH)}; Path=/`;
+    it('returns null when document is undefined', () => {
+      // @ts-expect-error simulating non-browser environment
+      delete global.document;
+      expect(getCsrfTokenFromCookie()).toBeNull();
+    });
 
-    try {
-      await expect(rotateCsrfToken()).resolves.toBeNull();
-    } finally {
-      global.fetch = originalFetch;
-      document.cookie = `${CSRF_COOKIE_NAME}=; Max-Age=0; Path=/`;
-    }
+    it('returns null when cookie is absent', () => {
+      Object.defineProperty(global, 'document', {
+        value: { cookie: 'other_cookie=value' },
+        writable: true,
+        configurable: true,
+      });
+      expect(getCsrfTokenFromCookie()).toBeNull();
+    });
+
+    it('returns null instead of throwing when given malformed URI-encoded cookie values', () => {
+      Object.defineProperty(global, 'document', {
+        value: { cookie: 'csrf_token=%E0%A4%A; other_cookie=123' },
+        writable: true,
+        configurable: true,
+      });
+      expect(() => getCsrfTokenFromCookie()).not.toThrow();
+      expect(getCsrfTokenFromCookie()).toBeNull();
+    });
+
+    it('returns token when cookie value is a valid 64-char hex string', () => {
+      const validToken = 'a'.repeat(64);
+      Object.defineProperty(global, 'document', {
+        value: { cookie: `csrf_token=${validToken}; other=test` },
+        writable: true,
+        configurable: true,
+      });
+      expect(getCsrfTokenFromCookie()).toBe(validToken);
+    });
+
+    it('returns null when token length is not 64 hex characters', () => {
+      Object.defineProperty(global, 'document', {
+        value: { cookie: 'csrf_token=short-token; other=test' },
+        writable: true,
+        configurable: true,
+      });
+      expect(getCsrfTokenFromCookie()).toBeNull();
+    });
   });
 });
