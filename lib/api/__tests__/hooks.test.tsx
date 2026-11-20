@@ -4,9 +4,12 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import {
   usePayments,
+  usePayment,
   useSettlements,
   useRates,
+  useMerchantBankAccount,
   useMerchantProfile,
+  useKybMerchants,
   useAdminStats,
   queryKeys,
 } from '@/lib/api/hooks';
@@ -156,6 +159,60 @@ describe('useMerchantProfile', () => {
     expect(result.current.data).toEqual(profile);
     expect(mockedGet).toHaveBeenCalledWith('/api/merchants/m_1');
   });
+
+  it('encodes special characters in the merchant ID', async () => {
+    mockedGet.mockResolvedValue({ data: { data: { businessName: 'Acme' } } });
+
+    const { result } = renderHook(() => useMerchantProfile('merchant/1?'), {
+      wrapper: makeWrapper(),
+    });
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    expect(mockedGet).toHaveBeenCalledWith('/api/merchants/merchant%2F1%3F');
+  });
+});
+
+describe('dynamic API URL parameters', () => {
+  it('encodes special characters in the payment ID', async () => {
+    mockedGet.mockResolvedValue({
+      data: { data: { id: 'pay/1?', status: 'pending' } },
+    });
+
+    const { result } = renderHook(() => usePayment('pay/1?'), {
+      wrapper: makeWrapper(),
+    });
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    expect(mockedGet).toHaveBeenCalledWith('/api/payments/pay%2F1%3F');
+  });
+
+  it('encodes special characters in the merchant bank-account ID', async () => {
+    mockedGet.mockResolvedValue({ data: { data: { bankName: 'Acme Bank' } } });
+
+    const { result } = renderHook(
+      () => useMerchantBankAccount('merchant/1?'),
+      { wrapper: makeWrapper() },
+    );
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    expect(mockedGet).toHaveBeenCalledWith(
+      '/api/merchants/merchant%2F1%3F/bank-account',
+    );
+  });
+
+  it('encodes special characters in the KYB status query value', async () => {
+    mockedGet.mockResolvedValue({ data: { data: [] } });
+
+    const { result } = renderHook(
+      () => useKybMerchants('in review/urgent?'),
+      { wrapper: makeWrapper() },
+    );
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    expect(mockedGet).toHaveBeenCalledWith(
+      '/api/admin/merchants/kyb?status=in%20review%2Furgent%3F',
+    );
+  });
 });
 
 describe('useAdminStats', () => {
@@ -199,5 +256,30 @@ describe('queryKeys', () => {
     expect(queryKeys.rates).toEqual(['rates']);
     expect(queryKeys.merchant('m_1')).toEqual(['merchant', 'm_1']);
     expect(queryKeys.merchant(undefined)).toEqual(['merchant', null]);
+  });
+
+  it('normalizes audit filters for stable cache keys', () => {
+    const first = queryKeys.auditLog({
+      action: 'LOGIN',
+      limit: 1,
+      entityId: 'user_1',
+    });
+    const reordered = queryKeys.auditLog({
+      entityId: 'user_1',
+      action: 'LOGIN',
+      limit: 1,
+    });
+
+    expect(JSON.stringify(first)).toBe(JSON.stringify(reordered));
+  });
+
+  it('omits undefined audit filters from cache keys', () => {
+    const withUndefined = queryKeys.auditLog({
+      action: 'LOGIN',
+      entityId: undefined,
+    });
+    const withoutUndefined = queryKeys.auditLog({ action: 'LOGIN' });
+
+    expect(JSON.stringify(withUndefined)).toBe(JSON.stringify(withoutUndefined));
   });
 });

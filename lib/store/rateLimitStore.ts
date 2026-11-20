@@ -3,6 +3,34 @@ import { persist } from 'zustand/middleware';
 
 /** localStorage key holding the shared window. Also the cross-tab storage-event key. */
 export const RATE_LIMIT_STORAGE_KEY = 'bp-rate-limit';
+export const MAX_RETRY_AFTER_MS = 15 * 60 * 1000;
+
+const MAX_RETRY_AFTER_SECONDS = MAX_RETRY_AFTER_MS / 1000;
+
+export function clampRetryAfterSeconds(retryAfterSeconds: number): number | null {
+  if (!Number.isFinite(retryAfterSeconds) || retryAfterSeconds < 0) return null;
+  return Math.min(retryAfterSeconds, MAX_RETRY_AFTER_SECONDS);
+}
+
+export function parseRetryAfterSeconds(
+  retryAfter: unknown,
+  now = Date.now(),
+): number | null {
+  if (typeof retryAfter !== 'string' && typeof retryAfter !== 'number') {
+    return null;
+  }
+
+  const value = String(retryAfter).trim();
+  if (!value) return null;
+
+  const seconds = Number(value);
+  if (Number.isFinite(seconds)) return clampRetryAfterSeconds(seconds);
+
+  const retryAt = Date.parse(value);
+  if (!Number.isFinite(retryAt)) return null;
+
+  return clampRetryAfterSeconds(Math.max(0, (retryAt - now) / 1000));
+}
 
 /** The parts of a rate-limit window that travel between tabs and survive reload. */
 export interface RateLimitWindow {
@@ -41,6 +69,11 @@ function secondsUntil(until: number): number {
   return Math.max(0, Math.ceil((until - Date.now()) / 1000));
 }
 
+function boundedDeadline(until: number, now: number): number {
+  if (!Number.isFinite(until) || until <= now) return now;
+  return Math.min(until, now + MAX_RETRY_AFTER_MS);
+}
+
 /**
  * Fold an incoming window into whatever is already open.
  *
@@ -54,10 +87,13 @@ function mergeWindow(
   current: { rateLimitedUntil: number; endpoint: string | null; limit: number | null },
   incoming: RateLimitWindow
 ): RateLimitWindow & { secondsRemaining: number } {
-  const isOpen = current.rateLimitedUntil > Date.now();
+  const now = Date.now();
+  const currentUntil = boundedDeadline(current.rateLimitedUntil, now);
+  const incomingUntil = boundedDeadline(incoming.rateLimitedUntil, now);
+  const isOpen = currentUntil > now;
   const rateLimitedUntil = Math.max(
-    incoming.rateLimitedUntil,
-    isOpen ? current.rateLimitedUntil : 0
+    incomingUntil,
+    isOpen ? currentUntil : 0
   );
   const endpoint =
     isOpen && current.endpoint !== incoming.endpoint ? null : incoming.endpoint;
@@ -82,23 +118,40 @@ export function createRateLimitStore(
         limit: null,
 
         setRateLimited: (retryAfterSeconds: number, endpoint?: string | null, limit?: number | null) => {
+          const boundedSeconds = clampRetryAfterSeconds(retryAfterSeconds);
+          if (boundedSeconds === null) return;
+
           set(mergeWindow(get(), {
-            rateLimitedUntil: Date.now() + retryAfterSeconds * 1000,
+            rateLimitedUntil: Date.now() + boundedSeconds * 1000,
             endpoint: endpoint ?? null,
             limit: limit ?? null,
           }));
         },
 
         applyRemoteWindow: (window: RateLimitWindow | null) => {
-          if (!window || window.rateLimitedUntil <= Date.now()) {
+          if (!window) {
             set({ rateLimitedUntil: 0, secondsRemaining: 0, endpoint: null, limit: null });
             return;
           }
 
-          // Ignore a remote window that would shorten the local one.
-          if (window.rateLimitedUntil <= get().rateLimitedUntil) return;
+          if (!Number.isFinite(window.rateLimitedUntil) || window.rateLimitedUntil < 0) {
+            return;
+          }
 
-          set(mergeWindow(get(), window));
+          if (window.rateLimitedUntil <= Date.now()) {
+            set({ rateLimitedUntil: 0, secondsRemaining: 0, endpoint: null, limit: null });
+            return;
+          }
+
+          const boundedWindow = {
+            ...window,
+            rateLimitedUntil: boundedDeadline(window.rateLimitedUntil, Date.now()),
+          };
+
+          // Ignore a remote window that would shorten the local one.
+          if (boundedWindow.rateLimitedUntil <= get().rateLimitedUntil) return;
+
+          set(mergeWindow(get(), boundedWindow));
         },
 
         tick: () => {
@@ -146,7 +199,8 @@ export function createRateLimitStore(
         onRehydrateStorage: () => (state) => {
           if (!state) return;
 
-          if (state.rateLimitedUntil <= Date.now()) {
+          const now = Date.now();
+          if (!Number.isFinite(state.rateLimitedUntil) || state.rateLimitedUntil <= now) {
             state.rateLimitedUntil = 0;
             state.secondsRemaining = 0;
             state.endpoint = null;
@@ -154,6 +208,7 @@ export function createRateLimitStore(
             return;
           }
 
+          state.rateLimitedUntil = boundedDeadline(state.rateLimitedUntil, now);
           state.secondsRemaining = secondsUntil(state.rateLimitedUntil);
         },
       }

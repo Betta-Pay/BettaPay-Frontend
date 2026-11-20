@@ -151,6 +151,20 @@ function mapQuery<T>(
   };
 }
 
+type AuditLogFilters = {
+  action?: string;
+  entityId?: string;
+  limit?: number;
+};
+
+function normalizeAuditLogFilters(filters?: AuditLogFilters): AuditLogFilters {
+  return Object.fromEntries(
+    Object.entries(filters ?? {})
+      .filter(([, value]) => value !== undefined)
+      .sort(([left], [right]) => left.localeCompare(right)),
+  ) as AuditLogFilters;
+}
+
 // Query keys are exported so callers can prefetch or invalidate caches
 // without relearning the underlying structure.
 export const queryKeys = {
@@ -159,6 +173,8 @@ export const queryKeys = {
   rates: ['rates'] as const,
   authSessions: ['auth', 'sessions'] as const,
   merchant: (id?: string) => ['merchant', id ?? null] as const,
+  auditLog: (filters?: AuditLogFilters) =>
+    ['admin', 'audit', normalizeAuditLogFilters(filters)] as const,
   adminStats: ['admin', 'stats'] as const,
 };
 
@@ -297,7 +313,7 @@ export function usePayment(id: string | null): HookShape<ApiPayment | null> {
     queryFn: async () => {
       if (!id) return null;
       const res = await apiClient.get<ItemEnvelope<ApiPayment> | ApiPayment>(
-        `/api/payments/${id}`,
+        `/api/payments/${encodeURIComponent(id)}`,
       );
       const payload = res.data;
       const raw = (payload as ItemEnvelope<ApiPayment>).data ?? payload;
@@ -395,7 +411,7 @@ export function useMerchantBankAccount(
     queryFn: async () => {
       const res = await apiClient.get<
         ItemEnvelope<MerchantBankAccount> | MerchantBankAccount
-      >(`/api/merchants/${merchantId}/bank-account`);
+      >(`/api/merchants/${encodeURIComponent(merchantId)}/bank-account`);
       const payload = res.data;
       if (payload && !Array.isArray(payload) && 'bankName' in payload) {
         return payload as MerchantBankAccount;
@@ -433,7 +449,7 @@ export function useMerchantProfile(
     staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       const res = await apiClient.get<ItemEnvelope<MerchantProfile> | MerchantProfile>(
-        `/api/merchants/${merchantId}`,
+        `/api/merchants/${encodeURIComponent(merchantId)}`,
       );
       const payload = res.data;
       if (payload && !Array.isArray(payload) && 'businessName' in payload) {
@@ -506,7 +522,7 @@ export function useKybMerchants(status?: string): HookShape<MerchantKybProfile[]
   const query = useQuery<MerchantKybProfile[], Error>({
     queryKey: ['admin', 'kyb-list', status ?? 'all'],
     queryFn: async () => {
-      const params = status && status !== 'all' ? `?status=${status}` : '';
+      const params = status && status !== 'all' ? `?status=${encodeURIComponent(status)}` : '';
       const res = await apiClient.get<{ data: MerchantKybProfile[] }>(
         `/api/admin/merchants/kyb${params}`,
       );
@@ -518,18 +534,14 @@ export function useKybMerchants(status?: string): HookShape<MerchantKybProfile[]
 
 // ─── useAuditLog ──────────────────────────────────────────────────────────────
 
-export function useAuditLog(options?: {
-  action?: string;
-  entityId?: string;
-  limit?: number;
-}): HookShape<AuditLogEntry[]> {
+export function useAuditLog(options?: AuditLogFilters): HookShape<AuditLogEntry[]> {
   const params = new URLSearchParams();
   if (options?.action) params.set('action', options.action);
   if (options?.entityId) params.set('entityId', options.entityId);
   if (options?.limit) params.set('limit', String(options.limit));
 
   const query = useQuery<AuditLogEntry[], Error>({
-    queryKey: ['admin', 'audit', options],
+    queryKey: queryKeys.auditLog(options),
     queryFn: async () => {
       const qs = params.toString() ? `?${params.toString()}` : '';
       const res = await apiClient.get<{ data: AuditLogEntry[] }>(
