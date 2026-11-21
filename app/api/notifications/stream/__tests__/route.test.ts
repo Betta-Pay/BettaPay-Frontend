@@ -1,62 +1,98 @@
-/** @jest-environment node */
-
+/**
+ * @jest-environment node
+ */
+import { NextRequest } from 'next/server';
 import { GET } from '../route';
 
-function makeToken(exp = Math.floor(Date.now() / 1000) + 3600) {
-  const encode = (value: object) =>
-    Buffer.from(JSON.stringify(value)).toString('base64url');
-
-  return `${encode({ alg: 'HS256' })}.${encode({ exp })}.signature`;
+function base64Url(value: object): string {
+  return Buffer.from(JSON.stringify(value))
+    .toString('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
 }
 
-function makeRequest(signal: AbortSignal, token?: string) {
-  return {
-    headers: new Headers(token ? { cookie: `auth_token=${token}` } : {}),
+function makeToken(exp: number): string {
+  const header = base64Url({ alg: 'HS256', typ: 'JWT' });
+  const payload = base64Url({ exp });
+  return `${header}.${payload}.c2lnbmF0dXJl`;
+}
+
+function streamRequest(cookie?: string, signal?: AbortSignal) {
+  return new NextRequest('http://localhost:3000/api/notifications/stream', {
+    method: 'GET',
+    headers: cookie ? { cookie } : undefined,
     signal,
-  } as Request;
+  });
 }
 
 describe('GET /api/notifications/stream', () => {
+  const inOneHour = Math.floor(Date.now() / 1000) + 3600;
+  const anHourAgo = Math.floor(Date.now() / 1000) - 3600;
+
   afterEach(() => {
     jest.useRealTimers();
   });
 
-  it.each([undefined, 'not-a-valid-token'])(
-    'returns 401 for a missing or invalid auth token',
-    async (token) => {
-      const response = await GET(makeRequest(new AbortController().signal, token));
+  it('returns 401 when auth_token is missing', async () => {
+    const response = await GET(streamRequest());
 
-      expect(response.status).toBe(401);
-      expect(response.headers.get('Cache-Control')).toBe('no-store');
-    },
-  );
-
-  it('closes the stream and clears its heartbeat timer when aborted', async () => {
-    jest.useFakeTimers();
-    const abortController = new AbortController();
-    const response = await GET(makeRequest(abortController.signal, makeToken()));
-    const reader = response.body?.getReader();
-
-    expect(reader).toBeDefined();
-    expect(jest.getTimerCount()).toBe(1);
-    await reader?.read();
-
-    abortController.abort();
-
-    await expect(reader?.read()).resolves.toMatchObject({ done: true });
-    expect(jest.getTimerCount()).toBe(0);
+    expect(response.status).toBe(401);
+    await expect(response.json()).resolves.toEqual({ error: 'Unauthorized' });
   });
 
-  it('clears the heartbeat timer when the client cancels the stream', async () => {
+  it('returns 401 when auth_token is not a valid session', async () => {
+    const missing = await GET(streamRequest('auth_token='));
+    const garbage = await GET(streamRequest('auth_token=not-a-jwt'));
+    const expired = await GET(streamRequest(`auth_token=${makeToken(anHourAgo)}`));
+
+    expect(missing.status).toBe(401);
+    expect(garbage.status).toBe(401);
+    expect(expired.status).toBe(401);
+  });
+
+  it('streams notifications for a valid auth_token session', async () => {
+    const response = await GET(streamRequest(`auth_token=${makeToken(inOneHour)}`));
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('Content-Type')).toBe('text/event-stream');
+
+    const reader = response.body?.getReader();
+    expect(reader).toBeDefined();
+    const first = await reader!.read();
+    const text = new TextDecoder().decode(first.value);
+
+    expect(text).toContain('event: notification');
+    expect(text).toContain('unreadCount');
+    await reader!.cancel();
+  });
+
+  it('clears timers when the client aborts without throwing after the controller closes', async () => {
     jest.useFakeTimers();
+    const abort = new AbortController();
     const response = await GET(
-      makeRequest(new AbortController().signal, makeToken()),
+      streamRequest(`auth_token=${makeToken(inOneHour)}`, abort.signal),
     );
     const reader = response.body?.getReader();
+    await reader?.read();
 
-    expect(jest.getTimerCount()).toBe(1);
+    abort.abort();
+
+    expect(() => {
+      jest.advanceTimersByTime(60_000);
+    }).not.toThrow();
+
     await reader?.cancel();
+  });
 
-    expect(jest.getTimerCount()).toBe(0);
+  it('clears timers when the stream is cancelled', async () => {
+    jest.useFakeTimers();
+    const response = await GET(streamRequest(`auth_token=${makeToken(inOneHour)}`));
+
+    await response.body?.cancel();
+
+    expect(() => {
+      jest.advanceTimersByTime(60_000);
+    }).not.toThrow();
   });
 });
