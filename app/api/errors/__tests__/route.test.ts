@@ -1,6 +1,27 @@
 import { POST } from '../route';
 import { clearRateLimits } from '@/lib/utils/errorsRateLimit';
 
+function validReport(timestamp = Date.now()) {
+  return {
+    clientId: 'abc123',
+    fingerprint: 'abc123',
+    source: 'manual',
+    name: 'Error',
+    message: 'Test error',
+    count: 1,
+    context: {
+      route: '/dashboard',
+      isAuthenticated: false,
+      role: null,
+      walletConnected: false,
+      walletConnector: null,
+      walletNetwork: null,
+      online: true,
+    },
+    timestamp,
+  };
+}
+
 jest.mock('next/server', () => {
   class MockNextResponse {
     status: number;
@@ -26,17 +47,21 @@ jest.mock('next/server', () => {
   };
 });
 
-function makeRequest(ip = '192.168.1.1', payload = { errors: [] }) {
+function makeRequest(ip = '192.168.1.1', payload: unknown = { errors: [] }) {
   const jsonStr = JSON.stringify(payload);
+  return makeRawRequest(ip, jsonStr);
+}
+
+function makeRawRequest(ip: string, raw: string) {
   return {
     headers: {
       get(headerName: string) {
         if (headerName === 'x-forwarded-for') return ip;
-        if (headerName === 'content-length') return String(jsonStr.length);
+        if (headerName === 'content-length') return String(raw.length);
         return null;
       },
     },
-    text: async () => jsonStr,
+    text: async () => raw,
   } as unknown as Request;
 }
 
@@ -95,5 +120,35 @@ describe('POST /api/errors rate limiting', () => {
 
     expect((await POST(req1)).status).toBe(429);
     expect((await POST(req2)).status).not.toBe(429);
+  });
+
+  it('uses the current time when validating report timestamps', async () => {
+    const initialNow = Date.now();
+    const currentNow = initialNow + 2 * 86400000;
+    const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(currentNow);
+
+    try {
+      const res = await POST(
+        makeRequest('10.0.0.6', { errors: [validReport(initialNow + 36 * 3600000)] }),
+      );
+
+      expect(res.status).toBe(204);
+    } finally {
+      nowSpy.mockRestore();
+    }
+  });
+
+  it('rejects UTF-8 payloads whose encoded byte size exceeds the limit', async () => {
+    const raw = JSON.stringify({
+      errors: [],
+      extra: 'é'.repeat(66_000),
+    });
+
+    expect(raw.length).toBeLessThan(128 * 1024);
+    expect(new TextEncoder().encode(raw).byteLength).toBeGreaterThan(128 * 1024);
+
+    const res = await POST(makeRawRequest('10.0.0.7', raw));
+
+    expect(res.status).toBe(413);
   });
 });

@@ -38,29 +38,31 @@ const contextSchema = z
   })
   .strict();
 
-const reportSchema = z
-  .object({
-    clientId: z.string().max(128).regex(/^[a-f0-9]*$/, 'clientId must be hex'),
-    fingerprint: z.string().min(1).max(64).regex(/^[a-f0-9]+$/),
-    source: z.string().refine((val) => VALID_ERROR_SOURCES.has(val), {
-      message: 'Invalid error source',
-    }),
-    name: z.string().min(1).max(64),
-    message: z.string().min(1).max(1024),
-    stack: z.string().max(8192).optional(),
-    componentStack: z.string().max(4096).optional(),
-    count: z.number().int().min(1).max(10000),
-    context: contextSchema,
-    timestamp: z.number().positive().max(Date.now() + 86400000),
-    appVersion: z.string().max(64).optional(),
-  })
-  .strict();
+function createBatchSchema(maxTimestamp: number) {
+  const reportSchema = z
+    .object({
+      clientId: z.string().max(128).regex(/^[a-f0-9]*$/, 'clientId must be hex'),
+      fingerprint: z.string().min(1).max(64).regex(/^[a-f0-9]+$/),
+      source: z.string().refine((val) => VALID_ERROR_SOURCES.has(val), {
+        message: 'Invalid error source',
+      }),
+      name: z.string().min(1).max(64),
+      message: z.string().min(1).max(1024),
+      stack: z.string().max(8192).optional(),
+      componentStack: z.string().max(4096).optional(),
+      count: z.number().int().min(1).max(10000),
+      context: contextSchema,
+      timestamp: z.number().positive().max(maxTimestamp),
+      appVersion: z.string().max(64).optional(),
+    })
+    .strict();
 
-const batchSchema = z
-  .object({
-    errors: z.array(reportSchema).min(1).max(MAX_BATCH_SIZE),
-  })
-  .strict();
+  return z
+    .object({
+      errors: z.array(reportSchema).min(1).max(MAX_BATCH_SIZE),
+    })
+    .strict();
+}
 
 export async function POST(request: Request) {
   try {
@@ -87,11 +89,11 @@ export async function POST(request: Request) {
     }
 
     const raw = await request.text();
-    if (raw.length > MAX_PAYLOAD_SIZE) {
+    if (new TextEncoder().encode(raw).byteLength > MAX_PAYLOAD_SIZE) {
       return new NextResponse(null, { status: 413 });
     }
 
-    const parsed = batchSchema.safeParse(JSON.parse(raw));
+    const parsed = createBatchSchema(Date.now() + 86400000).safeParse(JSON.parse(raw));
     if (!parsed.success) {
       return new NextResponse(null, { status: 400 });
     }
