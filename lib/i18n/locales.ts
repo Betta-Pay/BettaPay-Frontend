@@ -130,3 +130,5 @@ export function resolveLocale(value: string | null | undefined): Locale {
   const base = value.toLowerCase().split("-")[0];
   return isSupportedLocale(base) ? base : defaultLocale;
 }
+
+
