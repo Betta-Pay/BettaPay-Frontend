@@ -66,5 +66,7 @@ export async function GET(req: NextRequest) {
   );
   res.headers.append('Set-Cookie', buildCsrfSidCookieHeader(binding));
 
+  
+
   return res;
 }
