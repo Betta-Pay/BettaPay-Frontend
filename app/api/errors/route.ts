@@ -25,20 +25,23 @@ const MAX_BATCH_SIZE = 20;
 /** Maximum payload size (bytes) — 128KB. */
 const MAX_PAYLOAD_SIZE = 128 * 1024;
 
-const contextSchema = z
-  .object({
-    route: z.string().min(1).max(256),
-    isAuthenticated: z.boolean(),
-    role: z.string().max(64).nullable(),
-    walletConnected: z.boolean(),
-    walletConnector: z.string().max(64).nullable(),
-    walletNetwork: z.string().max(32).nullable(),
-    online: z.boolean(),
-    viewport: z.string().max(32).optional(),
-  })
-  .strict();
+/** How far ahead of the request a report timestamp may be. One day. */
+const MAX_FUTURE_TIMESTAMP_MS = 86400000;
 
-function createBatchSchema(maxTimestamp: number) {
+function createBatchSchema(timestampCeiling: number) {
+  const contextSchema = z
+    .object({
+      route: z.string().min(1).max(256),
+      isAuthenticated: z.boolean(),
+      role: z.string().max(64).nullable(),
+      walletConnected: z.boolean(),
+      walletConnector: z.string().max(64).nullable(),
+      walletNetwork: z.string().max(32).nullable(),
+      online: z.boolean(),
+      viewport: z.string().max(32).optional(),
+    })
+    .strict();
+
   const reportSchema = z
     .object({
       clientId: z.string().max(128).regex(/^[a-f0-9]*$/, 'clientId must be hex'),
@@ -52,7 +55,7 @@ function createBatchSchema(maxTimestamp: number) {
       componentStack: z.string().max(4096).optional(),
       count: z.number().int().min(1).max(10000),
       context: contextSchema,
-      timestamp: z.number().positive().max(maxTimestamp),
+      timestamp: z.number().positive().max(timestampCeiling),
       appVersion: z.string().max(64).optional(),
     })
     .strict();
@@ -93,7 +96,10 @@ export async function POST(request: Request) {
       return new NextResponse(null, { status: 413 });
     }
 
-    const parsed = createBatchSchema(Date.now() + 86400000).safeParse(JSON.parse(raw));
+    // Ceiling is computed per request. A module-level Date.now() would freeze
+    // the window for the life of the process and reject every later report.
+    const timestampCeiling = Date.now() + MAX_FUTURE_TIMESTAMP_MS;
+    const parsed = createBatchSchema(timestampCeiling).safeParse(JSON.parse(raw));
     if (!parsed.success) {
       return new NextResponse(null, { status: 400 });
     }
