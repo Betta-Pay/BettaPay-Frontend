@@ -1,93 +1,152 @@
-import { act, renderHook } from '@testing-library/react';
+import { renderHook } from '@testing-library/react';
 import { useCrossTabRateLimit } from '../useCrossTabRateLimit';
 import { useRateLimitStore } from '@/lib/store/rateLimitStore';
 
-class MockBroadcastChannel {
-  static instances: MockBroadcastChannel[] = [];
+type ChannelListener = (event: MessageEvent) => void;
 
-  readonly name: string;
-  readonly postMessage = jest.fn();
-  readonly close = jest.fn();
-  readonly addEventListener = jest.fn(
-    (_type: string, listener: EventListenerOrEventListenerObject) => {
-      this.listener = listener;
-    },
-  );
-  readonly removeEventListener = jest.fn();
-  private listener: EventListenerOrEventListenerObject | null = null;
+class MockBroadcastChannel {
+  static latest: MockBroadcastChannel | null = null;
+
+  name: string;
+  closed = false;
+  listeners = new Set<ChannelListener>();
+  postMessage = jest.fn();
+  close = jest.fn(() => {
+    this.closed = true;
+    this.listeners.clear();
+  });
 
   constructor(name: string) {
     this.name = name;
-    MockBroadcastChannel.instances.push(this);
+    MockBroadcastChannel.latest = this;
   }
 
-  dispatchMessage(data: unknown) {
+  addEventListener(type: string, listener: ChannelListener) {
+    if (type === 'message') this.listeners.add(listener);
+  }
+
+  removeEventListener(type: string, listener: ChannelListener) {
+    if (type === 'message') this.listeners.delete(listener);
+  }
+
+  emit(data: unknown) {
     const event = { data } as MessageEvent;
-    if (typeof this.listener === 'function') this.listener(event);
-    else this.listener?.handleEvent(event);
+    this.listeners.forEach((listener) => listener(event));
   }
 }
 
 describe('useCrossTabRateLimit', () => {
   const originalBroadcastChannel = global.BroadcastChannel;
 
-  beforeEach(() => {
-    MockBroadcastChannel.instances = [];
-    global.BroadcastChannel =
-      MockBroadcastChannel as unknown as typeof BroadcastChannel;
-    useRateLimitStore.getState().clearRateLimit();
+  beforeEach(async () => {
+    MockBroadcastChannel.latest = null;
+    global.BroadcastChannel = MockBroadcastChannel as unknown as typeof BroadcastChannel;
     localStorage.clear();
+    useRateLimitStore.getState().clearRateLimit();
+    await useRateLimitStore.persist.rehydrate();
+    useRateLimitStore.getState().clearRateLimit();
   });
 
   afterEach(() => {
     global.BroadcastChannel = originalBroadcastChannel;
+    useRateLimitStore.getState().clearRateLimit();
+    localStorage.clear();
   });
 
-  it('applies an incoming rate-limit window without broadcasting it back', () => {
+  it('applies an incoming rate-limit window without echoing it', () => {
     renderHook(() => useCrossTabRateLimit());
-    const channel = MockBroadcastChannel.instances[0];
-    const window = {
-      rateLimitedUntil: Date.now() + 30_000,
-      endpoint: '/api/payments',
-      limit: 100,
-    };
+    const channel = MockBroadcastChannel.latest;
+    expect(channel).not.toBeNull();
+    expect(channel?.name).toBe('bettapay-rate-limit-sync');
 
-    act(() => channel.dispatchMessage({ type: 'RATE_LIMIT_SET', window }));
-
-    expect(useRateLimitStore.getState()).toMatchObject(window);
-    expect(channel.postMessage).not.toHaveBeenCalled();
-  });
-
-  it('broadcasts local rate-limit windows and closes the channel on unmount', () => {
-    const { unmount } = renderHook(() => useCrossTabRateLimit());
-    const channel = MockBroadcastChannel.instances[0];
-
-    act(() => {
-      useRateLimitStore.getState().setRateLimited(30, '/api/payments', 100);
-    });
-
-    expect(channel.postMessage).toHaveBeenCalledWith({
+    const rateLimitedUntil = Date.now() + 20_000;
+    channel?.emit({
       type: 'RATE_LIMIT_SET',
-      window: expect.objectContaining({
+      window: {
+        rateLimitedUntil,
         endpoint: '/api/payments',
         limit: 100,
+      },
+    });
+
+    expect(useRateLimitStore.getState()).toMatchObject({
+      rateLimitedUntil,
+      endpoint: '/api/payments',
+      limit: 100,
+    });
+    expect(channel?.postMessage).not.toHaveBeenCalled();
+  });
+
+  it('clears the local window when another tab broadcasts RATE_LIMIT_CLEAR', () => {
+    useRateLimitStore.getState().setRateLimited(30, '/api/payments', 100);
+    renderHook(() => useCrossTabRateLimit());
+    const channel = MockBroadcastChannel.latest;
+    channel?.postMessage.mockClear();
+
+    channel?.emit({ type: 'RATE_LIMIT_CLEAR' });
+
+    expect(useRateLimitStore.getState()).toMatchObject({
+      rateLimitedUntil: 0,
+      secondsRemaining: 0,
+      endpoint: null,
+      limit: null,
+    });
+    expect(channel?.postMessage).not.toHaveBeenCalled();
+  });
+
+  it('broadcasts a newly opened local window to other tabs', () => {
+    renderHook(() => useCrossTabRateLimit());
+    const channel = MockBroadcastChannel.latest;
+
+    useRateLimitStore.getState().setRateLimited(30, '/api/payments', 100);
+
+    expect(channel?.postMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'RATE_LIMIT_SET',
+        window: expect.objectContaining({
+          endpoint: '/api/payments',
+          limit: 100,
+        }),
       }),
-    });
-
-    act(() => {
-      useRateLimitStore.getState().clearRateLimit();
-    });
-
-    expect(channel.postMessage).toHaveBeenLastCalledWith({
-      type: 'RATE_LIMIT_CLEAR',
-    });
-
-    unmount();
-
-    expect(channel.removeEventListener).toHaveBeenCalledWith(
-      'message',
-      expect.any(Function),
     );
-    expect(channel.close).toHaveBeenCalledTimes(1);
+    const message = channel?.postMessage.mock.calls[0][0] as {
+      window: { rateLimitedUntil: number };
+    };
+    expect(message.window.rateLimitedUntil).toBeGreaterThan(Date.now());
+  });
+
+  it('broadcasts RATE_LIMIT_CLEAR when the local window ends', () => {
+    renderHook(() => useCrossTabRateLimit());
+    const channel = MockBroadcastChannel.latest;
+
+    useRateLimitStore.getState().setRateLimited(30, '/api/payments', 100);
+    channel?.postMessage.mockClear();
+    useRateLimitStore.getState().clearRateLimit();
+
+    expect(channel?.postMessage).toHaveBeenCalledWith({ type: 'RATE_LIMIT_CLEAR' });
+  });
+
+  it('closes the channel on unmount', () => {
+    const { unmount } = renderHook(() => useCrossTabRateLimit());
+    const channel = MockBroadcastChannel.latest;
+    expect(channel?.close).not.toHaveBeenCalled();
+
+    expect(() => unmount()).not.toThrow();
+
+    expect(channel?.close).toHaveBeenCalledTimes(1);
+    expect(channel?.closed).toBe(true);
+  });
+
+  it('unmounts cleanly when BroadcastChannel is unavailable', () => {
+    global.BroadcastChannel = class {
+      constructor() {
+        throw new Error('BroadcastChannel is not supported');
+      }
+    } as unknown as typeof BroadcastChannel;
+
+    const { unmount } = renderHook(() => useCrossTabRateLimit());
+
+    expect(MockBroadcastChannel.latest).toBeNull();
+    expect(() => unmount()).not.toThrow();
   });
 });
