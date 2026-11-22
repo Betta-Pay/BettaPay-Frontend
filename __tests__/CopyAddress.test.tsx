@@ -12,7 +12,7 @@
  */
 
 import React from "react";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 // ---------------------------------------------------------------------------
@@ -281,5 +281,79 @@ describe("CopyAddress — clipboard failure", () => {
     await waitFor(() =>
       expect(toast.error).toHaveBeenCalledWith("Failed to copy address")
     );
+  });
+});
+
+describe("CopyAddress — timeout and cleanup", () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+    mockWriteText.mockResolvedValue(undefined);
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it("resets copied feedback after 2000ms", async () => {
+    renderDefault();
+    const btn = screen.getByRole("button");
+    await act(async () => {
+      fireEvent.click(btn);
+    });
+
+    expect(screen.getByTestId("icon-Check")).toBeInTheDocument();
+
+    act(() => {
+      jest.advanceTimersByTime(2000);
+    });
+
+    expect(screen.queryByTestId("icon-Check")).not.toBeInTheDocument();
+    expect(screen.getByTestId("icon-Copy")).toBeInTheDocument();
+  });
+
+  it("clears timeout on unmount without throwing errors or updating unmounted state", async () => {
+    const { unmount } = renderDefault();
+    const btn = screen.getByRole("button");
+    await act(async () => {
+      fireEvent.click(btn);
+    });
+
+    expect(screen.getByTestId("icon-Check")).toBeInTheDocument();
+
+    unmount();
+    expect(() => {
+      act(() => {
+        jest.advanceTimersByTime(2500);
+      });
+    }).not.toThrow();
+  });
+
+  it("resets timer on rapid clicks", async () => {
+    renderDefault();
+    const btn = screen.getByRole("button");
+
+    await act(async () => {
+      fireEvent.click(btn);
+    });
+    expect(screen.getByTestId("icon-Check")).toBeInTheDocument();
+
+    act(() => {
+      jest.advanceTimersByTime(1500);
+    });
+    expect(screen.getByTestId("icon-Check")).toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.click(btn);
+    });
+
+    act(() => {
+      jest.advanceTimersByTime(1000);
+    });
+    expect(screen.getByTestId("icon-Check")).toBeInTheDocument();
+
+    act(() => {
+      jest.advanceTimersByTime(1000);
+    });
+    expect(screen.queryByTestId("icon-Check")).not.toBeInTheDocument();
   });
 });

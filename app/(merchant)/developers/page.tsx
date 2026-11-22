@@ -1,5 +1,5 @@
 "use client";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import dynamic from "next/dynamic";
 import {
   Card,
@@ -14,6 +14,7 @@ import { Skeleton } from "@/components/ui";
 import { NetworkTooltip } from "@/components/ui";
 import {
   Copy,
+  Check,
   Eye,
   EyeOff,
   Plus,
@@ -86,8 +87,18 @@ const initialKeys = [
 export default function DevelopersPage() {
   const [keys, setKeys] = useState(initialKeys);
   const [showKey, setShowKey] = useState<string | null>(null);
+  const [copiedKeyId, setCopiedKeyId] = useState<string | null>(null);
+  const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isOnline = useOfflineStore((s) => s.isOnline);
   const notify = useNotify();
+
+  useEffect(() => {
+    return () => {
+      if (copyTimeoutRef.current) {
+        clearTimeout(copyTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const [webhookUrl, setWebhookUrl] = useState(
     "https://your-app.com/webhooks/bettapay",
@@ -104,18 +115,34 @@ export default function DevelopersPage() {
   const [createdFullKey, setCreatedFullKey] = useState<string | null>(null);
 
   const handleCopy = useCallback(
-    (text: string) => {
-      if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
-        navigator.clipboard.writeText(text);
+    async (text: string, id?: string) => {
+      try {
+        if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+          await navigator.clipboard.writeText(text);
+        } else {
+          throw new Error("Clipboard API not available");
+        }
+        if (copyTimeoutRef.current) {
+          clearTimeout(copyTimeoutRef.current);
+        }
+        if (id) {
+          setCopiedKeyId(id);
+          copyTimeoutRef.current = setTimeout(() => {
+            setCopiedKeyId(null);
+            copyTimeoutRef.current = null;
+          }, 2000);
+        }
+        notify.success("Copied to clipboard");
+      } catch {
+        notify.error("Failed to copy to clipboard");
       }
-      notify.success("Copied to clipboard");
     },
     [notify],
   );
   const handleCopyText = handleCopy;
   const handleCopyKey = useCallback(
-    (key: { prefix: string; suffix: string }) => {
-      handleCopy(`${key.prefix}${key.suffix}`);
+    (key: { id: string; prefix: string; suffix: string }) => {
+      handleCopy(`${key.prefix}${key.suffix}`, key.id);
     },
     [handleCopy],
   );
@@ -339,7 +366,11 @@ export default function DevelopersPage() {
                     className="min-h-[44px] min-w-[44px] rounded-lg"
                     onClick={() => handleCopyKey(key)}
                   >
-                    <Copy className="w-3.5 h-3.5 text-muted-foreground" />
+                    {copiedKeyId === key.id ? (
+                      <Check className="w-3.5 h-3.5 text-success" />
+                    ) : (
+                      <Copy className="w-3.5 h-3.5 text-muted-foreground" />
+                    )}
                   </Button>
                   <Button
                     variant="ghost"
@@ -476,9 +507,17 @@ export default function DevelopersPage() {
                   size="sm"
                   variant="outline"
                   className="shrink-0 h-8 rounded-lg text-xs"
-                  onClick={() => createdFullKey && handleCopy(createdFullKey)}
+                  onClick={() => createdFullKey && handleCopy(createdFullKey, "full_key")}
                 >
-                  <Copy className="w-3.5 h-3.5 mr-1" /> Copy Key
+                  {copiedKeyId === "full_key" ? (
+                    <>
+                      <Check className="w-3.5 h-3.5 mr-1 text-success" /> Copied
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-3.5 h-3.5 mr-1" /> Copy Key
+                    </>
+                  )}
                 </Button>
               </div>
             </div>
