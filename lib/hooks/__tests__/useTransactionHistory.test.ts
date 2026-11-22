@@ -140,6 +140,7 @@ describe('useTransactionHistory pagination (#515)', () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(global.fetch).toHaveBeenCalledWith(
       expect.stringContaining('https://horizon-futurenet.stellar.org/accounts/'),
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
     );
   });
 

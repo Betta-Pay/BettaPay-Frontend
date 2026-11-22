@@ -45,17 +45,15 @@ function waitForRetry(delay: number, signal?: AbortSignal): Promise<void> {
   if (!signal) return new Promise((resolve) => setTimeout(resolve, delay));
 
   return new Promise((resolve, reject) => {
-    let timeout: ReturnType<typeof setTimeout> | undefined;
-    const onAbort = () => {
-      if (timeout !== undefined) clearTimeout(timeout);
-      signal.removeEventListener('abort', onAbort);
-      reject(abortReason(signal));
-    };
-    timeout = setTimeout(() => {
+    const timeout = setTimeout(() => {
       signal.removeEventListener('abort', onAbort);
       resolve();
     }, delay);
-
+    const onAbort = () => {
+      clearTimeout(timeout);
+      signal.removeEventListener('abort', onAbort);
+      reject(abortReason(signal));
+    };
     signal.addEventListener('abort', onAbort, { once: true });
   });
 }

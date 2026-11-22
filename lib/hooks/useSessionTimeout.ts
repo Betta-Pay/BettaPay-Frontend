@@ -37,7 +37,6 @@ export interface UseSessionTimeoutReturn {
 export function useSessionTimeout({
   timeoutMs = 25 * 60 * 1000,
   gracePeriodMs = 5 * 60 * 1000,
-  serverExpiresAt = null,
   onTimeout,
 }: UseSessionTimeoutOptions): UseSessionTimeoutReturn {
   const [showWarning, setShowWarning] = useState(false);
@@ -136,7 +135,7 @@ export function useSessionTimeout({
     } finally {
       setIsExtending(false);
     }
-  }, [resetTimer]);
+  }, [resetTimer, clearAllTimers]);
 
   const showWarningRef = useRef(showWarning);
   showWarningRef.current = showWarning;

@@ -1,13 +1,7 @@
 import {
   hasRealSession,
-  registerUserQueryCacheReset,
-  resetAllUserState,
   useAuthStore,
 } from '../authStore';
-import { useOfflineStore } from '../offlineStore';
-import { useRateAlertStore, type RateAlert } from '../rateAlertStore';
-import { useRateLimitStore } from '../rateLimitStore';
-import { useWalletStore } from '../walletStore';
 import type { User } from '../../types';
 
 describe('useAuthStore', () => {

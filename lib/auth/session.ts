@@ -1,6 +1,7 @@
 import type { NextRequest } from 'next/server';
 import type { User, Role } from '@/lib/types';
 import { stripLocalePrefix } from '@/lib/i18n/locales';
+import { isJwtExpiredOrInvalid } from '@/lib/utils/jwt';
 
 /**
  * Single source of truth for BettaPay session cookie contract.

@@ -54,7 +54,10 @@ describe('TransactionDrawer Soroban invocation (#793)', () => {
 
     await waitFor(() => expect(screen.getByText('Contract Invocation')).toBeInTheDocument());
     expect(screen.getByText('transfer')).toBeInTheDocument();
-    expect(global.fetch).toHaveBeenCalledWith('https://horizon-testnet.stellar.org/transactions/hash1');
+    expect(global.fetch).toHaveBeenCalledWith(
+      'https://horizon-testnet.stellar.org/transactions/hash1',
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    );
   });
 
   it('does not show a Contract Invocation section for an ordinary payment', async () => {

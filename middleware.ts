@@ -6,7 +6,6 @@ import {
   supportedLocales,
   defaultLocale,
   LOCALE_COOKIE,
-  extractLocaleFromPathname,
 } from '@/lib/i18n/locales';
 import type { Locale } from '@/lib/i18n/locales';
 import { ROUTES } from '@/lib/navigation/routes';

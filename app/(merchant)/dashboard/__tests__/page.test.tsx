@@ -6,14 +6,17 @@ import DashboardPage from '@/app/(merchant)/dashboard/page';
 
 // Mock the auth store to return a merchant user
 jest.mock('@/lib/store/authStore', () => ({
-  useAuthStore: jest.fn(() => ({
-    user: {
-      id: 'GCCHHKNI7GRA5QWC7RCTT3OHO7SKAUMKQA6IBWEQEO2SXI3GF376UHDD',
-      email: 'merchant@example.com',
-      name: 'Merchant User',
-      role: 'merchant',
-    },
-  })),
+  useAuthStore: Object.assign(
+    jest.fn(() => ({
+      user: {
+        id: 'GCCHHKNI7GRA5QWC7RCTT3OHO7SKAUMKQA6IBWEQEO2SXI3GF376UHDD',
+        email: 'merchant@example.com',
+        name: 'Merchant User',
+        role: 'merchant',
+      },
+    })),
+    { subscribe: jest.fn(() => jest.fn()) },
+  ),
 }));
 
 

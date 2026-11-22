@@ -48,9 +48,18 @@ jobs:
       # accounts). Reads the repo-root .gitleaks.toml. Non-zero exit on leaks.
       - name: Scan for committed secrets
         run: |
-          docker run --rm -v "$PWD:/src" -w /src \
+          mkdir -p "$RUNNER_TEMP/gitleaks"
+          docker run --rm -v "$PWD:/src" -v "$RUNNER_TEMP/gitleaks:/reports" -w /src \
             ghcr.io/gitleaks/gitleaks:v8.30.1 \
-            detect --source /src --redact
+            detect --source /src --redact \
+              --report-format json --report-path /reports/findings.json || scan_status=$?
+
+          if [ "${scan_status:-0}" -ne 0 ]; then
+            echo "Detected finding locations (secret values are redacted):"
+            jq -r '.[] | "- \(.RuleID): \(.File):\(.StartLine) (commit \(.Commit))"' \
+              "$RUNNER_TEMP/gitleaks/findings.json"
+            exit "$scan_status"
+          fi
 
   malware-deps:
     name: osv-malware-scan
