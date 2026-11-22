@@ -358,7 +358,7 @@ export function useSettlementBulkAction() {
       });
       return res.data;
     },
-    onSuccess: async () => {
+    onSettled: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.settlements });
     },
   });
