@@ -17,10 +17,11 @@ import {
   QrCode,
   LogOut,
   CheckCircle2,
+  AlertCircle,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { EmptyState } from "@/components/shared";
 import { useNotify } from "@/lib/hooks/useNotify";
-import { ErrorDisplay } from "@/components/shared";
 import { useAuthStore } from "@/lib/store/authStore";
 import { useWalletStore } from "@/lib/store/walletStore";
 import { getStellarExplorerAccountUrl } from "@/lib/utils/explorer";
@@ -40,6 +41,7 @@ export default function WalletPage() {
   const {
     address: walletAddress,
     isConnected,
+    connector,
     balances,
     isUnfunded,
     loading,
@@ -56,14 +58,17 @@ export default function WalletPage() {
   const [balancesError, setBalancesError] = useState(false);
   const [qrOpen, setQrOpen] = useState(false);
 
-  const address = walletAddress ?? user?.id ?? "";
+  const isWalletLinked = Boolean(walletAddress || isConnected);
+  const address = walletAddress ?? (isConnected ? user?.id : "") ?? "";
   const shortAddress = address ? `${address.substring(0, 8)}...${address.slice(-6)}` : "";
 
   useEffect(() => {
-    if (address) {
-      refreshBalances();
+    if (address && isWalletLinked) {
+      Promise.resolve(refreshBalances()).catch((err) => {
+        notifyError(err instanceof Error ? err.message : "Failed to load balances");
+      });
     }
-  }, [address, refreshBalances]);
+  }, [address, isWalletLinked, refreshBalances, notifyError]);
 
   const handleConnectFreighter = async () => {
     try {
@@ -81,10 +86,54 @@ export default function WalletPage() {
     }
   }, [address, success]);
 
-  const handleRefresh = useCallback(() => {
-    refreshBalances();
-    success("Balances updated");
-  }, [refreshBalances, success]);
+  const handleRefresh = useCallback(async () => {
+    try {
+      await Promise.resolve(refreshBalances());
+      const currentError = useWalletStore.getState().error;
+      if (currentError) {
+        notifyError(currentError);
+      } else {
+        setBalancesError(false);
+        success("Balances updated");
+      }
+    } catch (err) {
+      notifyError(err instanceof Error ? err.message : "Failed to refresh balances");
+    }
+  }, [refreshBalances, success, notifyError]);
+
+  const handleNetworkChange = useCallback(
+    async (nextNetwork: 'testnet' | 'public' | 'futurenet') => {
+      if (nextNetwork === network) return;
+      const prevNetwork = network;
+
+      try {
+        if (isConnected && connector === 'freighter') {
+          const { isFreighterAvailable } = await import('@/lib/stellar/freighter');
+          const available = await isFreighterAvailable();
+          if (!available) {
+            throw new Error(
+              'Freighter wallet is locked or unavailable. Please unlock Freighter to switch networks.'
+            );
+          }
+        }
+
+        setNetwork(nextNetwork);
+        await Promise.resolve(refreshBalances());
+        const currentError = useWalletStore.getState().error;
+        if (currentError) {
+          throw new Error(currentError);
+        }
+        success(
+          `Switched to ${nextNetwork === 'public' ? 'Mainnet' : nextNetwork.charAt(0).toUpperCase() + nextNetwork.slice(1)}`
+        );
+      } catch (err) {
+        setNetwork(prevNetwork);
+        const msg = err instanceof Error ? err.message : 'Network switch failed';
+        notifyError(msg);
+      }
+    },
+    [network, isConnected, connector, setNetwork, refreshBalances, success, notifyError]
+  );
 
   const primaryBalance = useMemo(() => {
     if (balances.length === 0) return null;
@@ -101,27 +150,7 @@ export default function WalletPage() {
     );
   }, [balances]);
 
-  if (balancesError) {
-    return (
-      <div className="space-y-8 pb-8">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-xs font-semibold tracking-widest text-primary uppercase mb-1">Stellar Wallet</p>
-            <h1 className="text-3xl font-bold text-foreground">My Wallet</h1>
-          </div>
-          <Button variant="outline" className="text-xs" onClick={() => setBalancesError(false)}>
-            Reset API
-          </Button>
-        </div>
-        <div className="py-8">
-          <ErrorDisplay
-            message="Failed to load wallet balances"
-            onRetry={() => setBalancesError(false)}
-          />
-        </div>
-      </div>
-    );
-  }
+  const activeBalanceError = error || (balancesError ? "Failed to load wallet balances from Horizon" : null);
 
   return (
     <div className="space-y-8 pb-8">
@@ -138,7 +167,10 @@ export default function WalletPage() {
 
         <div className="flex flex-wrap items-center gap-3">
           {/* Network Switcher */}
-          <Select value={network} onValueChange={(val) => val && setNetwork(val as 'testnet' | 'public' | 'futurenet')}>
+          <Select
+            value={network}
+            onValueChange={(val) => val && handleNetworkChange(val as 'testnet' | 'public' | 'futurenet')}
+          >
             <SelectTrigger className="w-[140px] bg-card border-border">
               <Globe className="w-3.5 h-3.5 mr-2 text-primary" />
               <SelectValue />
@@ -177,6 +209,52 @@ export default function WalletPage() {
           </Button>
         </div>
       </div>
+
+      {/* Horizon Balance Error Retryable Warning Banner */}
+      {activeBalanceError && (
+        <div
+          role="alert"
+          className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-950 dark:text-amber-200"
+        >
+          <div className="flex items-center gap-2.5">
+            <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+            <div>
+              <p className="text-sm font-semibold">Horizon balance refresh failed</p>
+              <p className="text-xs text-amber-900/80 dark:text-amber-300/80 mt-0.5">
+                {activeBalanceError}. Displayed balances may be stale or unavailable.
+              </p>
+            </div>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleRefresh}
+            disabled={loading}
+            className="border-amber-500/40 text-amber-950 dark:text-amber-100 hover:bg-amber-500/20 text-xs self-start sm:self-auto h-8 px-3 font-semibold"
+          >
+            <RefreshCcw className={cn("w-3.5 h-3.5 mr-1.5", loading && "animate-spin")} />
+            Retry
+          </Button>
+        </div>
+      )}
+
+      {/* Explicit Disconnected Prompt when no wallet is linked */}
+      {!isWalletLinked ? (
+        <Card className="border border-dashed border-border bg-card/60 shadow-sm rounded-2xl">
+          <CardContent className="py-12">
+            <EmptyState
+              icon={Wallet}
+              title="No wallet connected"
+              description="Connect your Freighter or Stellar wallet to view balances, receive payouts, and manage your account."
+              action={{
+                label: "Connect Wallet",
+                onClick: handleConnectFreighter,
+              }}
+            />
+          </CardContent>
+        </Card>
+      ) : (
+        <>
 
       {/* Wallet Card */}
       <div className="relative rounded-2xl overflow-hidden bg-foreground p-4 sm:p-6 text-background shadow-xl">
@@ -300,10 +378,6 @@ export default function WalletPage() {
         </div>
       )}
 
-      {/* Error State */}
-      {error && !loading && (
-        <ErrorDisplay message={error} onRetry={handleRefresh} />
-      )}
 
       {/* Empty State */}
       {!loading && !error && balances.length === 0 && address && (
@@ -392,6 +466,8 @@ export default function WalletPage() {
 
       {/* Transaction history — reads the active address from the wallet store */}
       <WalletActivityHistory />
+        </>
+      )}
     </div>
   );
 }
