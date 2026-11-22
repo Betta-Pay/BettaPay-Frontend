@@ -154,6 +154,15 @@ export default function PaymentsPage() {
     });
   }, [links, searchTerm, statusFilter, assetFilter]);
 
+  const hasActiveFilters = searchTerm !== '' || statusFilter !== 'all' || assetFilter !== 'all';
+
+  const resetFilters = () => {
+    setSearchTerm('');
+    setStatusFilter('all');
+    setAssetFilter('all');
+    setCurrentPage(1);
+  };
+
   const totalPages = Math.ceil(filteredLinks.length / pageSize) || 1;
   const paginatedLinks = useMemo(() => {
     const start = (currentPage - 1) * pageSize;
@@ -503,9 +512,10 @@ export default function PaymentsPage() {
       ) : paginatedLinks.length === 0 ? (
         <EmptyState
           icon={Link2}
-          title={searchTerm ? "No payment links match your search" : "No payment links yet"}
-          description={searchTerm ? "Try clearing search or filters to see all links." : "Create your first payment link to start accepting crypto payments from customers."}
+          title={hasActiveFilters ? "No payment links match your filters" : "No payment links yet"}
+          description={hasActiveFilters ? "Try adjusting or clearing your filters to see more results." : "Create your first payment link to start accepting crypto payments from customers."}
           action={{ label: 'New Payment Link', onClick: () => setIsCreateOpen(true) }}
+          secondaryAction={hasActiveFilters ? { label: 'Reset filters', onClick: resetFilters } : undefined}
         />
       ) : (
         <>

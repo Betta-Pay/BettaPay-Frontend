@@ -1,11 +1,12 @@
 import React from 'react';
-import { renderHook, waitFor } from '@testing-library/react';
+import { renderHook, waitFor, act } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import {
   usePayments,
   usePayment,
   useSettlements,
+  useSettlementBulkAction,
   useRates,
   useMerchantBankAccount,
   useMerchantProfile,
@@ -18,10 +19,12 @@ import { apiClient } from '@/lib/api/axios';
 jest.mock('@/lib/api/axios', () => ({
   apiClient: {
     get: jest.fn(),
+    post: jest.fn(),
   },
 }));
 
 const mockedGet = apiClient.get as jest.MockedFunction<typeof apiClient.get>;
+const mockedPost = apiClient.post as jest.MockedFunction<typeof apiClient.post>;
 
 function makeWrapper() {
   const client = new QueryClient({
@@ -44,6 +47,7 @@ const flushPromises = () => new Promise((r) => setTimeout(r, 0));
 
 beforeEach(() => {
   mockedGet.mockReset();
+  mockedPost.mockReset();
 });
 
 describe('usePayments', () => {
@@ -104,6 +108,68 @@ describe('useSettlements', () => {
     await waitFor(() => expect(result.current.isLoading).toBe(false));
     expect(result.current.data).toEqual(data);
     expect(mockedGet).toHaveBeenCalledWith('/api/settlements');
+  });
+});
+
+describe('useSettlementBulkAction', () => {
+  it('invalidates settlement queries on successful mutation', async () => {
+    const response = {
+      summary: { requested: 2, succeeded: 2, failed: 0 },
+      results: [
+        { id: 's1', success: true, status: 'APPROVED', error: null },
+        { id: 's2', success: true, status: 'APPROVED', error: null },
+      ],
+    };
+    mockedPost.mockResolvedValue({ data: response });
+
+    const wrapper = makeWrapper();
+    const { result } = renderHook(() => useSettlementBulkAction(), { wrapper });
+
+    const queryClient = (makeWrapper as unknown as Record<string, unknown>).__cache as InstanceType<typeof QueryClient>;
+    const invalidateSpy = jest.spyOn(queryClient, 'invalidateQueries');
+
+    await act(async () => {
+      await result.current.mutateAsync({
+        action: 'approve',
+        settlementIds: ['s1', 's2'],
+      });
+    });
+
+    expect(mockedPost).toHaveBeenCalledWith('/api/settlements/actions', {
+      action: 'approve',
+      settlementIds: ['s1', 's2'],
+    });
+    expect(result.current.data).toEqual(response);
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.settlements });
+
+    invalidateSpy.mockRestore();
+  });
+
+  it('invalidates settlement queries even when the mutation fails (partial failure)', async () => {
+    mockedPost.mockRejectedValue(new Error('Partial failure: 1 of 2 settlements failed'));
+
+    const wrapper = makeWrapper();
+    const { result } = renderHook(() => useSettlementBulkAction(), { wrapper });
+
+    const queryClient = (makeWrapper as unknown as Record<string, unknown>).__cache as InstanceType<typeof QueryClient>;
+    const invalidateSpy = jest.spyOn(queryClient, 'invalidateQueries');
+
+    await act(async () => {
+      try {
+        await result.current.mutateAsync({
+          action: 'approve',
+          settlementIds: ['s1', 's2'],
+        });
+      } catch {
+        // Expected — partial failure throws an error
+      }
+    });
+
+    // onSettled fires regardless of success or failure, ensuring stale
+    // settlement data is purged from the cache.
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.settlements });
+
+    invalidateSpy.mockRestore();
   });
 });
 
