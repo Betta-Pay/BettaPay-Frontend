@@ -9,6 +9,7 @@ import {
   useSettlementBulkAction,
   useRates,
   useMerchantBankAccount,
+  useUpdateMerchantBankAccount,
   useMerchantProfile,
   useKybMerchants,
   useAdminStats,
@@ -20,11 +21,13 @@ jest.mock('@/lib/api/axios', () => ({
   apiClient: {
     get: jest.fn(),
     post: jest.fn(),
+    put: jest.fn(),
   },
 }));
 
 const mockedGet = apiClient.get as jest.MockedFunction<typeof apiClient.get>;
 const mockedPost = apiClient.post as jest.MockedFunction<typeof apiClient.post>;
+const mockedPut = apiClient.put as jest.MockedFunction<typeof apiClient.put>;
 
 function makeWrapper() {
   const client = new QueryClient({
@@ -48,6 +51,7 @@ const flushPromises = () => new Promise((r) => setTimeout(r, 0));
 beforeEach(() => {
   mockedGet.mockReset();
   mockedPost.mockReset();
+  mockedPut.mockReset();
 });
 
 describe('usePayments', () => {
@@ -139,7 +143,7 @@ describe('useSettlementBulkAction', () => {
       action: 'approve',
       settlementIds: ['s1', 's2'],
     });
-    expect(result.current.data).toEqual(response);
+    await waitFor(() => expect(result.current.data).toEqual(response));
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.settlements });
 
     invalidateSpy.mockRestore();
@@ -347,5 +351,38 @@ describe('queryKeys', () => {
     const withoutUndefined = queryKeys.auditLog({ action: 'LOGIN' });
 
     expect(JSON.stringify(withUndefined)).toBe(JSON.stringify(withoutUndefined));
+  });
+});
+
+describe('useUpdateMerchantBankAccount', () => {
+  it('updates merchant bank account via PUT and invalidates bank-account query', async () => {
+    const accountData = {
+      bankName: 'Zenith Bank',
+      bankCode: '058',
+      accountNumber: '0123456789',
+      accountName: 'Acme Corp',
+    };
+    mockedPut.mockResolvedValue({ data: { data: accountData } });
+
+    const wrapper = makeWrapper();
+    const { result } = renderHook(() => useUpdateMerchantBankAccount('merchant_1'), { wrapper });
+
+    const queryClient = (makeWrapper as unknown as Record<string, unknown>).__cache as InstanceType<typeof QueryClient>;
+    const invalidateSpy = jest.spyOn(queryClient, 'invalidateQueries');
+
+    await act(async () => {
+      const res = await result.current.mutateAsync(accountData);
+      expect(res).toEqual(accountData);
+    });
+
+    expect(mockedPut).toHaveBeenCalledWith(
+      '/api/merchants/merchant_1/bank-account',
+      accountData
+    );
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: ['merchant', 'merchant_1', 'bank-account'],
+    });
+
+    invalidateSpy.mockRestore();
   });
 });

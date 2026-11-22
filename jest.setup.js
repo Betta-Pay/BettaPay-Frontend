@@ -1,16 +1,19 @@
 import '@testing-library/jest-dom';
 
+// Polyfill TextEncoder, TextDecoder, and setImmediate for jsdom environments (common issue with Stellar SDK etc.)
+if (typeof global.TextEncoder === 'undefined' || typeof global.TextDecoder === 'undefined') {
+  const { TextEncoder, TextDecoder } = require('util');
+  global.TextEncoder = TextEncoder;
+  global.TextDecoder = TextDecoder;
+}
+if (typeof global.setImmediate === 'undefined') {
+  global.setImmediate = typeof setImmediate !== 'undefined' ? setImmediate : ((fn, ...args) => setTimeout(fn, 0, ...args));
+}
+
 // jsdom does not expose the Fetch API Request constructor. Next route handlers
 // use the same edge-runtime Request implementation in production.
 if (typeof global.Request === 'undefined') {
   global.Request = require('next/dist/compiled/@edge-runtime/primitives').Request;
-}
-
-// Polyfill TextEncoder and TextDecoder for jsdom environments (common issue with Stellar SDK etc.)
-if (typeof global.TextEncoder === 'undefined') {
-  const { TextEncoder, TextDecoder } = require('util');
-  global.TextEncoder = TextEncoder;
-  global.TextDecoder = TextDecoder;
 }
 
 // jsdom exposes getRandomValues but not SubtleCrypto; use Node's WebCrypto
