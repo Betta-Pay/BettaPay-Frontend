@@ -66,9 +66,20 @@ describe('CSRF token utilities', () => {
 
   describe('getCsrfTokenFromCookie', () => {
     const originalDocument = global.document;
+    let cookie = '';
+
+    beforeEach(() => {
+      cookie = '';
+      Object.defineProperty(global.document, 'cookie', {
+        configurable: true,
+        get: () => cookie,
+        set: (value: string) => { cookie = value; },
+      });
+    });
 
     afterEach(() => {
       global.document = originalDocument;
+      Reflect.deleteProperty(global.document, 'cookie');
     });
 
     it('returns null when document is undefined', () => {
@@ -78,40 +89,24 @@ describe('CSRF token utilities', () => {
     });
 
     it('returns null when cookie is absent', () => {
-      Object.defineProperty(global, 'document', {
-        value: { cookie: 'other_cookie=value' },
-        writable: true,
-        configurable: true,
-      });
+      document.cookie = 'other_cookie=value';
       expect(getCsrfTokenFromCookie()).toBeNull();
     });
 
     it('returns null instead of throwing when given malformed URI-encoded cookie values', () => {
-      Object.defineProperty(global, 'document', {
-        value: { cookie: 'csrf_token=%E0%A4%A; other_cookie=123' },
-        writable: true,
-        configurable: true,
-      });
+      document.cookie = 'csrf_token=%E0%A4%A; other_cookie=123';
       expect(() => getCsrfTokenFromCookie()).not.toThrow();
       expect(getCsrfTokenFromCookie()).toBeNull();
     });
 
     it('returns token when cookie value is a valid 64-char hex string', () => {
       const validToken = 'a'.repeat(64);
-      Object.defineProperty(global, 'document', {
-        value: { cookie: `csrf_token=${validToken}; other=test` },
-        writable: true,
-        configurable: true,
-      });
+      document.cookie = `csrf_token=${validToken}; other=test`;
       expect(getCsrfTokenFromCookie()).toBe(validToken);
     });
 
     it('returns null when token length is not 64 hex characters', () => {
-      Object.defineProperty(global, 'document', {
-        value: { cookie: 'csrf_token=short-token; other=test' },
-        writable: true,
-        configurable: true,
-      });
+      document.cookie = 'csrf_token=short-token; other=test';
       expect(getCsrfTokenFromCookie()).toBeNull();
     });
   });

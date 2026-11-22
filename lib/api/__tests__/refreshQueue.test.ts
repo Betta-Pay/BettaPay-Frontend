@@ -26,8 +26,7 @@ describe('axios token-refresh queue', () => {
     networkFails = false;
     // Require axios fresh in this module registry generation so the SUT (also
     // required below) shares the exact instance we configure the adapter on.
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const axios = require('axios');
+    const axios = jest.requireActual<typeof import('axios')>('axios').default;
 
     const makeResponse = (config: import("axios").InternalAxiosRequestConfig, status: number, data: unknown) => ({
       data,
@@ -79,16 +78,12 @@ describe('axios token-refresh queue', () => {
       return Promise.resolve(makeResponse(config, 200, { value: `real-${url}` }));
     };
 
-    axios.defaults.adapter = adapter;
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    apiClient = require('@/lib/api/axios').apiClient;
+    axios.defaults.adapter = adapter as import('axios').AxiosAdapter;
+    apiClient = jest.requireActual<typeof import('@/lib/api/axios')>('@/lib/api/axios').apiClient;
     // Use the store instance loaded with apiClient after resetModules.
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    offlineStore = require('@/lib/store/offlineStore').useOfflineStore;
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    authStore = require('@/lib/store/authStore').useAuthStore;
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    setAppRouter = require('@/lib/navigation/appRouter').setAppRouter;
+    offlineStore = jest.requireActual<typeof import('@/lib/store/offlineStore')>('@/lib/store/offlineStore').useOfflineStore;
+    authStore = jest.requireActual<typeof import('@/lib/store/authStore')>('@/lib/store/authStore').useAuthStore;
+    setAppRouter = jest.requireActual<typeof import('@/lib/navigation/appRouter')>('@/lib/navigation/appRouter').setAppRouter;
     offlineStore.setState({ isOnline: true, isApiReachable: true });
   });
 
@@ -175,7 +170,7 @@ describe('axios token-refresh queue', () => {
     jest.useFakeTimers();
     networkFails = true;
     global.fetch = jest.fn().mockResolvedValue({ ok: true });
-    const { toast } = require('sonner');
+    const { toast } = jest.requireMock<typeof import('sonner')>('sonner');
     (toast.error as jest.Mock).mockClear();
     const user: User = {
       id: 'merchant-1',

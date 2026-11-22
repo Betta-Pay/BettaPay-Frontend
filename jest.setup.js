@@ -1,5 +1,11 @@
 import '@testing-library/jest-dom';
 
+// jsdom does not expose the Fetch API Request constructor. Next route handlers
+// use the same edge-runtime Request implementation in production.
+if (typeof global.Request === 'undefined') {
+  global.Request = require('next/dist/compiled/@edge-runtime/primitives').Request;
+}
+
 // Polyfill TextEncoder and TextDecoder for jsdom environments (common issue with Stellar SDK etc.)
 if (typeof global.TextEncoder === 'undefined') {
   const { TextEncoder, TextDecoder } = require('util');

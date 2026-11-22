@@ -119,8 +119,8 @@ export function mapRecord(record: HorizonPaymentRecord, address: string): Stella
     assetCode,
     timestamp: formatRelativeTime(record.created_at) || 'Just now',
     formattedDate: formatDate(record.created_at),
-    txHash: record.transaction_hash,
-    counterparty,
+    txHash: record.transaction_hash ?? '',
+    counterparty: counterparty ?? '',
     pagingToken: record.paging_token,
   };
 }

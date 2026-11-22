@@ -13,7 +13,7 @@ export function useSessionCheck() {
   const login = useAuthStore((s) => s.login);
   const logout = useAuthStore((s) => s.logout);
   const router = useRouter();
-  const lastCheckRef = useRef<number>(0);
+  const lastCheckRef = useRef<number | null>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchSession = useCallback(async (signal?: AbortSignal) => {
@@ -57,7 +57,7 @@ export function useSessionCheck() {
   useEffect(() => {
     const onFocus = () => {
       // Throttle to avoid storm on rapid focus
-      if (Date.now() - lastCheckRef.current < 2000) return;
+      if (lastCheckRef.current !== null && Date.now() - lastCheckRef.current < 2000) return;
       lastCheckRef.current = Date.now();
       // Always re-verify when user returns to tab, even if isAuthenticated,
       // so a revoked/rotated session is caught before rendering protected content.

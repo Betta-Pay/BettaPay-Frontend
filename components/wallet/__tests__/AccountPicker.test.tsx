@@ -2,13 +2,12 @@ import React from 'react';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AccountPicker } from '../AccountPicker';
+import { Keypair } from '@stellar/stellar-sdk';
 
-// Valid G... public keys (56 chars, base32 alphabet) — AccountPicker drops anything else.
-const ACCOUNTS = [
-  `GA${'A'.repeat(54)}`,
-  `GB${'B'.repeat(54)}`,
-  `GC${'C'.repeat(54)}`,
-];
+// Generate checksum-valid public keys because the component validates StrKey.
+const ACCOUNTS = [1, 2, 3].map((seed) =>
+  Keypair.fromRawEd25519Seed(Buffer.alloc(32, seed)).publicKey(),
+);
 
 const mockSelectAccount = jest.fn();
 let mockWalletState: {

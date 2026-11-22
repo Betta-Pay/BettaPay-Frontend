@@ -81,6 +81,11 @@ describe('useSessionCheck Hook', () => {
 
     const { unmount } = renderHook(() => useSessionCheck());
 
+    // The hook throttles focus checks that happen immediately after hydration.
+    act(() => {
+      jest.advanceTimersByTime(2001);
+    });
+
     // Trigger focus event to schedule the 5s timer
     act(() => {
       window.dispatchEvent(new Event('focus'));

@@ -10,8 +10,11 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AccountPicker } from '../AccountPicker';
 import { useWalletStore } from '@/lib/store/walletStore';
+import { Keypair } from '@stellar/stellar-sdk';
 
-const ACCOUNTS = [`GA${'A'.repeat(54)}`, `GB${'B'.repeat(54)}`];
+const ACCOUNTS = [1, 2].map((seed) =>
+  Keypair.fromRawEd25519Seed(Buffer.alloc(32, seed)).publicKey(),
+);
 
 const originalFetch = global.fetch;
 

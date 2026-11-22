@@ -411,7 +411,7 @@ export function useMerchantBankAccount(
     queryFn: async () => {
       const res = await apiClient.get<
         ItemEnvelope<MerchantBankAccount> | MerchantBankAccount
-      >(`/api/merchants/${encodeURIComponent(merchantId)}/bank-account`);
+      >(`/api/merchants/${encodeURIComponent(merchantId ?? '')}/bank-account`);
       const payload = res.data;
       if (payload && !Array.isArray(payload) && 'bankName' in payload) {
         return payload as MerchantBankAccount;
@@ -449,7 +449,7 @@ export function useMerchantProfile(
     staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       const res = await apiClient.get<ItemEnvelope<MerchantProfile> | MerchantProfile>(
-        `/api/merchants/${encodeURIComponent(merchantId)}`,
+        `/api/merchants/${encodeURIComponent(merchantId ?? '')}`,
       );
       const payload = res.data;
       if (payload && !Array.isArray(payload) && 'businessName' in payload) {

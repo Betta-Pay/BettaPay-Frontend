@@ -3,7 +3,7 @@ import { persist } from "zustand/middleware";
 import { User } from "../types";
 import { BP_SESSION_KEY } from "@/lib/auth/session";
 import { ROUTES } from "@/lib/navigation/routes";
-import { csrfHeader } from "@/lib/utils/csrf";
+import { csrfHeader, rotateCsrfToken } from "@/lib/utils/csrf";
 
 interface AuthState {
   user: User | null;
