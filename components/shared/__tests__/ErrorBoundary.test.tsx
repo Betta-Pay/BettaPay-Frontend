@@ -1,5 +1,16 @@
 import { render, screen, fireEvent } from '@testing-library/react';
-import { ErrorBoundary } from '@/components/shared/ErrorBoundary';
+import {
+  ErrorBoundary,
+  ErrorBoundaryWithRouter,
+} from '@/components/shared/ErrorBoundary';
+
+// `ErrorBoundaryWithRouter` has to key on `usePathname()`, the only pathname
+// source that re-renders on a client-side navigation. Changing `mockPathname`
+// and rerendering is what the App Router does when the route changes.
+let mockPathname = '/dashboard/overview';
+jest.mock('next/navigation', () => ({
+  usePathname: () => mockPathname,
+}));
 
 // next/link needs no router context in these unit tests; render a plain anchor.
 jest.mock('next/link', () => {
@@ -25,6 +36,7 @@ describe('ErrorBoundary', () => {
 
   beforeEach(() => {
     shouldThrow = true;
+    mockPathname = '/dashboard/overview';
     consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
   });
 
@@ -80,6 +92,40 @@ describe('ErrorBoundary', () => {
     expect(screen.queryByText(/something went wrong/i)).not.toBeInTheDocument();
   });
 
+  describe('pathname', () => {
+    function PathnameHost({ pathname }: { pathname: string }) {
+      return (
+        <ErrorBoundary pathname={pathname}>
+          <MaybeBoom />
+        </ErrorBoundary>
+      );
+    }
+
+    it('clears the error state when the pathname prop changes', () => {
+      const { rerender } = render(<PathnameHost pathname="/dashboard/overview" />);
+      expect(screen.getByText(/something went wrong/i)).toBeInTheDocument();
+
+      // The child stops throwing and the app navigates — the boundary must
+      // recover without the user pressing "Try Again".
+      shouldThrow = false;
+      rerender(<PathnameHost pathname="/settings" />);
+
+      expect(screen.getByText('recovered content')).toBeInTheDocument();
+      expect(screen.queryByText(/something went wrong/i)).not.toBeInTheDocument();
+    });
+
+    it('keeps the fallback while the pathname is unchanged', () => {
+      const { rerender } = render(<PathnameHost pathname="/dashboard/overview" />);
+      expect(screen.getByText(/something went wrong/i)).toBeInTheDocument();
+
+      rerender(<PathnameHost pathname="/dashboard/overview" />);
+
+      // Same pathname → no reset, so the still-throwing child keeps showing
+      // the fallback. Without this the case above would pass vacuously.
+      expect(screen.getByText(/something went wrong/i)).toBeInTheDocument();
+    });
+  });
+
   describe('resetKey', () => {
     function ResetHost({ resetKey }: { resetKey: string | number }) {
       return (
@@ -111,5 +157,53 @@ describe('ErrorBoundary', () => {
       // boundary had reset the render would throw again and fail this test.
       expect(screen.getByText(/something went wrong/i)).toBeInTheDocument();
     });
+  });
+});
+
+describe('ErrorBoundaryWithRouter (#1133)', () => {
+  let consoleErrorSpy: jest.SpyInstance;
+
+  beforeEach(() => {
+    shouldThrow = true;
+    mockPathname = '/dashboard/overview';
+    consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    consoleErrorSpy.mockRestore();
+  });
+
+  function Host() {
+    return (
+      <ErrorBoundaryWithRouter>
+        <MaybeBoom />
+      </ErrorBoundaryWithRouter>
+    );
+  }
+
+  it('resets automatically when the route changes', () => {
+    const { rerender } = render(<Host />);
+    expect(screen.getByText(/something went wrong/i)).toBeInTheDocument();
+
+    // Navigating: usePathname() returns a new value, the wrapper re-renders.
+    shouldThrow = false;
+    mockPathname = '/settings';
+    rerender(<Host />);
+
+    expect(screen.getByText('recovered content')).toBeInTheDocument();
+    expect(screen.queryByText(/something went wrong/i)).not.toBeInTheDocument();
+  });
+
+  it('does not reset while the route stays put', () => {
+    const { rerender } = render(<Host />);
+    expect(screen.getByText(/something went wrong/i)).toBeInTheDocument();
+
+    shouldThrow = false;
+    rerender(<Host />);
+
+    // Reading the route from a hook is what makes the first case reset; a
+    // non-reactive source would look identical here, so this pins the
+    // "only on navigation" half of the behaviour.
+    expect(screen.getByText(/something went wrong/i)).toBeInTheDocument();
   });
 });
