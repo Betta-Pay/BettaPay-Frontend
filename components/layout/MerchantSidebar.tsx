@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { merchantNavItems } from "@/lib/navigation/merchantNav";
+import { stripLocalePrefix } from "@/lib/i18n/locales";
 import { ROUTES } from "@/lib/navigation/routes";
 import { useAuthStore } from "@/lib/store/authStore";
 import Image from "next/image";
@@ -37,7 +38,8 @@ const KYB_STATUS_LABEL: Record<string, { label: string; color: string }> = {
 };
 
 export const MerchantSidebar = () => {
-  const pathname = usePathname();
+  const rawPathname = usePathname();
+  const pathname = stripLocalePrefix(rawPathname ?? "");
   const user = useAuthStore((s) => s.user);
   const isLoggedIn = useAuthStore((s) => s.isLoggedIn);
 
@@ -45,7 +47,8 @@ export const MerchantSidebar = () => {
   const initials = businessName ? getInitials(businessName) : "MC";
   const displayName = businessName || "Merchant Corp";
   const kyb = KYB_STATUS_LABEL[user?.kybStatus ?? "none"] ?? KYB_STATUS_LABEL.none;
-  const showVerified = user?.kybStatus === "approved" || !isLoggedIn;
+  const isVerified = user?.kybStatus === "approved";
+  const showVerified = Boolean(isLoggedIn && isVerified);
 
   const [collapsed, setCollapsed] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -168,7 +171,7 @@ export const MerchantSidebar = () => {
           {merchantNavItems.map((item) => {
             const isActive =
               pathname === item.href ||
-              (pathname ?? "").startsWith(item.href + "/");
+              pathname.startsWith(item.href + "/");
             const Icon = item.icon as unknown as React.ComponentType<{
               className?: string;
             }>;

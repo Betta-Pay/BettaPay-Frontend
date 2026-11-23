@@ -28,7 +28,9 @@ const STATUS_LABEL: Record<AlertStatus, string> = {
 };
 
 function formatTime(iso: string): string {
-  return new Date(iso).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "Unknown";
+  return d.toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 }
 
 function AlertRow({

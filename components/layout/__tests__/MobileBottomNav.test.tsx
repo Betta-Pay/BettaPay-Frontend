@@ -121,4 +121,15 @@ describe("MobileBottomNav i18n (#752)", () => {
 
     expect(onMoreClick).toHaveBeenCalledTimes(1);
   });
+
+  it("highlights active nav item correctly on /en/dashboard and /fr/payments (issue #1131)", () => {
+    mockPathname = "/en/dashboard";
+    const { unmount } = render(<MobileBottomNav />);
+    expect(screen.getByRole("link", { name: "Dashboard" })).toHaveAttribute("aria-current", "page");
+    unmount();
+
+    mockPathname = "/fr/payments";
+    render(<MobileBottomNav />);
+    expect(screen.getByRole("link", { name: "Payments" })).toHaveAttribute("aria-current", "page");
+  });
 });

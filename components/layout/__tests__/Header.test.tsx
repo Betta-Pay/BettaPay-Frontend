@@ -1,7 +1,10 @@
 import React from "react";
 import { renderToString } from "react-dom/server";
+import { render, screen, fireEvent } from "@testing-library/react";
 import Header from "../Header";
 import { HeaderAuthProvider } from "../HeaderAuthContext";
+
+const validToken = `${Buffer.from('{"alg":"HS256","typ":"JWT"}').toString("base64url")}.${Buffer.from(JSON.stringify({ exp: Math.floor(Date.now() / 1000) + 3600 })).toString("base64url")}.c2lnbmF0dXJl`;
 
 jest.mock("next/image", () => ({
   __esModule: true,
@@ -55,7 +58,7 @@ describe("Header auth state (issue #712)", () => {
   });
 
   it("server-renders the dashboard link for a signed-in merchant, with no logged-out links", () => {
-    cookieJar.set("auth_token", "tok");
+    cookieJar.set("auth_token", validToken);
     cookieJar.set("user_role", "merchant");
     const html = ssr();
     expect(html).toContain('href="/dashboard"');
@@ -65,7 +68,7 @@ describe("Header auth state (issue #712)", () => {
   });
 
   it("sends admins to /overview", () => {
-    cookieJar.set("auth_token", "tok");
+    cookieJar.set("auth_token", validToken);
     cookieJar.set("user_role", "admin");
     expect(ssr()).toContain('href="/overview"');
   });
@@ -78,7 +81,7 @@ describe("Header auth state (issue #712)", () => {
   it("server-renders the dashboard link on /payment-links (auth-only route using the public Header)", () => {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const PaymentLinksLayout = require("@/app/payment-links/layout").default as typeof MarketingLayout;
-    cookieJar.set("auth_token", "tok");
+    cookieJar.set("auth_token", validToken);
     const html = renderToString(PaymentLinksLayout({ children: <Header /> }));
     expect(html).toContain('href="/dashboard"');
     expect(html).not.toContain("/auth/login");
@@ -96,5 +99,33 @@ describe("Header auth state (issue #712)", () => {
       </HeaderAuthProvider>,
     );
     expect(html).toContain('href="/dashboard"');
+  });
+
+  it("links to /#features from the marketing navigation (issue #1130)", () => {
+    const html = ssr();
+    expect(html).toContain('href="/#features"');
+  });
+
+  it("toggles mobile navigation drawer with hamburger button and Escape key (issue #1130)", () => {
+    render(<Header />);
+    const menuButton = screen.getByRole("button", { name: /toggle navigation menu/i });
+    expect(menuButton).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByRole("navigation", { name: "Mobile navigation" })).not.toBeInTheDocument();
+
+    // Open drawer
+    fireEvent.click(menuButton);
+    expect(menuButton).toHaveAttribute("aria-expanded", "true");
+    const mobileNav = screen.getByRole("navigation", { name: "Mobile navigation" });
+    expect(mobileNav).toBeInTheDocument();
+
+    // Features link in mobile drawer
+    const featuresLink = screen.getAllByRole("link", { name: "navigation.features" });
+    expect(featuresLink.length).toBeGreaterThanOrEqual(1);
+    expect(featuresLink[0]).toHaveAttribute("href", "/#features");
+
+    // Close with Escape key
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(menuButton).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByRole("navigation", { name: "Mobile navigation" })).not.toBeInTheDocument();
   });
 });

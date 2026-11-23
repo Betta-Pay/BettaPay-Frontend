@@ -51,7 +51,8 @@ export const Topbar = ({
   unreadNotificationCount = 0,
   alertUnreadCount = 0,
 }: TopbarProps) => {
-  const { user, logout } = useAuthStore();
+  const { user, role, logout } = useAuthStore();
+  const isAdmin = (role ?? user?.role) === "admin";
   const notify = useNotify();
   const router = useRouter();
 
@@ -121,17 +122,19 @@ export const Topbar = ({
       </div>
 
       <div className="flex items-center gap-2 sm:gap-3 flex-1 justify-end">
-        {/* Global Quick Action: Create Payment Link */}
-        <Button
-          onClick={() => router.push("/payments?create=true")}
-          size="sm"
-          className="bg-primary hover:bg-primary-hover text-primary-foreground font-semibold h-9 px-3 text-xs rounded-xl shadow-button transition-transform active:scale-95 flex items-center gap-1.5"
-          aria-label="Create payment link"
-        >
-          <Plus className="w-3.5 h-3.5 stroke-[2.5]" aria-hidden="true" />
-          <span className="hidden sm:inline">Create Link</span>
-          <span className="sm:hidden">Link</span>
-        </Button>
+        {/* Global Quick Action: Create Payment Link (Merchants only) */}
+        {!isAdmin && (
+          <Button
+            onClick={() => router.push("/payments?create=true")}
+            size="sm"
+            className="bg-primary hover:bg-primary-hover text-primary-foreground font-semibold h-9 px-3 text-xs rounded-xl shadow-button transition-transform active:scale-95 flex items-center gap-1.5"
+            aria-label="Create payment link"
+          >
+            <Plus className="w-3.5 h-3.5 stroke-[2.5]" aria-hidden="true" />
+            <span className="hidden sm:inline">Create Link</span>
+            <span className="sm:hidden">Link</span>
+          </Button>
+        )}
 
         {/* Command palette launcher (issue #459) — ⌘K also opens it globally */}
         <button
