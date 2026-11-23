@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useCallback, useState, memo } from "react";
+import { useRef, useCallback, useState, useEffect, memo } from "react";
 import { QRCodeCanvas, QRCodeSVG } from "qrcode.react";
 import { Button } from "@/components/ui";
 import {
@@ -43,13 +43,28 @@ export const QRCode = memo(function QRCode({
 }: QRCodeProps) {
   const notify = useNotify();
   const [copied, setCopied] = useState(false);
+  const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (copyTimeoutRef.current) {
+        clearTimeout(copyTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const handleCopyLink = useCallback(async () => {
     try {
       await navigator.clipboard.writeText(value);
+      if (copyTimeoutRef.current) {
+        clearTimeout(copyTimeoutRef.current);
+      }
       setCopied(true);
       notify.success("Payment link copied to clipboard");
-      window.setTimeout(() => setCopied(false), 2000);
+      copyTimeoutRef.current = setTimeout(() => {
+        setCopied(false);
+        copyTimeoutRef.current = null;
+      }, 2000);
     } catch {
       notify.error("Failed to copy link");
     }
@@ -136,6 +151,15 @@ export function QRCodeModal({
   const containerRef = useRef<HTMLDivElement>(null);
   const notify = useNotify();
   const [copied, setCopied] = useState(false);
+  const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (copyTimeoutRef.current) {
+        clearTimeout(copyTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Helper to trigger high-res PNG download
   const handleDownloadPNG = useCallback(() => {
@@ -213,9 +237,15 @@ export function QRCodeModal({
   const handleCopyLink = useCallback(async () => {
     try {
       await navigator.clipboard.writeText(value);
+      if (copyTimeoutRef.current) {
+        clearTimeout(copyTimeoutRef.current);
+      }
       setCopied(true);
       notify.success("Payment link copied to clipboard");
-      setTimeout(() => setCopied(false), 2000);
+      copyTimeoutRef.current = setTimeout(() => {
+        setCopied(false);
+        copyTimeoutRef.current = null;
+      }, 2000);
     } catch {
       notify.error("Failed to copy link");
     }

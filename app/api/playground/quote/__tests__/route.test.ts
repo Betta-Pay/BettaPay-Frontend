@@ -78,6 +78,9 @@ describe('GET /api/playground/quote', () => {
     ['unknown asset', 'from=DOGE&to=NGN&amount=5'],
     ['same pair', 'from=USDC&to=USDC&amount=5'],
     ['zero amount', 'from=USDC&to=NGN&amount=0'],
+    ['negative amount', 'from=USDC&to=NGN&amount=-10'],
+    ['alpha amount', 'from=USDC&to=NGN&amount=abc'],
+    ['NaN amount', 'from=USDC&to=NGN&amount=NaN'],
     ['huge amount', 'from=USDC&to=NGN&amount=999999'],
     ['non-numeric amount', 'from=USDC&to=NGN&amount=1e3'],
     ['unknown op', 'op=drop'],
@@ -86,6 +89,25 @@ describe('GET /api/playground/quote', () => {
     global.fetch = fetchMock as unknown as typeof fetch;
     const res = await call(qs, '198.51.100.6');
     expect(res.status).toBe(400);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('returns HTTP 400 with a clear validation message for invalid amounts', async () => {
+    const fetchMock = jest.fn();
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const resNeg = await call('from=USDC&to=NGN&amount=-10', '198.51.100.8');
+    expect(resNeg.status).toBe(400);
+    const bodyNeg = await resNeg.json();
+    expect(bodyNeg.ok).toBe(false);
+    expect(bodyNeg.error).toContain('amount');
+
+    const resAlpha = await call('from=USDC&to=NGN&amount=abc', '198.51.100.8');
+    expect(resAlpha.status).toBe(400);
+    const bodyAlpha = await resAlpha.json();
+    expect(bodyAlpha.ok).toBe(false);
+    expect(bodyAlpha.error).toContain('amount');
+
     expect(fetchMock).not.toHaveBeenCalled();
   });
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Copy, Check } from 'lucide-react';
 import { truncateAddress } from '@/lib/utils/format';
 import { Button } from '@/components/ui/button';
@@ -27,6 +27,15 @@ export const CopyAddress = ({
   truncate = true,
 }: CopyAddressProps) => {
   const [copied, setCopied] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+      }
+    };
+  }, []);
 
   const handleCopy = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -59,9 +68,16 @@ export const CopyAddress = ({
         throw new Error('Clipboard copy was not confirmed');
       }
 
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+      }
+
       setCopied(true);
       toast.success('Address copied to clipboard');
-      setTimeout(() => setCopied(false), 2000);
+      timerRef.current = setTimeout(() => {
+        setCopied(false);
+        timerRef.current = null;
+      }, 2000);
     } catch (err) {
       console.error(err);
       toast.error('Failed to copy address');

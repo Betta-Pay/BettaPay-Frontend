@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { createHmac, timingSafeEqual } from "crypto";
 
 // Storage for status-page subscriptions.
 //
@@ -11,10 +12,37 @@ import { z } from "zod";
 // reimplementing `addSubscriber` / `findSubscriber` / `listSubscribers`; the
 // route and the form do not need to change.
 
+const STATUS_TOKEN_SECRET =
+  process.env.STATUS_TOKEN_SECRET ||
+  process.env.AUTH_SECRET ||
+  process.env.NEXTAUTH_SECRET ||
+  "bettapay-status-subscriber-secret";
+
+/** Generate a signed status / unsubscribe token for an email address. */
+export function generateSubscriberToken(email: string): string {
+  const normalized = email.trim().toLowerCase();
+  return createHmac("sha256", STATUS_TOKEN_SECRET)
+    .update(`status-subscriber:${normalized}`)
+    .digest("hex");
+}
+
+/** Verify a signed status / unsubscribe token for an email address. */
+export function verifySubscriberToken(email: string, token: string): boolean {
+  if (!token || typeof token !== "string") return false;
+  const expected = generateSubscriberToken(email);
+  if (token.length !== expected.length) return false;
+  try {
+    return timingSafeEqual(Buffer.from(token), Buffer.from(expected));
+  } catch {
+    return false;
+  }
+}
+
 export interface StatusSubscriber {
   id: string;
   /** Normalized (trimmed, lower-cased) address — this is the dedupe key. */
   email: string;
+  token?: string;
   createdAt: string;
 }
 
@@ -79,6 +107,7 @@ export function addSubscriber(email: string): SubscribeResult {
   const subscriber: StatusSubscriber = {
     id: `sub_${Math.random().toString(36).slice(2, 10)}${Date.now().toString(36)}`,
     email,
+    token: generateSubscriberToken(email),
     createdAt: new Date().toISOString(),
   };
 

@@ -60,6 +60,14 @@ describe('utils/format', () => {
       expect(formatCurrency(2e15, 'NGN')).toBe('₦2.00Q');
     });
 
+    it('preserves the currency code when abbreviating non-NGN amounts (issue #1157)', () => {
+      expect(formatCurrency(1_500_000_000_000, 'XLM')).toBe('XLM 1.50T');
+      expect(formatCurrency(1_500_000_000_000, 'EURC')).toBe('EURC 1.50T');
+      expect(formatCurrency(1_500_000_000_000, 'USDC')).toBe('USDC 1.50T');
+      // NGN keeps the ₦ symbol rather than a code prefix.
+      expect(formatCurrency(2e15, 'NGN')).toBe('₦2.00Q');
+    });
+
     it('accepts an options object with an explicit locale', () => {
       const value = new Intl.NumberFormat('fr-FR', {
         minimumFractionDigits: 2,

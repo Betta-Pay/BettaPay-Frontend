@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import {
@@ -51,6 +51,7 @@ import {
   Globe,
   Activity,
   BarChart3,
+  Check,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDate, formatCurrency } from "@/lib/utils/format";
@@ -271,10 +272,37 @@ export default function PaymentLinkDetailPage() {
     ? Math.round((linkDetails.uniquePayers / linkDetails.clicks) * 100)
     : 0;
 
-  const handleCopyLink = useCallback(() => {
+  const [copied, setCopied] = useState(false);
+  const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (copyTimeoutRef.current) {
+        clearTimeout(copyTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const handleCopyLink = useCallback(async () => {
     if (!linkDetails) return;
-    navigator.clipboard.writeText(linkDetails.url);
-    notify.success("Link copied to clipboard");
+    try {
+      if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(linkDetails.url);
+      } else {
+        throw new Error("Clipboard API not available");
+      }
+      if (copyTimeoutRef.current) {
+        clearTimeout(copyTimeoutRef.current);
+      }
+      setCopied(true);
+      notify.success("Link copied to clipboard");
+      copyTimeoutRef.current = setTimeout(() => {
+        setCopied(false);
+        copyTimeoutRef.current = null;
+      }, 2000);
+    } catch {
+      notify.error("Failed to copy link");
+    }
   }, [linkDetails, notify]);
 
   const handleToggleActive = useCallback(() => {
@@ -555,7 +583,7 @@ export default function PaymentLinkDetailPage() {
                   className="shrink-0"
                   aria-label="Copy link"
                 >
-                  <Copy className="w-4 h-4" />
+                  {copied ? <Check className="w-4 h-4 text-success" /> : <Copy className="w-4 h-4" />}
                 </Button>
               </div>
             </div>

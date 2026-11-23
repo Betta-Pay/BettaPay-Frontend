@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 import DevelopersPage from "../page";
 import { apiClient } from "@/lib/api/axios";
 
@@ -158,5 +158,50 @@ describe("DevelopersPage - API Key Creation (#321)", () => {
     await waitFor(() => {
       expect(mockNotifyError).toHaveBeenCalledWith("Internal Server Error");
     });
+  });
+
+  it("copies API key to clipboard with timeout cleanup and error handling", async () => {
+    jest.useFakeTimers();
+    const mockWriteText = jest.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", {
+      value: { writeText: mockWriteText },
+      writable: true,
+      configurable: true,
+    });
+
+    const { unmount } = render(<DevelopersPage />);
+
+    const copyButtons = screen.getAllByRole("button", { name: "Copy API key" });
+    expect(copyButtons.length).toBeGreaterThan(0);
+
+    await act(async () => {
+      fireEvent.click(copyButtons[0]);
+    });
+
+    expect(mockWriteText).toHaveBeenCalledWith("bp_live_...a4f9");
+    expect(mockNotifySuccess).toHaveBeenCalledWith("Copied to clipboard");
+
+    // Advance 2000ms
+    act(() => {
+      jest.advanceTimersByTime(2000);
+    });
+
+    // Test rejection
+    mockWriteText.mockRejectedValueOnce(new Error("clipboard denied"));
+    await act(async () => {
+      fireEvent.click(copyButtons[0]);
+    });
+
+    expect(mockNotifyError).toHaveBeenCalledWith("Failed to copy to clipboard");
+
+    // Unmount clears timeout
+    expect(() => {
+      unmount();
+      act(() => {
+        jest.advanceTimersByTime(3000);
+      });
+    }).not.toThrow();
+
+    jest.useRealTimers();
   });
 });
