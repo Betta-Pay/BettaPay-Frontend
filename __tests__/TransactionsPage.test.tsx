@@ -393,3 +393,30 @@ describe("TransactionsPage — existing functionality", () => {
     expect(screen.getByText("GCY...8R2")).toBeInTheDocument();
   });
 });
+
+describe("TransactionsPage — table responsiveness and accessibility", () => {
+  beforeEach(() => {
+    mockIsOnline.mockReturnValue(true);
+  });
+
+  it("wraps the desktop table in an overflow-x scroll container", () => {
+    renderPage();
+    const container = screen.getByTestId("transactions-table-scroll-container");
+    expect(container).toBeInTheDocument();
+    expect(container).toHaveClass("overflow-x-auto");
+  });
+
+  it("sets scope='col' on all table header cells", () => {
+    renderPage();
+    const headers = screen.getAllByRole("columnheader");
+    expect(headers.length).toBeGreaterThan(0);
+    headers.forEach((th) => {
+      expect(th).toHaveAttribute("scope", "col");
+    });
+  });
+
+  it("includes accessible labels on search and filter inputs", () => {
+    renderPage();
+    expect(screen.getByLabelText("Search transactions")).toBeInTheDocument();
+  });
+});

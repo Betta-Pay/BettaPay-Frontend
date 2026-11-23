@@ -457,6 +457,7 @@ export default function TransactionsPage() {
                 <Input
                   type="search"
                   placeholder="Search by hash, address, or label..."
+                  aria-label="Search transactions"
                   className="w-full pl-9 bg-background/50 border-border/50 focus-visible:ring-ring"
                   value={searchTerm}
                   onChange={(e) => sanitizedOnChange(e.target.value)}
@@ -465,7 +466,7 @@ export default function TransactionsPage() {
 
               <div className="flex flex-wrap items-center gap-2">
                 <Select value={statusFilter} onValueChange={(val) => val && setStatusFilter(val)}>
-                  <SelectTrigger className="w-[120px] bg-card border-border/50">
+                  <SelectTrigger className="w-[120px] bg-card border-border/50" aria-label="Filter by transaction status">
                     <SelectValue placeholder="Status" />
                   </SelectTrigger>
                   <SelectContent>
@@ -479,7 +480,7 @@ export default function TransactionsPage() {
                 </Select>
 
                 <Select value={assetFilter} onValueChange={(val) => val && setAssetFilter(val)}>
-                  <SelectTrigger className="w-[120px] bg-card border-border/50">
+                  <SelectTrigger className="w-[120px] bg-card border-border/50" aria-label="Filter by asset">
                     <SelectValue placeholder="Asset" />
                   </SelectTrigger>
                   <SelectContent>
@@ -490,7 +491,7 @@ export default function TransactionsPage() {
                 </Select>
 
                 <Select value={dateRangeFilter} onValueChange={(val) => val && setDateRangeFilter(val)}>
-                  <SelectTrigger className="w-[130px] bg-card border-border/50">
+                  <SelectTrigger className="w-[130px] bg-card border-border/50" aria-label="Filter by date range">
                     <SelectValue placeholder="Date" />
                   </SelectTrigger>
                   <SelectContent>
@@ -505,6 +506,7 @@ export default function TransactionsPage() {
                     variant="ghost"
                     className="text-muted-foreground hover:text-foreground"
                     onClick={handleClearFilters}
+                    aria-label="Clear all filters"
                   >
                     Clear all filters
                   </Button>
@@ -525,6 +527,7 @@ export default function TransactionsPage() {
                   variant="outline"
                   className="border-border/50 bg-card"
                   onClick={() => setTxError(!txError)}
+                  aria-label={txError ? "Reset API simulation" : "Simulate API error"}
                 >
                   {txError ? "Reset API" : "Simulate Error"}
                 </Button>
@@ -568,79 +571,84 @@ export default function TransactionsPage() {
                     />
                   ) : (
                     <div className="rounded-md border border-border/50 overflow-hidden hidden md:block">
-                      <table className="w-full border-collapse table-fixed">
-                        <thead className="bg-muted/50 sticky top-0 z-10">
-                          {table.getHeaderGroups().map((headerGroup) => (
-                            <tr key={headerGroup.id} className="border-border/50">
-                              {headerGroup.headers.map((header) => {
-                                const canSort = header.column.getCanSort();
-                                const sorted = header.column.getIsSorted();
-                                const alignRight = header.id === 'amountUsdc' || header.id === 'amountNgn';
-                                const alignCenter = header.id === 'status' || header.id === 'explorer';
-                                return (
-                                  <th
-                                    key={header.id}
-                                    aria-sort={
-                                      sorted === 'asc'
-                                        ? 'ascending'
-                                        : sorted === 'desc'
-                                          ? 'descending'
-                                          : 'none'
-                                    }
-                                    data-sorted={sorted || 'none'}
-                                    className={cn(
-                                      'px-4 py-2 text-sm font-medium',
-                                      header.id === 'createdAt' && 'w-[180px]',
-                                      header.id === 'explorer' && 'w-[80px]',
-                                      alignRight && 'text-right',
-                                      alignCenter && 'text-center',
-                                      !alignRight && !alignCenter && 'text-left',
-                                    )}
-                                  >
-                                    {canSort ? (
-                                      <button
-                                        type="button"
-                                        className="inline-flex items-center min-h-[44px]"
-                                        onClick={header.column.getToggleSortingHandler()}
-                                        aria-label={`Sort by ${String(header.column.columnDef.header)}`}
-                                        data-testid={`sort-${header.id}`}
-                                      >
-                                        {flexRender(header.column.columnDef.header, header.getContext())}
-                                        <SortIcon direction={sorted} />
-                                      </button>
-                                    ) : (
-                                      flexRender(header.column.columnDef.header, header.getContext())
-                                    )}
-                                  </th>
-                                );
-                              })}
-                            </tr>
-                          ))}
-                        </thead>
-                      </table>
-                      <div
-                        ref={tableContainerRef}
-                        className="h-[600px] overflow-y-auto border-t border-border/50"
-                        data-testid="transactions-virtual-list"
-                      >
-                        <div style={{ height: `${totalSize}px`, position: 'relative' }}>
+                      <div className="overflow-x-auto" data-testid="transactions-table-scroll-container">
+                        <div className="min-w-[800px]">
                           <table className="w-full border-collapse table-fixed">
-                            <tbody>
-                              {virtualItems.map((virtualItem) => {
-                                const row = sortedRows[virtualItem.index];
-                                const tx = row.original;
-                                return (
-                                  <TransactionRow
-                                    key={row.id}
-                                    tx={tx}
-                                    translateY={virtualItem.start}
-                                    selected={selectedTxId === tx.id}
-                                    onClick={handleSelectTx}
-                                  />
-                                );
-                              })}
-                            </tbody>
+                            <thead className="bg-muted/50 sticky top-0 z-10">
+                              {table.getHeaderGroups().map((headerGroup) => (
+                                <tr key={headerGroup.id} className="border-border/50">
+                                  {headerGroup.headers.map((header) => {
+                                    const canSort = header.column.getCanSort();
+                                    const sorted = header.column.getIsSorted();
+                                    const alignRight = header.id === 'amountUsdc' || header.id === 'amountNgn';
+                                    const alignCenter = header.id === 'status' || header.id === 'explorer';
+                                    return (
+                                      <th
+                                        key={header.id}
+                                        scope="col"
+                                        aria-sort={
+                                          sorted === 'asc'
+                                            ? 'ascending'
+                                            : sorted === 'desc'
+                                              ? 'descending'
+                                              : 'none'
+                                        }
+                                        data-sorted={sorted || 'none'}
+                                        className={cn(
+                                          'px-4 py-2 text-sm font-medium',
+                                          header.id === 'createdAt' && 'w-[180px]',
+                                          header.id === 'explorer' && 'w-[80px]',
+                                          alignRight && 'text-right',
+                                          alignCenter && 'text-center',
+                                          !alignRight && !alignCenter && 'text-left',
+                                        )}
+                                      >
+                                        {canSort ? (
+                                          <button
+                                            type="button"
+                                            className="inline-flex items-center min-h-[44px]"
+                                            onClick={header.column.getToggleSortingHandler()}
+                                            aria-label={`Sort by ${String(header.column.columnDef.header)}`}
+                                            data-testid={`sort-${header.id}`}
+                                          >
+                                            {flexRender(header.column.columnDef.header, header.getContext())}
+                                            <SortIcon direction={sorted} />
+                                          </button>
+                                        ) : (
+                                          flexRender(header.column.columnDef.header, header.getContext())
+                                        )}
+                                      </th>
+                                    );
+                                  })}
+                                </tr>
+                              ))}
+                            </thead>
                           </table>
+                          <div
+                            ref={tableContainerRef}
+                            className="h-[600px] overflow-y-auto border-t border-border/50"
+                            data-testid="transactions-virtual-list"
+                          >
+                            <div style={{ height: `${totalSize}px`, position: 'relative' }}>
+                              <table className="w-full border-collapse table-fixed">
+                                <tbody>
+                                  {virtualItems.map((virtualItem) => {
+                                    const row = sortedRows[virtualItem.index];
+                                    const tx = row.original;
+                                    return (
+                                      <TransactionRow
+                                        key={row.id}
+                                        tx={tx}
+                                        translateY={virtualItem.start}
+                                        selected={selectedTxId === tx.id}
+                                        onClick={handleSelectTx}
+                                      />
+                                    );
+                                  })}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </div>
