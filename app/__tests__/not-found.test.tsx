@@ -33,6 +33,8 @@ jest.mock("next/image", () => ({
   default: () => <span data-testid="brand-logo" />,
 }));
 
+const validToken = `${Buffer.from('{"alg":"HS256","typ":"JWT"}').toString("base64url")}.${Buffer.from(JSON.stringify({ exp: Math.floor(Date.now() / 1000) + 3600 })).toString("base64url")}.c2lnbmF0dXJl`;
+
 function renderNotFound() {
   return renderToString(<NotFound />);
 }
@@ -53,7 +55,7 @@ describe("Not found recovery journey (issue #735)", () => {
   });
 
   it("returns merchants to their dashboard", () => {
-    mockCookieJar.set("auth_token", "merchant-token");
+    mockCookieJar.set("auth_token", validToken);
     mockCookieJar.set("user_role", "merchant");
 
     const html = renderNotFound();
@@ -65,7 +67,7 @@ describe("Not found recovery journey (issue #735)", () => {
   });
 
   it("returns administrators to the overview", () => {
-    mockCookieJar.set("auth_token", "admin-token");
+    mockCookieJar.set("auth_token", validToken);
     mockCookieJar.set("user_role", "admin");
 
     const html = renderNotFound();

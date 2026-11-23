@@ -10,11 +10,11 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AccountPicker } from '../AccountPicker';
 import { useWalletStore } from '@/lib/store/walletStore';
-import { Keypair } from '@stellar/stellar-sdk';
 
-const ACCOUNTS = [1, 2].map((seed) =>
-  Keypair.fromRawEd25519Seed(Buffer.alloc(32, seed)).publicKey(),
-);
+const ACCOUNTS = [
+  'GCFIRY65OQE7DFP5KLNS2PF2LVZMUZYJX4OZIEQ36N2IQANUB5XVYOJR',
+  'GBXHUHG5FGYLPD6RHL2MKWMP572O6KUXCZXDZJXS4T57ZTMAKBN7DWXN',
+];
 
 const originalFetch = global.fetch;
 

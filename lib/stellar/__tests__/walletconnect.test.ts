@@ -1020,7 +1020,7 @@ async function drivePairing(
     method: 'wc_sessionSettle',
     params: {
       namespaces: {
-        stellar: { accounts: options?.settleAccounts ?? [`stellar:testnet:G${'A'.repeat(55)}`] },
+        stellar: { accounts: options?.settleAccounts ?? [`stellar:testnet:G${'A'.repeat(52)}WHF`] },
       },
       controller: {
         metadata: { name: 'Test Wallet', description: '', url: '', icons: [] },

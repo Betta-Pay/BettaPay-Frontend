@@ -1,6 +1,7 @@
 import {
   countSubscribers,
   findSubscriber,
+  generateSubscriberToken,
   listSubscribers,
   resetSubscribers,
 } from '@/lib/status/subscribers';
@@ -131,15 +132,17 @@ describe('GET /api/status/subscribe', () => {
   });
 
   it('confirms whether one address is subscribed', async () => {
-    await POST(makeRequest({ email: 'ops@acme.com' }));
+    const postRes = await POST(makeRequest({ email: 'ops@acme.com' }));
+    const { token } = (await postRes.json()) as { token: string };
 
     const hit = await GET(
-      makeRequest(null, 'http://localhost/api/status/subscribe?email=OPS@acme.com'),
+      makeRequest(null, `http://localhost/api/status/subscribe?email=OPS@acme.com&token=${token}`),
     );
     expect((await hit.json()).subscribed).toBe(true);
 
+    const nobodyToken = generateSubscriberToken('nobody@acme.com');
     const miss = await GET(
-      makeRequest(null, 'http://localhost/api/status/subscribe?email=nobody@acme.com'),
+      makeRequest(null, `http://localhost/api/status/subscribe?email=nobody@acme.com&token=${nobodyToken}`),
     );
     expect((await miss.json()).subscribed).toBe(false);
   });

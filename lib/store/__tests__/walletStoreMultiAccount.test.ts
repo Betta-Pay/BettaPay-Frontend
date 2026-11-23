@@ -1,11 +1,10 @@
 import { useWalletStore } from '../walletStore';
 import type { WalletConnectSession } from '@/lib/stellar/walletconnect';
 import { createMockFreighterStore } from '../__mocks__/freighterProvider';
-import { Keypair } from '@stellar/stellar-sdk';
 
-const firstAddress = Keypair.fromRawEd25519Seed(Buffer.alloc(32, 1)).publicKey();
-const secondAddress = Keypair.fromRawEd25519Seed(Buffer.alloc(32, 2)).publicKey();
-const unpresentedAddress = Keypair.fromRawEd25519Seed(Buffer.alloc(32, 3)).publicKey();
+const firstAddress = 'GCFIRY65OQE7DFP5KLNS2PF2LVZMUZYJX4OZIEQ36N2IQANUB5XVYOJR';
+const secondAddress = 'GCATS5YOVB6ROX2WUNKGNQ2MP3GMXDMKSG2O4N5CLX3A6W4PZGZZI55U';
+const unpresentedAddress = 'GDWUSKGGFDI4FRXK5EBTRECZSVQSSWJHHJOGH6JWG3AUMFFMQ435DIAG';
 const originalRefreshBalances = useWalletStore.getState().refreshBalances;
 
 const mockWalletConnectClient = {

@@ -104,20 +104,17 @@ describe('api base URL resolution', () => {
       expect(getApiBaseUrl()).toBe('/api/v1');
       expect(getApiBaseUrl().endsWith('/')).toBe(false);
     } finally {
-      process.env.NEXT_PUBLIC_API_URL = originalEnv;
+      if (originalEnv === undefined) {
+        delete process.env.NEXT_PUBLIC_API_URL;
+      } else {
+        process.env.NEXT_PUBLIC_API_URL = originalEnv;
+      }
     }
   });
 
   it('handles SSR fallback consistently when window is undefined', () => {
-    const originalWindow = global.window;
-    try {
-      // @ts-expect-error simulate SSR
-      delete global.window;
-      expect(getApiBaseUrl().endsWith('/')).toBe(false);
-      expect(getApiBaseUrl()).toBe('http://localhost:3001');
-    } finally {
-      global.window = originalWindow;
-    }
+    expect(getApiBaseUrl().endsWith('/')).toBe(false);
+    expect(getApiBaseUrl()).toBe('http://localhost:3001');
   });
 
   it('reads a runtime global when no override is set', async () => {
