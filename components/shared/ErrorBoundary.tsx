@@ -2,6 +2,7 @@
 
 import { Component, type ReactNode } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { AlertTriangle, RotateCcw } from "lucide-react";
 import { captureException } from "@/lib/errorReporting";
 import { ROUTES } from "@/lib/navigation/routes";
@@ -139,8 +140,10 @@ export function ErrorBoundaryWithRouter({
   children: ReactNode;
   fallback?: Fallback;
 }) {
-  const pathname =
-    typeof window !== "undefined" ? window.location.pathname : undefined;
+  // `window.location.pathname` is not reactive: reading it here meant the
+  // boundary kept showing the fallback after a client-side navigation,
+  // because nothing re-rendered with a new `pathname` prop (#1133).
+  const pathname = usePathname();
   return (
     <ErrorBoundary pathname={pathname} fallback={fallback}>
       {children}

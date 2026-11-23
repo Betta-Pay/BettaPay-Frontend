@@ -23,17 +23,6 @@ export interface FxRatePoint {
   secondaryRate?: number | null;
 }
 
-/** 7 days of USDC/NGN rates — used when the caller does not supply live data. */
-const fxHistory: FxRatePoint[] = [
-  { date: "Jan 7", rate: 1480 },
-  { date: "Jan 8", rate: 1495 },
-  { date: "Jan 9", rate: 1510 },
-  { date: "Jan 10", rate: 1505 },
-  { date: "Jan 11", rate: 1520 },
-  { date: "Jan 12", rate: 1545 },
-  { date: "Jan 13", rate: 1550 },
-];
-
 export interface FxTooltipProps {
   active?: boolean;
   payload?: { value: number; name?: string; dataKey?: string }[];
@@ -66,7 +55,7 @@ interface FxRateChartProps {
   height?: number;
   pairLabel?: string;
   currency?: string;
-  /** Live rate history. Falls back to 7 days of mock USDC/NGN data when omitted. Aligns with useRates primary semantics (USDC/NGN). */
+  /** Live rate history. When omitted or empty the chart renders an unavailable state. */
   data?: FxRatePoint[];
   /** Set when the caller's rate fetch failed — renders an in-chart error state. */
   error?: string | Error | null;
@@ -94,11 +83,9 @@ export default function FxRateChart({
     return () => mq.removeEventListener("change", handler);
   }, []);
 
-  // Align with useRates: primary is USDC/NGN (rate). Fallback to mock history when data is undefined,
-  // mirroring the hook's fallback to null primaryRate — the chart shows mock USDC/NGN history as a demo,
-  // but live data, when supplied, is expected to be USDC/NGN for primary consistency.
-  const chartData = useMemo(() => (data && data.length > 0 ? data : fxHistory), [data]);
-  const hasError = Boolean(error) || (data !== undefined && data.length === 0);
+  // Live history only: no series is fabricated when the caller has nothing to show.
+  const chartData = useMemo(() => data ?? [], [data]);
+  const hasError = Boolean(error);
 
   // Guard each series: only render a series if it has at least one populated point.
   // This prevents ghost series / legend duplication when secondary asset is absent.
@@ -139,7 +126,7 @@ export default function FxRateChart({
         className="w-full flex items-center justify-center border border-dashed border-border rounded-xl bg-muted/20"
         style={{ height }}
       >
-        <p className="text-sm text-muted-foreground">No rate data available</p>
+        <p className="text-sm text-muted-foreground">No rate history available</p>
       </div>
     );
   }

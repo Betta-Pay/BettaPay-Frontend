@@ -15,16 +15,22 @@ import { Input } from "@/components/ui/input";
 import { useWalletStore, WalletState } from "@/lib/store/walletStore";
 import { CurrencyDisplay } from "@/components/shared";
 import { CurrencySelector } from "@/components/payments/CurrencySelector";
-import * as Icons from "lucide-react";
-
-// Safe icon renderer in case unit test suite mocks lucide-react with a subset
-function IconWrapper({ name, className, ...props }: { name: string; className?: string; [k: string]: unknown }) {
-  const Comp = (Icons as unknown as Record<string, React.ComponentType<{ className?: string }>>)[name];
-  if (!Comp) {
-    return <span className={cn("inline-block", className)} aria-hidden="true" />;
-  }
-  return <Comp className={className} {...props} />;
-}
+import {
+  AlertTriangle,
+  ArrowRight,
+  Building,
+  Check,
+  CheckCircle2,
+  Clock,
+  Copy,
+  CreditCard,
+  ExternalLink,
+  Info,
+  RefreshCw,
+  ShieldCheck,
+  Smartphone,
+  Wallet,
+} from "lucide-react";
 import { useNotify } from "@/lib/hooks/useNotify";
 import Image from "next/image";
 import {
@@ -84,6 +90,40 @@ function resolveErrorReason(error: unknown): InvalidLinkReason {
   return "error";
 }
 
+/** Seconds a fetched FX rate stays locked before the payer must re-quote. */
+const RATE_LOCK_SECONDS = 60;
+
+/** Shape of `/api/rates`, kept local because the page reads one field of it. */
+interface RatesPayload {
+  rates?: { from: string; to: string; rate: number }[];
+  usdcNgn?: number;
+}
+
+/**
+ * USDC→NGN rate from the `/api/rates` payload, using the same precedence as
+ * `useRates().primaryRate` (aggregate field first, then the pair row). Returns
+ * null for anything unusable so callers can show "rate unavailable" instead of
+ * silently falling back to a made-up number.
+ */
+function readUsdcNgnRate(payload: unknown): number | null {
+  if (!payload || typeof payload !== "object") return null;
+  const { rates, usdcNgn } = payload as RatesPayload;
+  const pairRate = Array.isArray(rates)
+    ? rates.find((row) => row?.from === "USDC" && row?.to === "NGN")?.rate
+    : undefined;
+  for (const candidate of [usdcNgn, pairRate]) {
+    if (typeof candidate === "number" && Number.isFinite(candidate) && candidate > 0) {
+      return candidate;
+    }
+  }
+  return null;
+}
+
+/** ₦ figure derived from a live quote, or an explicit "unavailable" label. */
+function ngnFigure(ngn: number | null): string {
+  return ngn === null ? "NGN estimate unavailable" : `≈ ₦${ngn.toLocaleString()} NGN`;
+}
+
 type PaymentTab = "extension" | "mobile" | "fiat";
 type TxState = "idle" | "validating" | "awaiting_sig" | "consensus" | "settled";
 
@@ -120,9 +160,13 @@ export default function PaymentLinkPage() {
   const [resolveAttempt, setResolveAttempt] = useState(0);
 
   // ── Rate Lock Countdown State ──────────────────────────────────────────────
-  const [rateCountdown, setRateCountdown] = useState(60);
+  const [rateCountdown, setRateCountdown] = useState(RATE_LOCK_SECONDS);
   const [isRateExpired, setIsRateExpired] = useState(false);
   const [isRefreshingRate, setIsRefreshingRate] = useState(false);
+  // Live USDC→NGN rate from `/api/rates`; null means "no quote yet", which the
+  // UI must show rather than a hardcoded estimate.
+  const [fxRate, setFxRate] = useState<number | null>(null);
+  const [quoteError, setQuoteError] = useState<string | null>(null);
 
   // ── Payment Methods & UI State ─────────────────────────────────────────────
   const [step, setStep] = useState<"details" | "review">("details");
@@ -160,9 +204,9 @@ export default function PaymentLinkPage() {
     }
   }, []);
 
-  // 60-second guaranteed rate countdown timer
+  // Guaranteed-rate countdown: only runs while a real quote is held.
   useEffect(() => {
-    if (linkStatus !== "ready" || isRateExpired) return;
+    if (linkStatus !== "ready" || fxRate === null || isRateExpired) return;
 
     const interval = setInterval(() => {
       setRateCountdown((prev) => {
@@ -176,17 +220,52 @@ export default function PaymentLinkPage() {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [linkStatus, isRateExpired, resolveAttempt]);
+  }, [linkStatus, fxRate, isRateExpired, resolveAttempt]);
+
+  // Pull the live USDC→NGN rate from the backend. Resolving to `false` leaves
+  // the countdown stopped and the quote explicitly unavailable.
+  const refreshQuote = useCallback(async (): Promise<boolean> => {
+    setIsRefreshingRate(true);
+    try {
+      const response = await apiClient.get<RatesPayload>("/api/rates");
+      const rate = readUsdcNgnRate(response?.data);
+      if (rate === null) {
+        setFxRate(null);
+        setQuoteError("The FX feed returned no usable USDC/NGN rate.");
+        setIsRateExpired(true);
+        return false;
+      }
+      setFxRate(rate);
+      setQuoteError(null);
+      setRateCountdown(RATE_LOCK_SECONDS);
+      setIsRateExpired(false);
+      return true;
+    } catch (err) {
+      setFxRate(null);
+      setQuoteError(parseApiError(err).message);
+      setIsRateExpired(true);
+      return false;
+    } finally {
+      setIsRefreshingRate(false);
+    }
+  }, []);
 
   const handleRefreshQuote = useCallback(() => {
-    setIsRefreshingRate(true);
-    setTimeout(() => {
-      setRateCountdown(60);
-      setIsRateExpired(false);
-      setIsRefreshingRate(false);
-      notifyInfo("FX quote refreshed & locked for 60 seconds.");
-    }, 600);
-  }, [notifyInfo]);
+    void refreshQuote().then((locked) => {
+      if (locked) {
+        notifyInfo(`FX quote refreshed & locked for ${RATE_LOCK_SECONDS} seconds.`);
+      } else {
+        notifyError("Could not refresh the FX quote. Please try again.");
+      }
+    });
+  }, [notifyError, notifyInfo, refreshQuote]);
+
+  // The rate shown on a checkout must come from the backend, so quote it as
+  // soon as the link resolves (and again on every retry).
+  useEffect(() => {
+    if (linkStatus !== "ready") return;
+    void refreshQuote();
+  }, [linkStatus, resolveAttempt, refreshQuote]);
 
   useEffect(() => {
     let cancelled = false;
@@ -233,14 +312,18 @@ export default function PaymentLinkPage() {
     setTimeout(() => setCopiedField(null), 2000);
   };
 
-  // Sep-0007 URI for mobile wallets
+  // Sep-0007 URI for mobile wallets. A missing merchant address must not be
+  // papered over with a placeholder: the resulting QR would send funds to an
+  // address that does not exist, so the URI is simply not generated.
+  const merchantAddress = MERCHANT_ADDRESS?.trim() ?? "";
   const sep0007Uri = useMemo(() => {
-    const dest = encodeURIComponent(MERCHANT_ADDRESS || "GMERCHANT");
+    if (!merchantAddress) return null;
+    const dest = encodeURIComponent(merchantAddress);
     const amt = encodeURIComponent(amount || "0");
     const safeCurr = encodeURIComponent(activeCurrency || "USDC");
     const safeMemo = encodeURIComponent(paymentRefId.replace(/[^a-zA-Z0-9_-]/g, "") || "");
     return `web+stellar:pay?destination=${dest}&amount=${amt}&asset_code=${safeCurr}&memo=${safeMemo}&memo_type=text`;
-  }, [amount, activeCurrency, paymentRefId]);
+  }, [merchantAddress, amount, activeCurrency, paymentRefId]);
 
   const handleContinue = () => {
     if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
@@ -256,6 +339,13 @@ export default function PaymentLinkPage() {
   const handlePay = async () => {
     if (isRateExpired) {
       notifyError("Rate quote expired. Please refresh the quote before signing.");
+      return;
+    }
+
+    // Fail before touching the wallet: a payment with no destination cannot be
+    // built, and the placeholder address used to stand in for one.
+    if (!merchantAddress) {
+      notifyError("This merchant has no Stellar destination address configured.");
       return;
     }
 
@@ -299,10 +389,6 @@ export default function PaymentLinkPage() {
       const account = await server.getAccount(payerAddress);
 
       const contractId = SETTLEMENT_CONTRACT_ID;
-      const merchantAddress = MERCHANT_ADDRESS;
-      if (!merchantAddress) {
-        throw new Error("NEXT_PUBLIC_MERCHANT_ADDRESS is not set");
-      }
 
       const assetConfig =
         MULTI_CURRENCY_ASSETS[activeCurrency] ?? MULTI_CURRENCY_ASSETS.USDC;
@@ -408,7 +494,9 @@ export default function PaymentLinkPage() {
   const link = linkData as PaymentLink;
   const isFixed = link.type === "fixed";
   const displayAmount = isFixed ? link.fixedAmount : Number(amount) || 0;
-  const approxNgn = displayAmount * 1580; // Live estimated FX rate
+  // Derived from the fetched quote only. `null` is shown as "rate unavailable"
+  // rather than guessed at (issue #1125).
+  const approxNgn = fxRate === null ? null : displayAmount * fxRate;
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center p-3 sm:p-6 text-foreground">
@@ -449,7 +537,7 @@ export default function PaymentLinkPage() {
                     className="inline-flex items-center text-emerald-600 dark:text-emerald-400"
                     title="Verified Non-Custodial Merchant"
                   >
-                    <IconWrapper name="ShieldCheck" className="w-4 h-4 fill-emerald-500/10" />
+                    <ShieldCheck className="w-4 h-4 fill-emerald-500/10" />
                   </span>
                 </div>
                 <p className="text-xs text-muted-foreground truncate font-sans">
@@ -472,12 +560,14 @@ export default function PaymentLinkPage() {
           <div className="mt-4 pt-3.5 border-t border-border/60">
             <div className="flex items-center justify-between text-xs mb-1.5">
               <span className="text-muted-foreground flex items-center gap-1 font-medium">
-                <IconWrapper name="Clock" className="w-3.5 h-3.5 text-primary" />
+                <Clock className="w-3.5 h-3.5 text-primary" />
                 <span>Guaranteed FX Rate Lock</span>
               </span>
               <div className="flex items-center gap-2">
                 <span className="font-mono font-semibold text-xs tabular-nums">
-                  1 {activeCurrency} ≈ ₦1,580 NGN
+                  {fxRate === null
+                    ? "NGN rate unavailable"
+                    : `1 ${activeCurrency} ≈ ₦${fxRate.toLocaleString()} NGN`}
                 </span>
                 <span
                   className={cn(
@@ -507,15 +597,17 @@ export default function PaymentLinkPage() {
                     ? "bg-amber-500"
                     : "bg-primary"
                 )}
-                style={{ width: `${(rateCountdown / 60) * 100}%` }}
+                style={{ width: `${(rateCountdown / RATE_LOCK_SECONDS) * 100}%` }}
               />
             </div>
 
             {isRateExpired && (
               <div className="mt-2.5 flex items-center justify-between bg-destructive/5 border border-destructive/20 rounded-xl p-2.5 text-xs">
                 <span className="text-destructive font-medium flex items-center gap-1.5">
-                  <IconWrapper name="AlertTriangle" className="w-3.5 h-3.5 flex-shrink-0" />
-                  Rate lock expired. Refresh quote to proceed.
+                  <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
+                  {quoteError
+                    ? `${quoteError} Refresh the quote to proceed.`
+                    : "Rate lock expired. Refresh quote to proceed."}
                 </span>
                 <Button
                   size="sm"
@@ -524,8 +616,7 @@ export default function PaymentLinkPage() {
                   disabled={isRefreshingRate}
                   className="h-7 text-xs px-2.5 border-destructive/30 text-destructive hover:bg-destructive/10"
                 >
-                  <IconWrapper
-                    name="RefreshCw"
+                  <RefreshCw
                     className={cn(
                       "w-3 h-3 mr-1",
                       isRefreshingRate && "animate-spin"
@@ -556,7 +647,7 @@ export default function PaymentLinkPage() {
                       {displayAmount} {activeCurrency}
                     </div>
                     <p className="text-sm font-medium text-muted-foreground mt-1 tabular-nums">
-                      ≈ ₦{approxNgn.toLocaleString()} NGN
+                      {ngnFigure(approxNgn)}
                     </p>
                   </div>
                 </div>
@@ -574,7 +665,7 @@ export default function PaymentLinkPage() {
                     )}
                     aria-pressed={activeTab === "extension"}
                   >
-                    <IconWrapper name="Wallet" className="w-3.5 h-3.5 flex-shrink-0 text-primary" />
+                    <Wallet className="w-3.5 h-3.5 flex-shrink-0 text-primary" />
                     <span className="truncate">Browser Extension</span>
                   </button>
 
@@ -589,7 +680,7 @@ export default function PaymentLinkPage() {
                     )}
                     aria-pressed={activeTab === "mobile"}
                   >
-                    <IconWrapper name="Smartphone" className="w-3.5 h-3.5 flex-shrink-0 text-primary" />
+                    <Smartphone className="w-3.5 h-3.5 flex-shrink-0 text-primary" />
                     <span className="truncate">Mobile / QR</span>
                   </button>
 
@@ -604,7 +695,7 @@ export default function PaymentLinkPage() {
                     )}
                     aria-pressed={activeTab === "fiat"}
                   >
-                    <IconWrapper name="CreditCard" className="w-3.5 h-3.5 flex-shrink-0 text-primary" />
+                    <CreditCard className="w-3.5 h-3.5 flex-shrink-0 text-primary" />
                     <span className="truncate">Card / Bank</span>
                   </button>
                 </div>
@@ -628,7 +719,7 @@ export default function PaymentLinkPage() {
                         />
                       </div>
                       <p className="text-sm font-medium text-muted-foreground mt-1 tabular-nums">
-                        ≈ ₦{approxNgn.toLocaleString()} NGN
+                        {ngnFigure(approxNgn)}
                       </p>
                     </div>
                   ) : (
@@ -655,7 +746,7 @@ export default function PaymentLinkPage() {
                       )}
                       {amount && Number(amount) > 0 && (
                         <p className="text-xs text-muted-foreground text-center tabular-nums">
-                          ≈ ₦{(Number(amount) * 1580).toLocaleString()} NGN
+                          {ngnFigure(approxNgn)}
                         </p>
                       )}
                     </div>
@@ -697,11 +788,11 @@ export default function PaymentLinkPage() {
                     <span className="text-muted-foreground">Extension Status</span>
                     {hasExtension ? (
                       <span className="inline-flex items-center gap-1 font-semibold text-emerald-600 dark:text-emerald-400">
-                        <IconWrapper name="CheckCircle2" className="w-3.5 h-3.5" /> Freighter Detected
+                        <CheckCircle2 className="w-3.5 h-3.5" /> Freighter Detected
                       </span>
                     ) : (
                       <span className="inline-flex items-center gap-1 font-semibold text-amber-600 dark:text-amber-400">
-                        <IconWrapper name="Info" className="w-3.5 h-3.5" /> Extension Not Detected
+                        <Info className="w-3.5 h-3.5" /> Extension Not Detected
                       </span>
                     )}
                   </div>
@@ -739,7 +830,7 @@ export default function PaymentLinkPage() {
                           >
                             <div className="flex items-center justify-center w-5 h-5 rounded-full flex-shrink-0">
                               {isDone ? (
-                                <IconWrapper name="CheckCircle2" className="w-5 h-5 text-emerald-500" />
+                                <CheckCircle2 className="w-5 h-5 text-emerald-500" />
                               ) : isCurrent ? (
                                 <div className="w-4 h-4 rounded-full border-2 border-primary border-t-transparent animate-spin" />
                               ) : (
@@ -774,7 +865,7 @@ export default function PaymentLinkPage() {
                 {txErrorMessage && (
                   <div className="p-3.5 rounded-xl border border-destructive/30 bg-destructive/5 text-xs space-y-2">
                     <div className="flex items-start gap-2">
-                      <IconWrapper name="AlertTriangle" className="w-4 h-4 text-destructive flex-shrink-0 mt-0.5" />
+                      <AlertTriangle className="w-4 h-4 text-destructive flex-shrink-0 mt-0.5" />
                       <div className="flex-1 min-w-0">
                         <p className="font-semibold text-destructive">
                           Payment halted
@@ -793,7 +884,7 @@ export default function PaymentLinkPage() {
                       }}
                       className="w-full text-xs font-semibold h-8"
                     >
-                      <IconWrapper name="RefreshCw" className="w-3.5 h-3.5 mr-1.5" /> Retry Payment
+                      <RefreshCw className="w-3.5 h-3.5 mr-1.5" /> Retry Payment
                     </Button>
                   </div>
                 )}
@@ -803,19 +894,39 @@ export default function PaymentLinkPage() {
             {/* TAB 2: MOBILE WALLET (SEP-0007 / QR) */}
             {activeTab === "mobile" && (
               <div className="space-y-4">
-                <div className="flex flex-col items-center justify-center p-4 bg-muted/30 rounded-xl border border-border/60">
-                  <div className="p-3 bg-white rounded-xl shadow-xs border border-border/40">
-                    <QRCodeCanvas
-                      value={sep0007Uri}
-                      size={180}
-                      level="Q"
-                      includeMargin={false}
-                    />
+                {sep0007Uri === null ? (
+                  <div
+                    role="alert"
+                    className="flex items-start gap-2 p-4 rounded-xl border border-destructive/30 bg-destructive/5 text-xs"
+                  >
+                    <AlertTriangle className="w-4 h-4 text-destructive flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-semibold text-destructive">
+                        No merchant Stellar address is configured
+                      </p>
+                      <p className="text-muted-foreground mt-0.5">
+                        Without NEXT_PUBLIC_MERCHANT_ADDRESS there is no valid
+                        destination, so no QR code or payment deep link is
+                        generated. Use the Browser Extension tab, or contact the
+                        merchant to publish their address.
+                      </p>
+                    </div>
                   </div>
-                  <p className="text-xs text-muted-foreground text-center mt-3 font-medium">
-                    Scan with Lobstr, Vibrant, or any Stellar SEP-0007 compliant mobile wallet
-                  </p>
-                </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center p-4 bg-muted/30 rounded-xl border border-border/60">
+                    <div className="p-3 bg-white rounded-xl shadow-xs border border-border/40">
+                      <QRCodeCanvas
+                        value={sep0007Uri}
+                        size={180}
+                        level="Q"
+                        includeMargin={false}
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground text-center mt-3 font-medium">
+                      Scan with Lobstr, Vibrant, or any Stellar SEP-0007 compliant mobile wallet
+                    </p>
+                  </div>
+                )}
 
                 {/* Split Action: Copy Address + Memo */}
                 <div className="grid grid-cols-2 gap-2 text-xs">
@@ -825,22 +936,22 @@ export default function PaymentLinkPage() {
                     </span>
                     <div className="flex items-center justify-between">
                       <span className="font-mono truncate font-semibold text-xs">
-                        {(MERCHANT_ADDRESS || "GMERCHANT").slice(0, 6)}...
-                        {(MERCHANT_ADDRESS || "GMERCHANT").slice(-4)}
+                        {merchantAddress
+                          ? `${merchantAddress.slice(0, 6)}...${merchantAddress.slice(-4)}`
+                          : "Not configured"}
                       </span>
                       <Button
                         size="icon"
                         variant="ghost"
-                        onClick={() =>
-                          handleCopy(MERCHANT_ADDRESS || "GMERCHANT", "Merchant Address")
-                        }
+                        onClick={() => handleCopy(merchantAddress, "Merchant Address")}
+                        disabled={!merchantAddress}
                         className="h-7 w-7 text-muted-foreground hover:text-foreground"
                         aria-label="Copy Merchant Address"
                       >
                         {copiedField === "Merchant Address" ? (
-                          <IconWrapper name="Check" className="w-3.5 h-3.5 text-success" />
+                          <Check className="w-3.5 h-3.5 text-success" />
                         ) : (
-                          <IconWrapper name="Copy" className="w-3.5 h-3.5" />
+                          <Copy className="w-3.5 h-3.5" />
                         )}
                       </Button>
                     </div>
@@ -862,9 +973,9 @@ export default function PaymentLinkPage() {
                         aria-label="Copy Payment Memo"
                       >
                         {copiedField === "Memo" ? (
-                          <IconWrapper name="Check" className="w-3.5 h-3.5 text-success" />
+                          <Check className="w-3.5 h-3.5 text-success" />
                         ) : (
-                          <IconWrapper name="Copy" className="w-3.5 h-3.5" />
+                          <Copy className="w-3.5 h-3.5" />
                         )}
                       </Button>
                     </div>
@@ -873,19 +984,29 @@ export default function PaymentLinkPage() {
 
                 {/* Mobile Deep Link Launchers */}
                 <div className="flex items-center gap-2">
-                  <a
-                    href={sep0007Uri}
-                    className="flex-1"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
+                  {sep0007Uri === null ? (
                     <Button
                       variant="outline"
+                      disabled
                       className="w-full text-xs font-semibold h-10 rounded-xl border-border"
                     >
-                      <IconWrapper name="Smartphone" className="w-3.5 h-3.5 mr-1.5" /> Open in Lobstr / Vibrant
+                      <Smartphone className="w-3.5 h-3.5 mr-1.5" /> Open in Lobstr / Vibrant
                     </Button>
-                  </a>
+                  ) : (
+                    <a
+                      href={sep0007Uri}
+                      className="flex-1"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <Button
+                        variant="outline"
+                        className="w-full text-xs font-semibold h-10 rounded-xl border-border"
+                      >
+                        <Smartphone className="w-3.5 h-3.5 mr-1.5" /> Open in Lobstr / Vibrant
+                      </Button>
+                    </a>
+                  )}
                 </div>
               </div>
             )}
@@ -896,7 +1017,7 @@ export default function PaymentLinkPage() {
                 <div className="p-4 rounded-xl border border-border/60 bg-muted/30 space-y-3">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary flex-shrink-0">
-                      <IconWrapper name="Building" className="w-5 h-5" />
+                      <Building className="w-5 h-5" />
                     </div>
                     <div>
                       <h3 className="text-sm font-bold text-foreground">
@@ -912,7 +1033,7 @@ export default function PaymentLinkPage() {
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Expected NGN Total:</span>
                       <span className="font-bold font-mono text-sm text-foreground">
-                        ₦{approxNgn.toLocaleString()} NGN
+                        {approxNgn === null ? "Rate unavailable" : `₦${approxNgn.toLocaleString()} NGN`}
                       </span>
                     </div>
                     <div className="flex justify-between">
@@ -925,25 +1046,37 @@ export default function PaymentLinkPage() {
                     </div>
                   </div>
 
-                  <a
-                    href={`https://checkout.cowry.exchange?ref=${encodeURIComponent(
-                      paymentRefId.replace(/[^a-zA-Z0-9_-]/g, "")
-                    )}&amount=${encodeURIComponent(String(Math.max(0, approxNgn)))}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="block w-full"
-                    onClick={() => {
-                      notifyInfo("Redirecting to secure Anchor card/bank checkout...");
-                    }}
-                  >
+                  {/* The anchor needs an NGN amount, so it is only offered while
+                      a live quote is held. */}
+                  {approxNgn === null ? (
                     <Button
                       type="button"
-                      className="w-full bg-primary hover:bg-primary-hover text-primary-foreground font-semibold h-11 rounded-xl text-xs flex items-center justify-center gap-1.5"
+                      disabled
+                      className="w-full bg-primary/60 text-primary-foreground font-semibold h-11 rounded-xl text-xs flex items-center justify-center gap-1.5"
                     >
-                      <IconWrapper name="CreditCard" className="w-4 h-4 mr-1" /> Pay ₦{approxNgn.toLocaleString()} with Card / Bank
-                      <IconWrapper name="ExternalLink" className="w-3.5 h-3.5 ml-1" />
+                      <CreditCard className="w-4 h-4 mr-1" /> Pay with Card / Bank
                     </Button>
-                  </a>
+                  ) : (
+                    <a
+                      href={`https://checkout.cowry.exchange?ref=${encodeURIComponent(
+                        paymentRefId.replace(/[^a-zA-Z0-9_-]/g, "")
+                      )}&amount=${encodeURIComponent(String(Math.max(0, approxNgn)))}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block w-full"
+                      onClick={() => {
+                        notifyInfo("Redirecting to secure Anchor card/bank checkout...");
+                      }}
+                    >
+                      <Button
+                        type="button"
+                        className="w-full bg-primary hover:bg-primary-hover text-primary-foreground font-semibold h-11 rounded-xl text-xs flex items-center justify-center gap-1.5"
+                      >
+                        <CreditCard className="w-4 h-4 mr-1" /> Pay ₦{approxNgn.toLocaleString()} with Card / Bank
+                        <ExternalLink className="w-3.5 h-3.5 ml-1" />
+                      </Button>
+                    </a>
+                  )}
                 </div>
               </div>
             )}
@@ -963,7 +1096,7 @@ export default function PaymentLinkPage() {
                   ? `Pay ${displayAmount} ${activeCurrency}`
                   : "Connect Wallet to Pay"}
                 {txState === "idle" && (
-                  <IconWrapper name="ArrowRight" className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+                  <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
                 )}
               </Button>
             )}
@@ -989,7 +1122,7 @@ export default function PaymentLinkPage() {
             </span>
             <span>&middot;</span>
             <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-medium">
-              <IconWrapper name="ShieldCheck" className="w-3.5 h-3.5" /> Non-Custodial Protocol
+              <ShieldCheck className="w-3.5 h-3.5" /> Non-Custodial Protocol
             </span>
           </div>
           <p className="text-[11px] text-muted-foreground/80">
