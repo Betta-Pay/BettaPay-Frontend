@@ -22,6 +22,7 @@ import { getErrorMessage } from '@/lib/utils/apiError';
 import type { MerchantProfileFormValues } from '@/lib/utils/validation';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui';
+import { validateWebhookUrl } from '@/lib/webhooks/validateUrl';
 
 const tabs = [
   { id: 'profile', label: 'Profile', icon: User },
@@ -41,18 +42,10 @@ const notificationOptions = [
 ];
 
 function webhookUrlError(value: string): string | null {
-  try {
-    const url = new URL(value);
-    const isDevelopmentLocalhost =
-      process.env.NODE_ENV === 'development' &&
-      (url.hostname === 'localhost' || url.hostname === '127.0.0.1');
-    if (url.protocol !== 'https:' && !(isDevelopmentLocalhost && url.protocol === 'http:')) {
-      return 'Webhook URL must use HTTPS (HTTP is allowed for localhost in development).';
-    }
-    return null;
-  } catch {
-    return 'Enter a valid webhook URL.';
-  }
+  const result = validateWebhookUrl(value, {
+    allowPrivate: process.env.NODE_ENV === 'development',
+  });
+  return result.valid ? null : (result.reason ?? 'Invalid webhook URL');
 }
 
 export default function SettingsPage() {
@@ -582,6 +575,10 @@ export default function SettingsPage() {
                     className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-xl h-10 px-6"
                     disabled={Boolean(webhookUrlValidationError)}
                     onClick={async () => {
+                      if (webhookUrlValidationError) {
+                        notify.error(webhookUrlValidationError);
+                        return;
+                      }
                       try {
                         await apiClient.patch('/api/merchants/webhook', { url: webhookUrl });
                         notify.success('Webhook URL saved');

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import {
   Card,
   CardContent,
@@ -26,6 +26,8 @@ import {
   CalendarClock,
   SlidersHorizontal,
   ShieldCheck,
+  Edit2,
+  Loader2,
 } from "lucide-react";
 import { getStellarExplorerTxUrl } from "@/lib/utils/explorer";
 import { useWalletStore } from "@/lib/store/walletStore";
@@ -40,7 +42,18 @@ import {
 import {
   useSettlements,
   useMerchantBankAccount,
+  useUpdateMerchantBankAccount,
 } from "@/lib/api/hooks";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useNotify } from "@/lib/hooks/useNotify";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
@@ -58,10 +71,114 @@ export default function SettlementPage() {
   const { data: bankAccount, isLoading: bankLoading } = useMerchantBankAccount(
     user?.id
   );
+  const updateBankAccountMutation = useUpdateMerchantBankAccount(user?.id);
   const isOnline = useOfflineStore((s) => s.isOnline);
   const [settlementOpen, setSettlementOpen] = useState(false);
   const network = useWalletStore((s) => s.network);
   const notify = useNotify();
+
+  // Bank Account Dialog & Form State
+  const [isBankModalOpen, setIsBankModalOpen] = useState(false);
+  const [bankFormValues, setBankFormValues] = useState({
+    bankName: "",
+    accountNumber: "",
+    accountName: "",
+    bankCode: "",
+  });
+  const [bankErrors, setBankErrors] = useState<Record<string, string>>({});
+
+  const validateBankForm = useCallback(
+    (values: {
+      bankName: string;
+      accountNumber: string;
+      accountName: string;
+      bankCode: string;
+    }) => {
+      const errors: Record<string, string> = {};
+
+      const trimmedAccount = values.accountNumber.trim();
+      if (!trimmedAccount) {
+        errors.accountNumber = "Account number is required";
+      } else {
+        const clean = trimmedAccount.replace(/\s+/g, "");
+        const isNuban = /^\d{10}$/.test(clean);
+        const isIban = /^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$/i.test(clean);
+        const isGenericNumeric = /^\d{8,17}$/.test(clean);
+        if (!isNuban && !isIban && !isGenericNumeric) {
+          errors.accountNumber =
+            "Invalid account number or IBAN format. Account numbers must be 10 digits or valid IBAN (15–34 characters).";
+        }
+      }
+
+      const trimmedBankCode = values.bankCode.trim();
+      if (!trimmedBankCode) {
+        errors.bankCode = "Bank code / routing number is required";
+      } else if (!/^[a-zA-Z0-9]{3,11}$/.test(trimmedBankCode)) {
+        errors.bankCode = "Bank code must be 3–11 alphanumeric characters.";
+      }
+
+      const trimmedAccountName = values.accountName.trim();
+      if (!trimmedAccountName) {
+        errors.accountName = "Account holder name is required";
+      } else if (trimmedAccountName.length < 2) {
+        errors.accountName = "Account holder name must be at least 2 characters.";
+      }
+
+      const trimmedBankName = values.bankName.trim();
+      if (!trimmedBankName) {
+        errors.bankName = "Bank name is required";
+      } else if (trimmedBankName.length < 2) {
+        errors.bankName = "Bank name must be at least 2 characters.";
+      }
+
+      return errors;
+    },
+    []
+  );
+
+  const handleOpenBankModal = (existing?: typeof bankAccount) => {
+    if (existing) {
+      setBankFormValues({
+        bankName: existing.bankName || "",
+        accountNumber: existing.accountNumber || "",
+        accountName: existing.accountName || "",
+        bankCode: existing.bankCode || "",
+      });
+    } else {
+      setBankFormValues({
+        bankName: "",
+        accountNumber: "",
+        accountName: "",
+        bankCode: "",
+      });
+    }
+    setBankErrors({});
+    setIsBankModalOpen(true);
+  };
+
+  const handleBankSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const errors = validateBankForm(bankFormValues);
+    setBankErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      return;
+    }
+
+    try {
+      await updateBankAccountMutation.mutateAsync({
+        bankName: bankFormValues.bankName.trim(),
+        bankCode: bankFormValues.bankCode.trim(),
+        accountNumber: bankFormValues.accountNumber.trim(),
+        accountName: bankFormValues.accountName.trim(),
+      });
+      notify.success("Bank account details saved successfully");
+      setIsBankModalOpen(false);
+    } catch (err: unknown) {
+      const msg =
+        err instanceof Error ? err.message : "Failed to save bank account details";
+      notify.error(msg);
+    }
+  };
 
   // Active filter tab
   const [activeFilter, setActiveFilter] = useState<string>("ALL");
@@ -576,44 +693,171 @@ export default function SettlementPage() {
       {/* Bank Account Config Notice */}
       {!bankLoading && !bankAccount && (
         <Card className="border border-primary/30 bg-primary/10 rounded-2xl">
-          <CardContent className="flex items-start gap-4 p-5">
-            <AlertCircle className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
-            <div className="flex-1">
-              <p className="text-sm font-semibold text-primary">
-                Nigerian Bank Account Not Configured
-              </p>
-              <p className="text-xs text-foreground/80 mt-0.5">
-                Add your 10-digit NUBAN account number in Settings to enable automated local bank disbursements.
-              </p>
+          <CardContent className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5">
+            <div className="flex items-start gap-4 flex-1">
+              <AlertCircle className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="text-sm font-semibold text-primary">
+                  Nigerian Bank Account Not Configured
+                </p>
+                <p className="text-xs text-foreground/80 mt-0.5">
+                  Configure your bank account details (10-digit NUBAN or IBAN) to enable automated local bank disbursements.
+                </p>
+              </div>
             </div>
-            <Link href="/settings">
-              <Button
-                variant="outline"
-                size="sm"
-                className="border-primary/40 text-primary hover:bg-primary/20 rounded-xl text-xs h-8 px-3 flex-shrink-0 font-semibold"
-              >
-                Configure in Settings <ChevronRight className="w-3 h-3 ml-1" />
-              </Button>
-            </Link>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleOpenBankModal()}
+              className="border-primary/40 text-primary hover:bg-primary/20 rounded-xl text-xs h-8 px-3 flex-shrink-0 font-semibold"
+            >
+              Configure Bank Account <ChevronRight className="w-3 h-3 ml-1" />
+            </Button>
           </CardContent>
         </Card>
       )}
 
       {!bankLoading && bankAccount && (
         <Card className="border border-emerald-500/30 bg-emerald-500/5 rounded-2xl">
-          <CardContent className="flex items-start gap-4 p-5">
-            <CheckCircle2 className="w-5 h-5 text-emerald-500 mt-0.5 flex-shrink-0" />
-            <div className="flex-1">
-              <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-400">
-                Primary Payout Bank Account Active
-              </p>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                {bankAccount.bankName} · {bankAccount.accountNumber ? `••••${bankAccount.accountNumber.slice(-4)}` : "Verified"} · Instant NIBSS automated settlement enabled.
-              </p>
+          <CardContent className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5">
+            <div className="flex items-start gap-4 flex-1">
+              <CheckCircle2 className="w-5 h-5 text-emerald-500 mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-400">
+                  Primary Payout Bank Account Active
+                </p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {bankAccount.bankName} · {bankAccount.accountNumber ? `••••${bankAccount.accountNumber.slice(-4)}` : "Verified"} · Instant NIBSS automated settlement enabled.
+                </p>
+              </div>
             </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleOpenBankModal(bankAccount)}
+              className="border-border text-foreground hover:bg-muted rounded-xl text-xs h-8 px-3 flex-shrink-0 font-medium"
+            >
+              <Edit2 className="w-3 h-3 mr-1" /> Edit Bank Details
+            </Button>
           </CardContent>
         </Card>
       )}
+
+      {/* Bank Account Configuration Dialog */}
+      <Dialog open={isBankModalOpen} onOpenChange={setIsBankModalOpen}>
+        <DialogContent className="sm:max-w-md bg-card border-border">
+          <DialogHeader>
+            <DialogTitle>Configure Bank Account</DialogTitle>
+            <DialogDescription>
+              Enter your Nigerian bank account details to receive fiat disbursements.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleBankSubmit} className="space-y-4 py-2" noValidate>
+            <div className="space-y-1.5">
+              <Label htmlFor="bank-account-name" className="text-xs font-medium text-foreground">
+                Account Holder Name
+              </Label>
+              <Input
+                id="bank-account-name"
+                placeholder="e.g. Acme Tech Solutions"
+                value={bankFormValues.accountName}
+                onChange={(e) =>
+                  setBankFormValues((prev) => ({ ...prev, accountName: e.target.value }))
+                }
+                aria-invalid={Boolean(bankErrors.accountName)}
+                className={cn(bankErrors.accountName && "border-destructive focus-visible:ring-destructive")}
+              />
+              {bankErrors.accountName && (
+                <p className="text-xs text-destructive mt-1">{bankErrors.accountName}</p>
+              )}
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="bank-name" className="text-xs font-medium text-foreground">
+                  Bank Name
+                </Label>
+                <Input
+                  id="bank-name"
+                  placeholder="e.g. Zenith Bank, GTBank"
+                  value={bankFormValues.bankName}
+                  onChange={(e) =>
+                    setBankFormValues((prev) => ({ ...prev, bankName: e.target.value }))
+                  }
+                  aria-invalid={Boolean(bankErrors.bankName)}
+                  className={cn(bankErrors.bankName && "border-destructive focus-visible:ring-destructive")}
+                />
+                {bankErrors.bankName && (
+                  <p className="text-xs text-destructive mt-1">{bankErrors.bankName}</p>
+                )}
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="bank-code" className="text-xs font-medium text-foreground">
+                  Bank / Sort Code
+                </Label>
+                <Input
+                  id="bank-code"
+                  placeholder="e.g. 058 or GTBIGLA"
+                  value={bankFormValues.bankCode}
+                  onChange={(e) =>
+                    setBankFormValues((prev) => ({ ...prev, bankCode: e.target.value }))
+                  }
+                  aria-invalid={Boolean(bankErrors.bankCode)}
+                  className={cn(bankErrors.bankCode && "border-destructive focus-visible:ring-destructive")}
+                />
+                {bankErrors.bankCode && (
+                  <p className="text-xs text-destructive mt-1">{bankErrors.bankCode}</p>
+                )}
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="account-number" className="text-xs font-medium text-foreground">
+                Account Number / IBAN
+              </Label>
+              <Input
+                id="account-number"
+                placeholder="10-digit NUBAN or IBAN format"
+                value={bankFormValues.accountNumber}
+                onChange={(e) =>
+                  setBankFormValues((prev) => ({ ...prev, accountNumber: e.target.value }))
+                }
+                aria-invalid={Boolean(bankErrors.accountNumber)}
+                className={cn(bankErrors.accountNumber && "border-destructive focus-visible:ring-destructive")}
+              />
+              {bankErrors.accountNumber && (
+                <p className="text-xs text-destructive mt-1">{bankErrors.accountNumber}</p>
+              )}
+            </div>
+
+            <DialogFooter className="pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsBankModalOpen(false)}
+                disabled={updateBankAccountMutation.isPending}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                className="bg-primary hover:bg-primary-hover text-primary-foreground font-semibold"
+                disabled={updateBankAccountMutation.isPending}
+              >
+                {updateBankAccountMutation.isPending ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> Saving...
+                  </>
+                ) : (
+                  "Save Bank Account"
+                )}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

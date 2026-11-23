@@ -433,6 +433,27 @@ export function useMerchantBankAccount(
   };
 }
 
+export function useUpdateMerchantBankAccount(merchantId: string | undefined) {
+  const queryClient = useQueryClient();
+  return useMutation<MerchantBankAccount, Error, MerchantBankAccount>({
+    mutationFn: async (data: MerchantBankAccount) => {
+      const res = await apiClient.put<
+        ItemEnvelope<MerchantBankAccount> | MerchantBankAccount
+      >(`/api/merchants/${encodeURIComponent(merchantId ?? '')}/bank-account`, data);
+      const payload = res.data;
+      if (payload && !Array.isArray(payload) && 'bankName' in payload) {
+        return payload as MerchantBankAccount;
+      }
+      return (payload as ItemEnvelope<MerchantBankAccount>).data;
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: [...queryKeys.merchant(merchantId), 'bank-account'],
+      });
+    },
+  });
+}
+
 // ─── useMerchantProfile ───────────────────────────────────────────────────────
 
 export function useMerchantProfile(
