@@ -89,7 +89,9 @@ function formatAbbreviatedAmount(
   if (currency === 'NGN') {
     return `${sign}₦${formatted}${suffix}`;
   }
-  return `${sign}USDC ${formatted}${suffix}`;
+  // Any non-NGN currency keeps its own code/symbol — never assume USDC, or an
+  // abbreviated XLM/EURC/USD amount would be mislabelled (issue #1157).
+  return `${sign}${currency} ${formatted}${suffix}`;
 }
 
 /**

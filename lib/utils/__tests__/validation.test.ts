@@ -2,6 +2,7 @@ import i18n from '@/lib/i18n/config';
 import {
   paymentLinkSchema,
   editPaymentLinkSchema,
+  merchantProfileSchema,
   finiteAmountNumberSchema,
   MAX_STELLAR_AMOUNT,
 } from '@/lib/utils/validation';
@@ -107,6 +108,52 @@ describe('utils/validation', () => {
       expect(finiteAmountNumberSchema.safeParse(NaN).success).toBe(false);
       expect(finiteAmountNumberSchema.safeParse(MAX_STELLAR_AMOUNT + 1).success).toBe(false);
       expect(finiteAmountNumberSchema.safeParse('42.1234567').success).toBe(true);
+    });
+  });
+
+  describe('URL validation (issue #1158)', () => {
+    const validMerchant = {
+      businessName: 'Acme Ltd',
+      businessType: 'llc' as const,
+      country: 'NG',
+      industry: 'retail',
+      contactEmail: 'owner@acme.com',
+      phoneNumber: '',
+      logoUrl: null,
+    };
+
+    const merchantWithWebsite = (websiteUrl: string | null) =>
+      merchantProfileSchema.safeParse({ ...validMerchant, websiteUrl });
+
+    const linkWithRedirect = (redirectUrl: string) =>
+      editPaymentLinkSchema.safeParse({ label: 'Link', redirectUrl });
+
+    it('rejects a malformed "https://" string for websiteUrl', () => {
+      expect(merchantWithWebsite('https://not a valid url').success).toBe(false);
+    });
+
+    it('rejects non-https protocols for websiteUrl', () => {
+      expect(merchantWithWebsite('http://example.com').success).toBe(false);
+      expect(merchantWithWebsite('ftp://example.com').success).toBe(false);
+      expect(merchantWithWebsite('javascript:alert(1)').success).toBe(false);
+    });
+
+    it('accepts valid https URLs plus empty string and null for websiteUrl', () => {
+      expect(merchantWithWebsite('https://example.com').success).toBe(true);
+      expect(merchantWithWebsite('').success).toBe(true);
+      expect(merchantWithWebsite(null).success).toBe(true);
+    });
+
+    it('rejects javascript: and data: redirect URLs', () => {
+      expect(linkWithRedirect('javascript:alert(1)').success).toBe(false);
+      expect(linkWithRedirect('data:text/html,<h1>x</h1>').success).toBe(false);
+    });
+
+    it('accepts http/https redirect URLs, empty strings and omission', () => {
+      expect(linkWithRedirect('https://example.com').success).toBe(true);
+      expect(linkWithRedirect('http://example.com').success).toBe(true);
+      expect(linkWithRedirect('').success).toBe(true);
+      expect(editPaymentLinkSchema.safeParse({ label: 'Link' }).success).toBe(true);
     });
   });
 });
