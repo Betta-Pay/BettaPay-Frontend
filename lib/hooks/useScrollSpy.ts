@@ -26,15 +26,35 @@ export function useScrollSpy(ids: string[], options: ScrollSpyOptions = {}): str
   // Keep the last known set of intersecting ids across observer callbacks.
   const visible = useRef<Set<string>>(new Set());
 
+  // Serialize the ids so the effect below is keyed on their *contents* rather
+  // than the array reference. Callers commonly pass inline array literals, and
+  // keying on the reference would tear down and rebuild the IntersectionObserver
+  // on every parent re-render (issue #1162).
+  const idsKey = ids.join('\u0000');
+
+  // Read the latest ids from inside the effect without making the array
+  // identity part of its dependency list.
+  const idsRef = useRef(ids);
+  idsRef.current = ids;
+
   useEffect(() => {
+    const nextIds = idsRef.current;
+
+    // When the section list changes and the previously active id is gone,
+    // fall back to the first section so the highlight can't keep pointing at a
+    // section from the previous page (issue #1162).
+    setActiveId((current) =>
+      nextIds.includes(current) ? current : nextIds[0] ?? '',
+    );
+
     // Drop any ids left over from the previous `ids`/`rootMargin` — otherwise
     // a stale entry from the old observer can win the "first visible" pick
     // below before the new observer reports its own intersections.
     visible.current = new Set();
 
-    if (ids.length === 0 || typeof IntersectionObserver === 'undefined') return;
+    if (nextIds.length === 0 || typeof IntersectionObserver === 'undefined') return;
 
-    const elements = ids
+    const elements = nextIds
       .map((id) => document.getElementById(id))
       .filter((el): el is HTMLElement => el !== null);
 
@@ -48,7 +68,7 @@ export function useScrollSpy(ids: string[], options: ScrollSpyOptions = {}): str
         }
 
         // Choose the first id (in document order) that is currently visible.
-        const firstVisible = ids.find((id) => visible.current.has(id));
+        const firstVisible = nextIds.find((id) => visible.current.has(id));
         if (firstVisible) {
           setActiveId(firstVisible);
         }
@@ -58,8 +78,9 @@ export function useScrollSpy(ids: string[], options: ScrollSpyOptions = {}): str
 
     elements.forEach((el) => observer.observe(el));
     return () => observer.disconnect();
-    // `ids` is a stable reference from module-level data; re-run only if it changes.
-  }, [ids, rootMargin]);
+    // Keyed on the serialized ids (contents) rather than the array reference,
+    // so inline array literals don't recreate the observer (issue #1162).
+  }, [idsKey, rootMargin]);
 
   return activeId;
 }
