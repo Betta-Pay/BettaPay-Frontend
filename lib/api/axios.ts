@@ -119,7 +119,10 @@ export function resolveApiBaseUrl(): string {
     baseUrlOverride ?? readRuntimeBaseUrl() ?? process.env.NEXT_PUBLIC_API_URL;
 
   if (configured && configured.trim()) {
-    return normalizeBaseUrl(configured);
+    const normalized = normalizeBaseUrl(configured);
+    if (normalized.length > 0) {
+      return normalized;
+    }
   }
 
   if (!hasWarnedAboutBaseUrl && process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
@@ -131,7 +134,7 @@ export function resolveApiBaseUrl(): string {
     );
   }
 
-  return DEFAULT_API_BASE_URL;
+  return normalizeBaseUrl(DEFAULT_API_BASE_URL);
 }
 
 /**
@@ -141,7 +144,12 @@ export function resolveApiBaseUrl(): string {
  * Pass `null` (or use `resetApiBaseUrl`) to fall back to the configured value.
  */
 export function setApiBaseUrl(url: string | null): void {
-  baseUrlOverride = url && url.trim() ? normalizeBaseUrl(url) : null;
+  if (!url || !url.trim()) {
+    baseUrlOverride = null;
+    return;
+  }
+  const normalized = normalizeBaseUrl(url);
+  baseUrlOverride = normalized.length > 0 ? normalized : null;
 }
 
 /** Clear an override set by `setApiBaseUrl`. */
@@ -298,14 +306,19 @@ let failedQueue: Array<{
 }> = [];
 
 function processQueue(error: unknown) {
-  failedQueue.forEach((prom) => {
-    if (error) {
-      prom.reject(error);
-    } else {
-      prom.resolve();
+  const queue = failedQueue;
+  failedQueue = [];
+  queue.forEach((prom) => {
+    try {
+      if (error) {
+        prom.reject(error);
+      } else {
+        prom.resolve();
+      }
+    } catch {
+      // Prevent callback exceptions from interrupting queue draining
     }
   });
-  failedQueue = [];
 }
 
 function redirectToLogin() {
@@ -346,7 +359,7 @@ function redirectToLogin() {
 // Send server errors and network failures to the reporting backend. Only the
 // method, path and status travel with the report — never request bodies,
 // headers, or query strings, which routinely carry PII.
-function reportApiFailure(error: AxiosError, kind: string) {
+export function reportApiFailure(error: AxiosError, kind: string) {
   const method = (error.config?.method || 'get').toUpperCase();
   const path = (error.config?.url || 'unknown').split('?')[0];
   const status = error.response?.status ?? 0;
@@ -403,14 +416,18 @@ apiClient.interceptors.response.use(
         }
         hasRedirectedForExpiry = false;
         processQueue(null);
-        return apiClient(originalRequest);
       } catch (refreshError) {
         processQueue(refreshError);
         redirectToLogin();
         return Promise.reject(parseApiError(refreshError));
       } finally {
         isRefreshing = false;
+        if (failedQueue.length > 0) {
+          processQueue(new Error('Token refresh aborted'));
+        }
       }
+
+      return apiClient(originalRequest);
     }
 
     // Handle 429 rate limiting
