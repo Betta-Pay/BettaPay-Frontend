@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import { MULTI_CURRENCY_ASSETS, SUPPORTED_SETTLEMENT_CURRENCIES } from '@/lib/utils/constants';
 
 /**
@@ -24,30 +25,78 @@ export type ParseResult =
   | { ok: true; request: PlaygroundRequest }
   | { ok: false; error: string };
 
+export const playgroundOperationSchema = z.enum(['quote', 'rates'], {
+  message: 'op must be "quote" or "rates".',
+});
+
+export const playgroundQuoteSchema = z
+  .object({
+    from: z
+      .string()
+      .min(1, { message: `from must be one of: ${PLAYGROUND_FROM.join(', ')}.` })
+      .transform((val) => val.toUpperCase())
+      .refine((val) => PLAYGROUND_FROM.includes(val), {
+        message: `from must be one of: ${PLAYGROUND_FROM.join(', ')}.`,
+      }),
+    to: z
+      .string()
+      .min(1, { message: `to must be one of: ${PLAYGROUND_TO.join(', ')}.` })
+      .transform((val) => val.toUpperCase())
+      .refine((val) => PLAYGROUND_TO.includes(val), {
+        message: `to must be one of: ${PLAYGROUND_TO.join(', ')}.`,
+      }),
+    amount: z
+      .string()
+      .min(1, { message: 'amount must be a plain positive decimal with up to 7 places.' })
+      .refine((val) => /^\d+(\.\d{1,7})?$/.test(val), {
+        message: 'amount must be a plain positive decimal with up to 7 places.',
+      })
+      .refine(
+        (val) => {
+          const num = Number(val);
+          return !Number.isNaN(num) && num >= PLAYGROUND_MIN_AMOUNT && num <= PLAYGROUND_MAX_AMOUNT;
+        },
+        {
+          message: `amount must be between ${PLAYGROUND_MIN_AMOUNT} and ${PLAYGROUND_MAX_AMOUNT}.`,
+        },
+      ),
+  })
+  .refine((data) => data.from !== data.to, {
+    message: 'from and to must be different.',
+    path: ['to'],
+  });
+
 export function parsePlaygroundParams(params: URLSearchParams): ParseResult {
   const operation = params.get('op') ?? 'quote';
-  if (operation === 'rates') return { ok: true, request: { operation: 'rates' } };
-  if (operation !== 'quote') return { ok: false, error: 'op must be "quote" or "rates".' };
+  const opParsed = playgroundOperationSchema.safeParse(operation);
+  if (!opParsed.success) {
+    return { ok: false, error: opParsed.error.issues[0]?.message ?? 'op must be "quote" or "rates".' };
+  }
 
-  const from = (params.get('from') ?? '').toUpperCase();
-  const to = (params.get('to') ?? '').toUpperCase();
-  const amount = params.get('amount') ?? '';
+  if (opParsed.data === 'rates') {
+    return { ok: true, request: { operation: 'rates' } };
+  }
 
-  if (!PLAYGROUND_FROM.includes(from)) {
-    return { ok: false, error: `from must be one of: ${PLAYGROUND_FROM.join(', ')}.` };
+  const raw = {
+    from: params.get('from') ?? '',
+    to: params.get('to') ?? '',
+    amount: params.get('amount') ?? '',
+  };
+
+  const parsed = playgroundQuoteSchema.safeParse(raw);
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? 'Invalid query parameters.' };
   }
-  if (!PLAYGROUND_TO.includes(to)) {
-    return { ok: false, error: `to must be one of: ${PLAYGROUND_TO.join(', ')}.` };
-  }
-  if (from === to) return { ok: false, error: 'from and to must be different.' };
-  if (!/^\d+(\.\d{1,7})?$/.test(amount)) {
-    return { ok: false, error: 'amount must be a plain positive decimal with up to 7 places.' };
-  }
-  const value = Number(amount);
-  if (!(value >= PLAYGROUND_MIN_AMOUNT) || value > PLAYGROUND_MAX_AMOUNT) {
-    return { ok: false, error: `amount must be between ${PLAYGROUND_MIN_AMOUNT} and ${PLAYGROUND_MAX_AMOUNT}.` };
-  }
-  return { ok: true, request: { operation: 'quote', from, to, amount } };
+
+  return {
+    ok: true,
+    request: {
+      operation: 'quote',
+      from: parsed.data.from,
+      to: parsed.data.to,
+      amount: parsed.data.amount,
+    },
+  };
 }
 
 /** Upstream path + query for a validated request (mirrors the gateway's /api/quote). */
