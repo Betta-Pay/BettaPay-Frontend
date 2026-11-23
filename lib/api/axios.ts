@@ -359,7 +359,7 @@ function redirectToLogin() {
 // Send server errors and network failures to the reporting backend. Only the
 // method, path and status travel with the report — never request bodies,
 // headers, or query strings, which routinely carry PII.
-function reportApiFailure(error: AxiosError, kind: string) {
+export function reportApiFailure(error: AxiosError, kind: string) {
   const method = (error.config?.method || 'get').toUpperCase();
   const path = (error.config?.url || 'unknown').split('?')[0];
   const status = error.response?.status ?? 0;
