@@ -94,8 +94,23 @@ function AuditExplorer() {
     const seen = new Set<string>();
     return (query.data?.pages ?? []).flatMap((p) => p.data).filter((e) => (seen.has(e.id) ? false : seen.add(e.id)));
   }, [query.data]);
-  const total = query.data?.pages[0]?.total ?? 0;
+
+  // `keepPreviousData` hands us the *previous* filter's pages while a new key
+  // is in flight. That is fine for a background refresh of the current filter,
+  // but those rows answer a different query, so they are dropped whenever the
+  // request that replaced them is still pending or has failed.
+  const isStale = query.isPlaceholderData;
+  const shownRows = isStale ? [] : rows;
+  const total = isStale ? 0 : query.data?.pages[0]?.total ?? 0;
   const activeCount = FILTER_KEYS.filter((k) => urlFilters[k]).length;
+
+  const failureMessage = query.error?.message ?? "Request failed.";
+  const retryFailure = () => {
+    // A failed *page* is retried on its own so the rows already on screen are
+    // kept; anything else re-runs the whole query.
+    if (query.isFetchNextPageError) void query.fetchNextPage();
+    else void query.refetch();
+  };
 
   const csvHref = `/api/admin/audit?${apiQueryString(urlFilters, { format: "csv" })}`;
   const reset = () => {
@@ -181,46 +196,63 @@ function AuditExplorer() {
         </div>
       </form>
 
-      {query.isError && (
+      {query.isError && shownRows.length === 0 && (
         <Alert variant="destructive">
           <AlertTriangle aria-hidden="true" />
           <AlertTitle>Couldn&apos;t load the audit log</AlertTitle>
           <AlertDescription>
-            <p>{query.error.message}</p>
-            <Button variant="outline" size="sm" className="mt-2" onClick={() => void query.refetch()}>Retry</Button>
+            <p>{failureMessage}</p>
+            <Button variant="outline" size="sm" className="mt-2" onClick={retryFailure}>Retry</Button>
           </AlertDescription>
         </Alert>
       )}
 
-      {query.isLoading ? (
+      {query.isLoading || (isStale && query.isFetching) ? (
         <div className="space-y-2" role="status" aria-busy="true" aria-label="Loading audit log">
           {[0, 1, 2, 3].map((i) => (<Skeleton key={i} className="h-16 w-full rounded-xl" />))}
         </div>
-      ) : !query.isError && rows.length === 0 ? (
+      ) : shownRows.length > 0 ? (
+        <section aria-label="Audit events" aria-busy={query.isFetching && query.isPlaceholderData}>
+          <p role="status" className="mb-2 text-sm text-muted-foreground">
+            Showing {shownRows.length} of {total} event{total === 1 ? "" : "s"}
+          </p>
+          <ol className="space-y-2">
+            {shownRows.map((entry) => (<AuditRow key={entry.id} entry={entry} />))}
+          </ol>
+
+          {/* A failed page must not take the events that already loaded with it. */}
+          {query.isError && (
+            <Alert variant="destructive" className="mt-4">
+              <AlertTriangle aria-hidden="true" />
+              <AlertTitle>
+                Couldn&apos;t load {query.isFetchNextPageError ? "the next page" : "an updated list"}
+              </AlertTitle>
+              <AlertDescription>
+                <p>{failureMessage}</p>
+                <p className="mt-1">The {shownRows.length} event{shownRows.length === 1 ? "" : "s"} above are the last ones received.</p>
+                <Button variant="outline" size="sm" className="mt-2" onClick={retryFailure} disabled={query.isFetching}>
+                  <RefreshCcw className="mr-1.5 h-4 w-4" aria-hidden="true" />
+                  Retry
+                </Button>
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {!query.isError && query.hasNextPage && (
+            <div className="mt-4 text-center">
+              <Button variant="outline" onClick={() => void query.fetchNextPage()} disabled={query.isFetchingNextPage}>
+                {query.isFetchingNextPage ? "Loading…" : "Load more"}
+              </Button>
+            </div>
+          )}
+        </section>
+      ) : query.isError ? null : (
         <EmptyState
           icon={ScrollText}
           title={activeCount ? "No events match these filters" : "No audit events yet"}
           description={activeCount ? "Widen the date range or clear a filter." : "Privileged changes will appear here."}
           action={activeCount ? { label: "Clear filters", onClick: reset } : undefined}
         />
-      ) : (
-        !query.isError && (
-          <section aria-label="Audit events" aria-busy={query.isFetching && query.isPlaceholderData}>
-            <p role="status" className="mb-2 text-sm text-muted-foreground">
-              Showing {rows.length} of {total} event{total === 1 ? "" : "s"}
-            </p>
-            <ol className="space-y-2">
-              {rows.map((entry) => (<AuditRow key={entry.id} entry={entry} />))}
-            </ol>
-            {query.hasNextPage && (
-              <div className="mt-4 text-center">
-                <Button variant="outline" onClick={() => void query.fetchNextPage()} disabled={query.isFetchingNextPage}>
-                  {query.isFetchingNextPage ? "Loading…" : "Load more"}
-                </Button>
-              </div>
-            )}
-          </section>
-        )
       )}
     </div>
   );

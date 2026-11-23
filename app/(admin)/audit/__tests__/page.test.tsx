@@ -33,6 +33,7 @@ const kyb: AuditEntry = {
 const fetchMock = jest.fn();
 const page = (data: AuditEntry[], nextCursor: string | null = null, total = data.length): AuditPage => ({ data, total, nextCursor });
 const respond = (p: AuditPage) => ({ ok: true, status: 200, json: async () => p });
+const respondError = (message: string) => ({ ok: false, status: 500, json: async () => ({ error: message }) });
 
 function renderPage() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -129,5 +130,76 @@ describe("AdminAuditPage", () => {
     fetchMock.mockResolvedValue({ ok: false, status: 400, json: async () => ({ error: "from must be before to" }) });
     renderPage();
     expect(await screen.findByText("from must be before to")).toBeInTheDocument();
+  });
+
+  // Issue #1124: `fetchPage` accepts an AbortSignal and the query hands it its
+  // own, so a request the view no longer waits for is cancelled instead of
+  // landing late over fresher results.
+  it("forwards a cancellable signal and no-store to the audit request", async () => {
+    let init: { cache?: string; signal?: AbortSignal } | undefined;
+    fetchMock.mockImplementation((_url: string, options?: { cache?: string; signal?: AbortSignal }) => {
+      init = options;
+      return new Promise(() => {}); // never settles
+    });
+
+    const { unmount } = renderPage();
+    await waitFor(() => expect(init?.signal).toBeInstanceOf(AbortSignal));
+    expect(init?.cache).toBe("no-store");
+    expect(init!.signal!.aborted).toBe(false);
+
+    unmount();
+    expect(init!.signal!.aborted).toBe(true);
+  });
+
+  // Issue #1124 AC: a failed `fetchPage` shows an error alert with a Retry
+  // action. Page 2 failing used to wipe the events that had already loaded,
+  // because react-query keeps `data` but still reports `isError`.
+  it("keeps loaded events and offers Retry when the next page fails", async () => {
+    fetchMock
+      .mockResolvedValueOnce(respond(page([settings], "CUR1", 2)))
+      .mockResolvedValue(respondError("cursor expired"));
+    renderPage();
+    await screen.findByTestId("audit-row");
+
+    await userEvent.click(screen.getByRole("button", { name: /load more/i }));
+
+    expect(await screen.findByText(/couldn't load the next page/i)).toBeInTheDocument();
+    expect(screen.getByText("cursor expired")).toBeInTheDocument();
+    expect(screen.getAllByTestId("audit-row")).toHaveLength(1);
+    expect(screen.getByText(/1 event above are the last ones received/i)).toBeInTheDocument();
+
+    fetchMock.mockResolvedValueOnce(respond(page([kyb], null, 2)));
+    await userEvent.click(screen.getByRole("button", { name: /^retry$/i }));
+
+    await waitFor(() => expect(screen.getAllByTestId("audit-row")).toHaveLength(2));
+    // Retry re-requests the page that failed rather than the whole log.
+    expect(new URL(fetchMock.mock.calls[2][0], "http://x").searchParams.get("cursor")).toBe("CUR1");
+    expect(screen.queryByText(/couldn't load/i)).not.toBeInTheDocument();
+  });
+
+  // Issue #1124 AC: rapid navigation must not display the superseded query's
+  // rows. `keepPreviousData` serves the *previous* filter's pages while a new
+  // key is in flight, so those rows are withheld rather than shown as the
+  // answer to the filter the user just picked.
+  it("withholds the previous filter's rows while a new filter loads", async () => {
+    let resolveFiltered: ((value: unknown) => void) | undefined;
+    fetchMock
+      .mockResolvedValueOnce(respond(page([settings, kyb], null, 2)))
+      .mockImplementationOnce(() => new Promise((resolve) => { resolveFiltered = resolve; }));
+    renderPage();
+    await screen.findAllByTestId("audit-row");
+    expect(screen.getByRole("status")).toHaveTextContent("Showing 2 of 2");
+
+    await userEvent.selectOptions(screen.getByLabelText("Entity type"), "MERCHANT");
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+
+    expect(screen.queryAllByTestId("audit-row")).toHaveLength(0);
+    expect(screen.getByRole("status", { name: /loading audit log/i })).toBeInTheDocument();
+    expect(screen.queryByText(/no events match these filters/i)).not.toBeInTheDocument();
+    expect(new URL(fetchMock.mock.calls[1][0], "http://x").searchParams.get("entityType")).toBe("MERCHANT");
+
+    await act(async () => { resolveFiltered!(respond(page([kyb], null, 1))); });
+    expect(await screen.findAllByTestId("audit-row")).toHaveLength(1);
+    expect(screen.getByRole("status")).toHaveTextContent("Showing 1 of 1");
   });
 });
