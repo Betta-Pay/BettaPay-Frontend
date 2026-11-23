@@ -50,8 +50,8 @@ function WalletConnectOptions() {
 
     if (type === 'not_installed') {
       return (
-        <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-900 mb-3 space-y-2">
-          <div className="font-semibold text-amber-950 flex items-center gap-1.5">
+        <div className="p-3.5 bg-status-warn-bg border border-status-warn-border rounded-lg text-xs text-status-warn mb-3 space-y-2">
+          <div className="font-semibold text-status-warn flex items-center gap-1.5">
             <span>Freighter Not Installed</span>
           </div>
           <p>
@@ -62,14 +62,14 @@ function WalletConnectOptions() {
               href="https://www.freighter.app/"
               target="_blank"
               rel="noopener noreferrer"
-              className="px-2.5 py-1 bg-amber-700 hover:bg-amber-800 text-white rounded text-[11px] font-medium transition-colors inline-block"
+              className="px-2.5 py-1 bg-status-warn text-status-warn-bg hover:bg-status-warn-bg hover:text-status-warn rounded text-[11px] font-medium transition-colors inline-block"
             >
               Get Freighter
             </a>
             <button
               type="button"
               onClick={handleFreighterClick}
-              className="px-2.5 py-1 bg-white border border-amber-300 hover:bg-amber-100 text-amber-900 rounded text-[11px] font-medium transition-colors"
+              className="px-2.5 py-1 bg-card border border-status-warn-border hover:bg-status-warn-bg text-status-warn rounded text-[11px] font-medium transition-colors"
             >
               Freighter updated — retry
             </button>
@@ -80,8 +80,8 @@ function WalletConnectOptions() {
 
     if (type === 'cancelled') {
       return (
-        <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-lg text-xs text-rose-900 mb-3 space-y-2">
-          <div className="font-semibold text-rose-950">Freighter Access Denied or Cancelled</div>
+        <div className="p-3.5 bg-status-down-bg border border-status-down-border rounded-lg text-xs text-status-down mb-3 space-y-2">
+          <div className="font-semibold text-status-down">Freighter Access Denied or Cancelled</div>
           <p>
             The connection request was declined or permission was missing in Freighter. If you just enabled access in your extension popup, click retry to connect without reloading.
           </p>
@@ -89,7 +89,7 @@ function WalletConnectOptions() {
             <button
               type="button"
               onClick={handleFreighterClick}
-              className="px-3 py-1.5 bg-rose-700 hover:bg-rose-800 text-white rounded text-xs font-medium transition-colors shadow-sm"
+              className="px-3 py-1.5 bg-status-down text-status-down-bg hover:bg-status-down-bg hover:text-status-down rounded text-xs font-medium transition-colors shadow-sm"
             >
               Freighter updated — retry
             </button>
@@ -100,8 +100,8 @@ function WalletConnectOptions() {
 
     if (type === 'network_mismatch') {
       return (
-        <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-900 mb-3 space-y-2">
-          <div className="font-semibold text-amber-950">Network Mismatch</div>
+        <div className="p-3.5 bg-status-warn-bg border border-status-warn-border rounded-lg text-xs text-status-warn mb-3 space-y-2">
+          <div className="font-semibold text-status-warn">Network Mismatch</div>
           <p>
             App expects <strong className="font-semibold">{expectedNetwork || 'Testnet'}</strong>, but Freighter is set to <strong className="font-semibold">{freighterNetwork || 'Mainnet'}</strong>. Please switch network in your Freighter extension popup and retry.
           </p>
@@ -109,7 +109,7 @@ function WalletConnectOptions() {
             <button
               type="button"
               onClick={handleFreighterClick}
-              className="px-3 py-1.5 bg-amber-700 hover:bg-amber-800 text-white rounded text-xs font-medium transition-colors"
+              className="px-3 py-1.5 bg-status-warn text-status-warn-bg hover:bg-status-warn-bg hover:text-status-warn rounded text-xs font-medium transition-colors"
             >
               Freighter updated — retry
             </button>
@@ -119,14 +119,14 @@ function WalletConnectOptions() {
     }
 
     return (
-      <div className="p-3.5 bg-red-50 border border-red-200 rounded-lg text-xs text-red-900 mb-3 space-y-2">
-        <div className="font-semibold text-red-950">Freighter Connection Error</div>
+      <div className="p-3.5 bg-status-down-bg border border-status-down-border rounded-lg text-xs text-status-down mb-3 space-y-2">
+        <div className="font-semibold text-status-down">Freighter Connection Error</div>
         <p>{message || 'An unexpected error occurred while connecting to Freighter.'}</p>
         <div className="pt-1">
           <button
             type="button"
             onClick={handleFreighterClick}
-            className="px-3 py-1.5 bg-red-700 hover:bg-red-800 text-white rounded text-xs font-medium transition-colors"
+            className="px-3 py-1.5 bg-status-down text-status-down-bg hover:bg-status-down-bg hover:text-status-down rounded text-xs font-medium transition-colors"
           >
             Freighter updated — retry
           </button>
@@ -141,10 +141,10 @@ function WalletConnectOptions() {
       <button
         type="button"
         onClick={handleFreighterClick}
-        className="w-full flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors font-medium text-sm text-gray-700"
+        className="w-full flex items-center justify-between p-3 border border-border rounded-lg bg-card hover:bg-muted transition-colors font-medium text-sm text-card-foreground"
       >
         <span>Freighter Wallet</span>
-        <span className="text-xs bg-gray-100 px-2 py-0.5 rounded text-gray-500">
+        <span className="text-xs bg-secondary px-2 py-0.5 rounded text-secondary-foreground">
           Stellar
         </span>
       </button>
@@ -153,7 +153,7 @@ function WalletConnectOptions() {
         <p
           id="walletconnect-configuration-notice"
           role="status"
-          className="text-xs text-amber-800"
+          className="text-xs text-status-warn"
         >
           WalletConnect is unavailable. Set NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID to enable it.
         </p>
@@ -173,10 +173,10 @@ function WalletConnectOptions() {
           aria-describedby={
             walletConnectConfigured ? undefined : 'walletconnect-configuration-notice'
           }
-          className="w-full flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors font-medium text-sm text-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
+          className="w-full flex items-center justify-between p-3 border border-border rounded-lg bg-card hover:bg-muted transition-colors font-medium text-sm text-card-foreground disabled:cursor-not-allowed disabled:opacity-50"
         >
           <span>WalletConnect</span>
-          <span className="text-xs bg-gray-100 px-2 py-0.5 rounded text-gray-500">
+          <span className="text-xs bg-secondary px-2 py-0.5 rounded text-secondary-foreground">
             Universal
           </span>
         </button>
@@ -227,22 +227,22 @@ export function WalletModal({ isOpen = true, onClose, onConnected }: WalletModal
   return (
     <>
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50">
-        <div className="w-full max-w-md bg-white rounded-lg shadow-xl overflow-hidden border border-gray-200">
-          <div className="flex items-center justify-between p-4 border-b border-gray-100">
-            <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+        <div className="w-full max-w-md bg-card text-card-foreground rounded-lg shadow-xl overflow-hidden border border-border">
+          <div className="flex items-center justify-between p-4 border-b border-border">
+            <h2 className="text-lg font-semibold text-card-foreground flex items-center gap-2">
               Connect Wallet
             </h2>
             <button
               type="button"
               onClick={handleClose}
-              className="p-1 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-50 transition-colors"
+              className="p-1 text-muted-foreground hover:text-card-foreground rounded-full hover:bg-muted transition-colors"
             >
               <X className="h-5 w-5" />
             </button>
           </div>
 
           <div className="p-4">
-            <p className="text-sm text-gray-500 mb-4">
+            <p className="text-sm text-muted-foreground mb-4">
               Select a secure provider endpoint to synchronize your ledger state.
             </p>
 
@@ -251,11 +251,11 @@ export function WalletModal({ isOpen = true, onClose, onConnected }: WalletModal
             </WalletModalErrorBoundary>
           </div>
 
-          <div className="p-4 bg-gray-50 border-t border-gray-100 flex justify-end">
+          <div className="p-4 bg-muted border-t border-border flex justify-end">
             <button
               type="button"
               onClick={handleClose}
-              className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900"
+              className="px-4 py-2 text-sm font-medium text-card-foreground hover:text-foreground"
             >
               Cancel
             </button>
