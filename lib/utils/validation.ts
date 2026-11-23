@@ -50,6 +50,21 @@ export type PaymentLinkFormValues = z.infer<typeof paymentLinkSchema>;
 
 const businessTypeEnum = z.enum(['individual', 'sole_proprietor', 'llc', 'corporation']);
 
+/**
+ * Parse a value with the WHATWG URL parser and confirm its scheme is allowed.
+ * A permissive regex (one that only checks the string starts with "https://")
+ * accepts malformed hosts, so real URL parsing must back the check. Rejecting
+ * javascript: and data: URIs here closes the redirect-injection hole that
+ * z.string().url() alone leaves open (issue #1158).
+ */
+function isUrlWithProtocol(value: string, allowedProtocols: readonly string[]): boolean {
+  try {
+    return allowedProtocols.includes(new URL(value).protocol);
+  } catch {
+    return false;
+  }
+}
+
 export const merchantProfileSchema = z.object({
   businessName: z.string().min(1, {
     error: () => translate('validation.merchantProfile.businessNameRequired'),
@@ -61,7 +76,9 @@ export const merchantProfileSchema = z.object({
   industry: z.string().min(1, {
     error: () => translate('validation.merchantProfile.industryRequired'),
   }),
-  websiteUrl: z.string().regex(/^https:\/\/.*/, {
+  websiteUrl: z.string().url({
+    error: () => translate('validation.merchantProfile.websiteHttps'),
+  }).refine(value => isUrlWithProtocol(value, ['https:']), {
     error: () => translate('validation.merchantProfile.websiteHttps'),
   }).or(z.literal('')).nullable(),
   contactEmail: z.string().email({
@@ -81,6 +98,8 @@ export const editPaymentLinkSchema = z.object({
   currency: z.enum(['USDC', 'XLM', 'USDT']).default('USDC'),
   expiry: z.string().optional(),
   redirectUrl: z.string().url({
+    error: () => translate('validation.editPaymentLink.urlInvalid'),
+  }).refine(value => isUrlWithProtocol(value, ['http:', 'https:']), {
     error: () => translate('validation.editPaymentLink.urlInvalid'),
   }).or(z.literal('')).optional(),
   reference: z.string().optional(),

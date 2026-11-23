@@ -20,11 +20,17 @@ export function isNetworkError(error: unknown): boolean {
   if (!error || typeof error !== 'object') return false;
   if ('isAxiosError' in error) {
     const axiosError = error as AxiosError;
-    // No response + ERR_NETWORK or status 0 indicates network/infrastructure failure
+    // A rejected XHR/fetch reports status 0 on the response *or* on the raw
+    // request. Both checks run outside the `!response` guard below so the
+    // status-0 signal is actually reachable — a status-0 response is itself
+    // the network-failure marker, and `request.status` covers the no-response
+    // case (issue #1159).
+    if (axiosError.response?.status === 0) return true;
+    if (axiosError.request?.status === 0) return true;
+    // No response + ERR_NETWORK indicates network/infrastructure failure
     if (!axiosError.response) {
       if (axiosError.code === NETWORK_ERROR_CODE) return true;
       if (axiosError.code === 'ERR_NETWORK') return true;
-      if ((axiosError.response as unknown as { status?: number })?.status === 0) return true;
       if (axiosError.message === 'Network Error') return true;
       // Fallback: no response and no code but message mentions network is still offline
       if (!axiosError.code && axiosError.message?.toLowerCase().includes('network')) return true;

@@ -122,6 +122,11 @@ Create a `.env.local` in the frontend package root (or set in your deployment pl
 | `NEXT_PUBLIC_SETTLEMENT_CONTRACT_ID` | No | Embedded demo default | Soroban smart contract ID for settlement logic. If not set, the app uses a hardcoded demo contract ID (`CBGBGKJSUY7XYB6HWW4CVAU6MW2KD25FSF45E5KCP53TKUK374MBZNFB`). In production, deploy your own contract and set this to its ID. | `CA3D...XYZ` |
 | `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` | Only for WalletConnect | *(unset)* | WalletConnect Cloud project ID, required to pair mobile wallets (Lobstr, Solar, …) over the WalletConnect relay. Get one for free at [cloud.walletconnect.com](https://cloud.walletconnect.com) → **Create project** → copy the **Project ID** (a 32-character hex string), and add your site origin to the project's allowed domains. When unset, empty or whitespace, WalletConnect is treated as **not configured**: no relay connection is attempted, the connect modal shows a “WalletConnect is not configured” notice instead of a QR code, and a dev-only `console.warn` is logged. Freighter keeps working. | `9f3c2e1a4b5d6c7e8f9a0b1c2d3e4f5a` |
 | `NEXT_PUBLIC_WALLETCONNECT_RELAY_URL` | No | `wss://relay.walletconnect.com` | WalletConnect v2 relay WebSocket URL. Only change this if you run your own relay. | `wss://relay.walletconnect.com` |
+| `NEXT_PUBLIC_SITE_URL` | No | `https://betta.pay` | Canonical public origin used as Next's `metadataBase` for absolute OpenGraph / canonical URLs (and the magic-link redirect base). Set it to your production origin so shared links resolve to the right host. | `https://betta.pay` |
+| `NEXT_PUBLIC_MERCHANT_ADDRESS` | For the in-app pay flow | *(unset)* | Merchant Stellar account (`G…`) that receives settlement in `/pay/[linkId]`. Required alongside `NEXT_PUBLIC_SOROBAN_RPC_URL` / passphrase when building a payment transaction — the pay page throws `NEXT_PUBLIC_MERCHANT_ADDRESS is not set` when it is missing. | `GABCD…WXYZ` |
+| `NEXT_PUBLIC_USDT_CONTRACT_ID` | No | *(unset)* | Stellar Asset Contract (SAC) address used when settling in USDT. Only needed if USDT settlement is enabled. | `CC…USDT` |
+| `NEXT_PUBLIC_DOCS_API_URL` | No | `https://bettapay-backend.onrender.com` | Base URL the developer-docs “Try it” explorer sends requests to. It is also added to the Content-Security-Policy `connect-src` allow-list, so pointing it at a private gateway requires no CSP edits. | `https://api.bettapay.com` |
+| `ANALYZE` | No | `false` | Build-time only. Run `ANALYZE=true npm run build` to emit the interactive webpack bundle-analyzer report. Not read at runtime. | `true` |
 
 > **Security:** never put secrets or private keys in `NEXT_PUBLIC_*` variables — they are exposed to the browser.
 
@@ -266,9 +271,84 @@ npm run lint && npm run typecheck && npm run build && npm test
 
 ## Security & auth
 
-- Auth tokens are stored in server-set cookies with `HttpOnly`, `Secure`, and `SameSite` attributes.
-- Avoid storing tokens in `localStorage`. This repo keeps minimal client state in memory.
-- Implement CSRF protection (double submit cookie or same-site cookie + anti-CSRF tokens) on state-changing endpoints.
+Auth is **cookie-based**. The backend sets an `HttpOnly` `auth_token` cookie (plus `Secure`
+in production and a `SameSite` attribute); the browser never reads it from JavaScript and
+it is never stored in `localStorage`. Companion `user_role` / `merchant_onboarded` cookies
+drive client routing only — the server stays the authority on identity and authorization.
+
+### Middleware: locale routing + auth/RBAC
+
+`middleware.ts` runs on a **positive allow-list** of routes (`config.matcher`), so static
+assets, API routes, the homepage and marketing pages bypass it entirely (issue #738). For
+each allow-listed route it:
+
+1. **Resolves the locale.** A `/en/...` prefix is stripped for internal routing and persisted
+   in the `NEXT_LOCALE` cookie; a bare path is redirected to its locale-prefixed twin, with
+   the locale inferred from the cookie, then `Accept-Language`, then `defaultLocale`.
+2. **Seeds the CSRF cookie** on every response via `ensureCsrfCookieInMiddleware`, so a
+   state-changing request always has a token to echo back — including anonymous payment
+   submissions under `/pay`.
+3. **Enforces auth/RBAC** against the locale-stripped path: anonymous visitors are sent to
+   login (with a validated `redirect` target that blocks open-redirects), authenticated users
+   are kept off the auth pages, and the admin and merchant trees are separated by role.
+
+### CSRF (double-submit cookie + session binding)
+
+State-changing requests carry the token in an `X-CSRF-Token` header, which must equal the
+readable `csrf_token` cookie (double-submit). When a session exists, the HttpOnly `csrf_sid`
+cookie must also equal `sha256(csrf_token . sessionKey)` (session binding), so a token minted
+for a different visitor or a pre-login page is rejected. The token is bootstrapped in
+middleware, rotated on login and refresh, and cleared on logout. See `lib/utils/csrf.ts`; the
+axios client attaches the header automatically for `POST`/`PUT`/`PATCH`/`DELETE`
+(`lib/api/axios.ts`).
+
+### Security headers & Content-Security-Policy
+
+`next.config.js` sends these headers on every response:
+
+| Header | Value |
+|---|---|
+| `Content-Security-Policy` | Explicit allow-list (see below) |
+| `X-Frame-Options` | `DENY` |
+| `X-Content-Type-Options` | `nosniff` |
+| `Referrer-Policy` | `no-referrer-when-downgrade` |
+| `Permissions-Policy` | `geolocation=(), microphone=()` |
+| `Strict-Transport-Security` | `max-age=63072000; includeSubDomains; preload` |
+
+The CSP (issue #777) is an explicit allow-list with **no bare `https:` wildcard**. Its
+`connect-src` origins are derived from the same env vars the app uses at runtime, so a
+deployment pointed at mainnet Horizon or a custom Soroban RPC is allowed automatically:
+
+- `connect-src` — the API origin (`NEXT_PUBLIC_API_URL`), the docs gateway
+  (`NEXT_PUBLIC_DOCS_API_URL`), Horizon (`NEXT_PUBLIC_STELLAR_HORIZON_URL` plus the public
+  SDF defaults), Soroban RPC (`NEXT_PUBLIC_SOROBAN_RPC_URL` plus the public default), the
+  WalletConnect relay (`NEXT_PUBLIC_WALLETCONNECT_RELAY_URL`) and `accounts.google.com`.
+- `script-src` — `'self'`, `'unsafe-inline'` (Next's inline bootstrap scripts + Google
+  Identity Services) and `'unsafe-eval'` **in development only**.
+- `frame-ancestors 'none'`, `object-src 'none'`, `base-uri 'self'`, `form-action 'self'`,
+  `worker-src 'self'`.
+
+`upgrade-insecure-requests` is appended in production builds.
+
+### Stellar network switching
+
+`NEXT_PUBLIC_STELLAR_NETWORK` selects the logical network (`testnet` | `mainnet`/`public` |
+`futurenet`) and is normalized by `lib/stellar/config.ts` (`normalizeNetwork` →
+`STELLAR_NETWORKS`). It carries the network **identity and passphrase** only — it does **not**
+re-point endpoints. To target a different Horizon / Soroban RPC, set
+`NEXT_PUBLIC_STELLAR_HORIZON_URL` and `NEXT_PUBLIC_SOROBAN_RPC_URL` explicitly; the CSP
+`connect-src` picks them up automatically. The wallet (Freighter), the backend and this
+frontend must all be on the same network.
+
+### Production security checklist
+
+- [ ] Set `NEXT_PUBLIC_API_URL` to the real backend over HTTPS (never leave the `localhost:3001` fallback).
+- [ ] Set `NEXT_PUBLIC_SITE_URL` to the public origin so canonical / OpenGraph URLs are absolute.
+- [ ] Choose the correct `NEXT_PUBLIC_STELLAR_NETWORK` (and Horizon / RPC URLs) for production, and match the backend and wallets to it.
+- [ ] Run with `NODE_ENV=production` so auth/CSRF cookies get `Secure` and the CSP drops `'unsafe-eval'`.
+- [ ] Configure `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` and add the production origin to its allowed domains.
+- [ ] Keep every secret out of `NEXT_PUBLIC_*` — those values ship to the browser bundle.
+- [ ] Serve the app over HTTPS so HSTS and `Secure` cookies are effective.
 
 ---
 
