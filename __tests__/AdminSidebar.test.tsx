@@ -89,7 +89,7 @@ jest.mock("@/lib/utils", () => ({
 // Component imports (after mocks)
 // ---------------------------------------------------------------------------
 
-import { AdminSidebar } from "@/components/layout/AdminSidebar";
+import { AdminSidebar, isNavItemActive } from "@/components/layout/AdminSidebar";
 import { MerchantSidebar } from "@/components/layout/MerchantSidebar";
 
 // ---------------------------------------------------------------------------
@@ -308,6 +308,23 @@ describe("AdminSidebar — active route highlighting", () => {
     renderAdmin("/admin/transactions");
     expect(getNavLink("/merchants")).not.toHaveAttribute("aria-current");
   });
+
+  it("highlights active nav item with locale prefix (issue #1131)", () => {
+    const { unmount } = renderAdmin("/en/overview");
+    expect(getNavLink("/overview")).toHaveAttribute("aria-current", "page");
+    unmount();
+
+    renderAdmin("/fr/merchants");
+    expect(getNavLink("/merchants")).toHaveAttribute("aria-current", "page");
+  });
+
+  it("isNavItemActive strips locale prefixes correctly", () => {
+    expect(isNavItemActive("/en/overview", "/overview")).toBe(true);
+    expect(isNavItemActive("/fr/merchants/123", "/merchants")).toBe(true);
+    expect(isNavItemActive("/pt/admin/transactions", "/admin/transactions")).toBe(true);
+    expect(isNavItemActive("/sw/alerts", "/alerts")).toBe(true);
+    expect(isNavItemActive("/fr/payments", "/merchants")).toBe(false);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -362,5 +379,20 @@ describe("MerchantSidebar — not affected by admin changes", () => {
   it('shows "Merchant Corp" in the footer', () => {
     renderMerchant();
     expect(screen.getByText(/merchant corp/i)).toBeInTheDocument();
+  });
+
+  it("marks /dashboard active when pathname has locale prefix e.g. /en/dashboard (issue #1131)", () => {
+    renderMerchant("/en/dashboard");
+    const nav = screen.getByRole("navigation");
+    const dashboardLink = Array.from(nav.querySelectorAll("a")).find((a) =>
+      a.getAttribute("href") === "/dashboard"
+    );
+    expect(dashboardLink).toBeDefined();
+    expect(dashboardLink!.className).toMatch(/amber/);
+  });
+
+  it("does not show 'Verified' when not logged in (issue #1131)", () => {
+    renderMerchant();
+    expect(screen.queryByText(/^Verified$/i)).not.toBeInTheDocument();
   });
 });

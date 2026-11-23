@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import { merchantNavItems } from '@/lib/navigation/merchantNav';
+import { stripLocalePrefix } from '@/lib/i18n/locales';
 import { Menu } from 'lucide-react';
 
 const MOBILE_HREFS = ['/dashboard', '/payments', '/transactions', '/wallet'] as const;
@@ -28,16 +29,17 @@ const HIDDEN_PREFIXES = ['/settings', '/developers', '/auth', '/docs', '/guides'
 // This includes wallet, dashboard, payments, transactions (+ their sub-routes) and optionally settlement/fx.
 // We explicitly hide settings/developers as called out in the issue.
 function shouldShowBottomNav(pathname: string): boolean {
+  const normalized = stripLocalePrefix(pathname);
   // Hide if matches any hidden prefix
   for (const prefix of HIDDEN_PREFIXES) {
-    if (pathname === prefix || pathname.startsWith(prefix + '/')) {
+    if (normalized === prefix || normalized.startsWith(prefix + '/')) {
       return false;
     }
   }
   // Show only on intended surfaces - keep limited to mobile primary + settlement/fx which are transactional
   // For now allow dashboard, payments, transactions, wallet, settlement, fx - hide everything else inside merchant
   const allowedPrefixes = ['/dashboard', '/payments', '/transactions', '/wallet', '/settlement', '/fx'];
-  return allowedPrefixes.some((p) => pathname === p || pathname.startsWith(p + '/'));
+  return allowedPrefixes.some((p) => normalized === p || normalized.startsWith(p + '/'));
 }
 
 interface MobileBottomNavProps {
@@ -46,10 +48,11 @@ interface MobileBottomNavProps {
 
 export const MobileBottomNav = ({ onMoreClick }: MobileBottomNavProps) => {
   const { t } = useTranslation();
-  const pathname = usePathname();
+  const rawPathname = usePathname();
+  const pathname = stripLocalePrefix(rawPathname ?? '');
 
   // Route-based visibility - hide outside intended interactive surface
-  if (!shouldShowBottomNav(pathname ?? '')) {
+  if (!shouldShowBottomNav(rawPathname ?? '')) {
     return null;
   }
 

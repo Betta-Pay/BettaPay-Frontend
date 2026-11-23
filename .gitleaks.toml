@@ -13,4 +13,7 @@ paths = [
   '''^lib/docs/endpoints\.ts$''',
   # Auth-login-flow tests: mock id tokens
   '''^app/auth/__tests__/loginFlow\.test\.tsx$''',
+  # Mock stellar and session test tokens
+  '''^lib/stellar/__tests__/utils\.test\.ts$''',
+  '''^app/api/auth/session/__tests__/route\.test\.ts$''',
 ]

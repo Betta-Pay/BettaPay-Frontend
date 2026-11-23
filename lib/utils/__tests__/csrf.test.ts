@@ -1,3 +1,6 @@
+/**
+ * @jest-environment node
+ */
 import {
   generateCsrfToken,
   CSRF_TOKEN_HEX_LENGTH,
@@ -65,21 +68,24 @@ describe('CSRF token utilities', () => {
   });
 
   describe('getCsrfTokenFromCookie', () => {
-    const originalDocument = global.document;
     let cookie = '';
 
     beforeEach(() => {
       cookie = '';
-      Object.defineProperty(global.document, 'cookie', {
-        configurable: true,
-        get: () => cookie,
-        set: (value: string) => { cookie = value; },
-      });
+      // @ts-expect-error mock document in node environment
+      global.document = {
+        get cookie() {
+          return cookie;
+        },
+        set cookie(value: string) {
+          cookie = value;
+        },
+      };
     });
 
     afterEach(() => {
-      global.document = originalDocument;
-      Reflect.deleteProperty(global.document, 'cookie');
+      // @ts-expect-error simulating non-browser environment
+      delete global.document;
     });
 
     it('returns null when document is undefined', () => {

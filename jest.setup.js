@@ -10,10 +10,13 @@ if (typeof global.setImmediate === 'undefined') {
   global.setImmediate = typeof setImmediate !== 'undefined' ? setImmediate : ((fn, ...args) => setTimeout(fn, 0, ...args));
 }
 
-// jsdom does not expose the Fetch API Request constructor. Next route handlers
-// use the same edge-runtime Request implementation in production.
+// jsdom does not expose the Fetch API Request and Response constructors. Next route handlers
+// use the same edge-runtime Request/Response implementation in production.
 if (typeof global.Request === 'undefined') {
   global.Request = require('next/dist/compiled/@edge-runtime/primitives').Request;
+}
+if (typeof global.Response === 'undefined') {
+  global.Response = require('next/dist/compiled/@edge-runtime/primitives').Response;
 }
 
 // jsdom exposes getRandomValues but not SubtleCrypto; use Node's WebCrypto

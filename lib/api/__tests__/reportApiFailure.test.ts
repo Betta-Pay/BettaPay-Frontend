@@ -80,7 +80,7 @@ describe('reportApiFailure error classification', () => {
 
       for (const status of [400, 403, 404]) {
         jest.clearAllMocks();
-        axios.defaults.adapter = (config: InternalAxiosRequestConfig) => {
+        apiClient.defaults.adapter = (config: InternalAxiosRequestConfig) => {
           return Promise.reject(
             new axios.AxiosError('Client error', 'ERR_BAD_REQUEST', config, {}, {
               data: { message: 'Not allowed or invalid' },
@@ -100,7 +100,7 @@ describe('reportApiFailure error classification', () => {
     it('reports 5xx errors via captureException', async () => {
       const axios = jest.requireActual<typeof import('axios')>('axios').default;
 
-      axios.defaults.adapter = (config: InternalAxiosRequestConfig) => {
+      apiClient.defaults.adapter = (config: InternalAxiosRequestConfig) => {
         return Promise.reject(
           new axios.AxiosError('Server Error', 'ERR_BAD_RESPONSE', config, {}, {
             data: { message: 'Internal crash' },
@@ -121,7 +121,7 @@ describe('reportApiFailure error classification', () => {
     it('reports network failures and marks isApiReachable as false in offlineStore', async () => {
       const axios = jest.requireActual<typeof import('axios')>('axios').default;
 
-      axios.defaults.adapter = (config: InternalAxiosRequestConfig) => {
+      apiClient.defaults.adapter = (config: InternalAxiosRequestConfig) => {
         return Promise.reject(
           new axios.AxiosError('Network Error', 'ERR_NETWORK', config)
         );

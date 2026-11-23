@@ -6,57 +6,20 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { ROUTES } from "@/lib/navigation/routes";
 import {
-  BarChart3,
-  Users,
-  ListOrdered,
-  Anchor,
-  RefreshCcw,
-  ShieldAlert,
-  Settings,
-  ScrollText,
-  PackageCheck,
-  Fingerprint,
-  Webhook,
-  Coins,
-  BellRing,
   ShieldCheck,
   ChevronLeft,
   ChevronRight,
-  type LucideIcon,
 } from "lucide-react";
-
-// ---------------------------------------------------------------------------
-// Navigation config — single source of truth for admin routes
-// ---------------------------------------------------------------------------
-
-interface NavItem {
-  href: string;
-  label: string;
-  icon: LucideIcon;
-}
-
-const navItems: NavItem[] = [
-  { href: ROUTES.OVERVIEW, label: "Overview", icon: BarChart3 },
-  { href: "/merchants", label: "Merchants", icon: Users },
-  { href: "/admin/transactions", label: "Transactions", icon: ListOrdered },
-  { href: "/anchors", label: "Anchors", icon: Anchor },
-  { href: "/fx-management", label: "FX Management", icon: RefreshCcw },
-  { href: "/compliance", label: "Compliance", icon: ShieldAlert },
-  { href: "/audit", label: "Audit Log", icon: ScrollText },
-  { href: "/batches", label: "Batches", icon: PackageCheck },
-  { href: "/security/ip-scores", label: "IP Scores", icon: Fingerprint },
-  { href: "/webhooks", label: "Webhooks", icon: Webhook },
-  { href: "/assets", label: "Assets", icon: Coins },
-  { href: "/alerts", label: "Alerts", icon: BellRing },
-  { href: "/admin/settings", label: "Settings", icon: Settings },
-];
+import { adminNavItems } from "@/lib/navigation/adminNav";
+import { stripLocalePrefix } from "@/lib/i18n/locales";
 
 // ---------------------------------------------------------------------------
 // Active-link helper — mirrors MerchantSidebar's exact match + sub-path logic
 // ---------------------------------------------------------------------------
 
-function isNavItemActive(pathname: string, href: string): boolean {
-  return pathname === href || pathname.startsWith(href + "/");
+export function isNavItemActive(pathname: string, href: string): boolean {
+  const normalized = stripLocalePrefix(pathname || "");
+  return normalized === href || normalized.startsWith(href + "/");
 }
 
 const STORAGE_KEY = "bettapay:sidebar:admin:collapsed";
@@ -169,7 +132,7 @@ export const AdminSidebar = () => {
         className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto"
         aria-label="Admin menu"
       >
-        {navItems.map((item) => {
+        {adminNavItems.map((item) => {
           const active = isNavItemActive(pathname ?? '', item.href);
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const Icon = item.icon as any;
