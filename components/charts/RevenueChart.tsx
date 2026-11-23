@@ -45,9 +45,30 @@ export const mockChartData: RevenueChartPoint[] = [
 
 const round2 = (value: number) => Math.round(value * 100) / 100;
 
+const MS_PER_DAY = 86_400_000;
+
+/**
+ * A series covering at most a week is identified by the day name; anything
+ * longer repeats the same seven names, so a 30D or 90D axis cannot be read.
+ * Exported for tests — the threshold is the behaviour #1135 asks for.
+ */
+export const WEEKDAY_SPAN_LIMIT = 7;
+
+const DATE_LABEL_FORMAT = { weekday: "short" } satisfies Intl.DateTimeFormatOptions;
+const CALENDAR_LABEL_FORMAT = {
+  month: "short",
+  day: "numeric",
+} satisfies Intl.DateTimeFormatOptions;
+
+/** `YYYY-MM-DD` bucket key -> local-midnight Date, so labels never shift a day. */
+const dayStart = (key: string) => new Date(`${key}T00:00:00`);
+
 /**
  * Buckets payments into calendar days, then walks the days in order to build a
  * running cumulative volume. Failed payments never count towards revenue.
+ *
+ * Labels follow the span the buckets cover, not how many of them there are: a
+ * sparse month still needs dates, because `Mon` cannot tell you which Monday.
  */
 export const aggregatePaymentsByDay = (
   payments: RevenuePayment[]
@@ -68,20 +89,28 @@ export const aggregatePaymentsByDay = (
     byDay.set(key, (byDay.get(key) ?? 0) + amount);
   }
 
+  const entries = Array.from(byDay.entries()).sort(([a], [b]) => a.localeCompare(b));
+  const spanDays =
+    entries.length > 0
+      ? Math.round(
+          (dayStart(entries[entries.length - 1][0]).getTime() -
+            dayStart(entries[0][0]).getTime()) /
+            MS_PER_DAY
+        ) + 1
+      : 0;
+  const labelFormat =
+    spanDays > WEEKDAY_SPAN_LIMIT ? CALENDAR_LABEL_FORMAT : DATE_LABEL_FORMAT;
+
   let cumulative = 0;
 
-  return Array.from(byDay.entries())
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([key, total]) => {
-      cumulative += total;
-      return {
-        name: new Date(`${key}T00:00:00`).toLocaleDateString("en-US", {
-          weekday: "short",
-        }),
-        total: round2(total),
-        volume: round2(cumulative),
-      };
-    });
+  return entries.map(([key, total]) => {
+    cumulative += total;
+    return {
+      name: dayStart(key).toLocaleDateString("en-US", labelFormat),
+      total: round2(total),
+      volume: round2(cumulative),
+    };
+  });
 };
 
 const formatUsd = (value: number) =>
@@ -222,7 +251,7 @@ export default function RevenueChart({
             tickLine={false}
             axisLine={false}
             tick={{ fill: "var(--muted-foreground)" }}
-            aria-label="Day of week"
+            aria-label="Date"
           />
           <YAxis
             stroke="var(--muted-foreground)"
