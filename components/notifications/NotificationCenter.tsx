@@ -19,6 +19,7 @@ import {
   type NotificationPreferences,
   type NotificationType,
 } from '@/lib/notifications';
+import { csrfHeader } from '@/lib/utils/csrf';
 
 interface NotificationCenterProps {
   unreadNotificationCount?: number;
@@ -85,11 +86,16 @@ export function NotificationCenter({ unreadNotificationCount = 0, alertUnreadCou
     }
 
     const eventSource = new EventSource('/api/notifications/stream');
-    eventSource.onmessage = () => {
+    // The route frames every push as `event: notification`, and named events
+    // never reach `onmessage` — listening only there dropped real-time updates
+    // silently (#1134).
+    const onNotification = () => {
       refresh();
     };
+    eventSource.addEventListener('notification', onNotification);
 
     return () => {
+      eventSource.removeEventListener('notification', onNotification);
       eventSource.close();
     };
   }, [refresh]);
@@ -107,7 +113,7 @@ export function NotificationCenter({ unreadNotificationCount = 0, alertUnreadCou
     try {
       await fetch('/api/notifications', {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...csrfHeader() },
         body: JSON.stringify({ action: 'mark_all_read' }),
       });
       await refresh();
@@ -122,7 +128,7 @@ export function NotificationCenter({ unreadNotificationCount = 0, alertUnreadCou
 
     await fetch('/api/notifications', {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...csrfHeader() },
       body: JSON.stringify({ action: 'set_preferences', preferences: nextPreferences }),
     });
 
@@ -134,7 +140,7 @@ export function NotificationCenter({ unreadNotificationCount = 0, alertUnreadCou
     try {
       await fetch('/api/notifications', {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...csrfHeader() },
         body: JSON.stringify({ action: 'mark_read', id }),
       });
       await refresh();
@@ -272,7 +278,7 @@ export function NotificationPreferencesPanel() {
 
     await fetch('/api/notifications', {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...csrfHeader() },
       body: JSON.stringify({ action: 'set_preferences', preferences: nextPreferences }),
     });
   }, [preferences]);
