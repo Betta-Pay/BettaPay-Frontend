@@ -119,7 +119,10 @@ export function resolveApiBaseUrl(): string {
     baseUrlOverride ?? readRuntimeBaseUrl() ?? process.env.NEXT_PUBLIC_API_URL;
 
   if (configured && configured.trim()) {
-    return normalizeBaseUrl(configured);
+    const normalized = normalizeBaseUrl(configured);
+    if (normalized.length > 0) {
+      return normalized;
+    }
   }
 
   if (!hasWarnedAboutBaseUrl && process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
@@ -131,7 +134,7 @@ export function resolveApiBaseUrl(): string {
     );
   }
 
-  return DEFAULT_API_BASE_URL;
+  return normalizeBaseUrl(DEFAULT_API_BASE_URL);
 }
 
 /**
@@ -141,7 +144,12 @@ export function resolveApiBaseUrl(): string {
  * Pass `null` (or use `resetApiBaseUrl`) to fall back to the configured value.
  */
 export function setApiBaseUrl(url: string | null): void {
-  baseUrlOverride = url && url.trim() ? normalizeBaseUrl(url) : null;
+  if (!url || !url.trim()) {
+    baseUrlOverride = null;
+    return;
+  }
+  const normalized = normalizeBaseUrl(url);
+  baseUrlOverride = normalized.length > 0 ? normalized : null;
 }
 
 /** Clear an override set by `setApiBaseUrl`. */

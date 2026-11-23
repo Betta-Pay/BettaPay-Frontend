@@ -74,6 +74,50 @@ describe('api base URL resolution', () => {
   it('strips trailing slashes so paths join cleanly', () => {
     setApiBaseUrl('https://qa.bettapay.io/');
     expect(getApiBaseUrl()).toBe('https://qa.bettapay.io');
+    expect(getApiBaseUrl().endsWith('/')).toBe(false);
+
+    setApiBaseUrl('https://qa.bettapay.io///');
+    expect(getApiBaseUrl()).toBe('https://qa.bettapay.io');
+    expect(getApiBaseUrl().endsWith('/')).toBe(false);
+  });
+
+  it('never returns a URL ending with / even when given root slashes or empty strings', () => {
+    setApiBaseUrl('/');
+    expect(getApiBaseUrl().endsWith('/')).toBe(false);
+    expect(getApiBaseUrl()).not.toBe('');
+
+    setApiBaseUrl('///');
+    expect(getApiBaseUrl().endsWith('/')).toBe(false);
+
+    setApiBaseUrl('   ');
+    expect(getApiBaseUrl().endsWith('/')).toBe(false);
+  });
+
+  it('handles NEXT_PUBLIC_API_URL with trailing slashes and relative paths cleanly', async () => {
+    const originalEnv = process.env.NEXT_PUBLIC_API_URL;
+    try {
+      process.env.NEXT_PUBLIC_API_URL = 'https://api.env.bettapay.io///';
+      expect(getApiBaseUrl()).toBe('https://api.env.bettapay.io');
+      expect(getApiBaseUrl().endsWith('/')).toBe(false);
+
+      process.env.NEXT_PUBLIC_API_URL = '/api/v1///';
+      expect(getApiBaseUrl()).toBe('/api/v1');
+      expect(getApiBaseUrl().endsWith('/')).toBe(false);
+    } finally {
+      process.env.NEXT_PUBLIC_API_URL = originalEnv;
+    }
+  });
+
+  it('handles SSR fallback consistently when window is undefined', () => {
+    const originalWindow = global.window;
+    try {
+      // @ts-expect-error simulate SSR
+      delete global.window;
+      expect(getApiBaseUrl().endsWith('/')).toBe(false);
+      expect(getApiBaseUrl()).toBe('http://localhost:3001');
+    } finally {
+      global.window = originalWindow;
+    }
   });
 
   it('reads a runtime global when no override is set', async () => {
