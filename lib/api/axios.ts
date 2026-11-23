@@ -298,14 +298,19 @@ let failedQueue: Array<{
 }> = [];
 
 function processQueue(error: unknown) {
-  failedQueue.forEach((prom) => {
-    if (error) {
-      prom.reject(error);
-    } else {
-      prom.resolve();
+  const queue = failedQueue;
+  failedQueue = [];
+  queue.forEach((prom) => {
+    try {
+      if (error) {
+        prom.reject(error);
+      } else {
+        prom.resolve();
+      }
+    } catch {
+      // Prevent callback exceptions from interrupting queue draining
     }
   });
-  failedQueue = [];
 }
 
 function redirectToLogin() {
@@ -403,14 +408,18 @@ apiClient.interceptors.response.use(
         }
         hasRedirectedForExpiry = false;
         processQueue(null);
-        return apiClient(originalRequest);
       } catch (refreshError) {
         processQueue(refreshError);
         redirectToLogin();
         return Promise.reject(parseApiError(refreshError));
       } finally {
         isRefreshing = false;
+        if (failedQueue.length > 0) {
+          processQueue(new Error('Token refresh aborted'));
+        }
       }
+
+      return apiClient(originalRequest);
     }
 
     // Handle 429 rate limiting

@@ -44,6 +44,7 @@ describe('axios token-refresh queue', () => {
     const adapter = (config: import("axios").InternalAxiosRequestConfig) => {
       const url = config.url || '';
       if (url.includes('/api/auth/refresh')) {
+        hits['/api/auth/refresh'] = (hits['/api/auth/refresh'] || 0) + 1;
         if (refreshFails) {
           return Promise.reject(
             new axios.AxiosError(
@@ -112,6 +113,33 @@ describe('axios token-refresh queue', () => {
     expect(second).toBeDefined();
     expect(second.data).toEqual({ value: 'real-/protected-b' });
     expect(offlineStore.getState().isApiReachable).toBe(true);
+  });
+
+  it('triggers only one /api/auth/refresh call for multiple concurrent 401 responses', async () => {
+    const [first, second, third] = await Promise.all([
+      apiClient.get('/protected-x'),
+      apiClient.get('/protected-y'),
+      apiClient.get('/protected-z'),
+    ]);
+
+    expect(first.data).toEqual({ value: 'real-/protected-x' });
+    expect(second.data).toEqual({ value: 'real-/protected-y' });
+    expect(third.data).toEqual({ value: 'real-/protected-z' });
+    expect(hits['/api/auth/refresh']).toBe(1);
+  });
+
+  it('rejects all queued requests and resets isRefreshing when refresh fails', async () => {
+    refreshFails = true;
+    const p1 = apiClient.get('/fail-a');
+    const p2 = apiClient.get('/fail-b');
+
+    await expect(p1).rejects.toBeDefined();
+    await expect(p2).rejects.toBeDefined();
+
+    // Verify isRefreshing has reset to false: a subsequent request can attempt refresh again
+    refreshFails = false;
+    const p3 = await apiClient.get('/recover-c');
+    expect(p3.data).toEqual({ value: 'real-/recover-c' });
   });
 
   it('resets expiry redirects after login and session token restoration', async () => {
