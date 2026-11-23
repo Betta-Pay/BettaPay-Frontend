@@ -20,11 +20,24 @@ import { useAppTranslation } from '@/lib/i18n/useAppTranslation';
 
 function useCopyUri(uri: string) {
   const [copied, setCopied] = useState(false);
+  const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(
+    () => () => {
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+    },
+    [],
+  );
+
   const copy = useCallback(async () => {
     try {
       await navigator.clipboard.writeText(uri);
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      copyTimerRef.current = setTimeout(() => {
+        copyTimerRef.current = null;
+        setCopied(false);
+      }, 2000);
     } catch {
       // Clipboard API unavailable — silently ignore
     }
@@ -79,12 +92,21 @@ export function WalletConnectModal({
   const startedRef = useRef(false);
   const startedNetworkRef = useRef<StellarWalletConnectNetwork | null>(null);
   const closedRef = useRef(false);
+  const sessionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearSessionTimer = useCallback(() => {
+    if (sessionTimerRef.current) {
+      clearTimeout(sessionTimerRef.current);
+      sessionTimerRef.current = null;
+    }
+  }, []);
 
   const startConnection = useCallback(async () => {
     const activeNetwork = network;
     startedRef.current = true;
     startedNetworkRef.current = activeNetwork;
     closedRef.current = false;
+    clearSessionTimer();
     setUri('');
     setErrorMsg('');
     setStatusDetail('');
@@ -108,7 +130,9 @@ export function WalletConnectModal({
 
     client.onSession((session) => {
       if (closedRef.current || startedNetworkRef.current !== activeNetwork) return;
-      setTimeout(() => {
+      if (sessionTimerRef.current) clearTimeout(sessionTimerRef.current);
+      sessionTimerRef.current = setTimeout(() => {
+        sessionTimerRef.current = null;
         if (closedRef.current || startedNetworkRef.current !== activeNetwork) return;
         onOpenChange(false);
         onConnected(session);
@@ -128,24 +152,33 @@ export function WalletConnectModal({
       setStatus('error');
       setErrorMsg(err instanceof Error ? err.message : t('walletConnect.errors.startFailed'));
     }
-  }, [network, onOpenChange, onConnected, t]);
+  }, [network, onOpenChange, onConnected, t, clearSessionTimer]);
 
   useEffect(() => {
     if (!open) {
       closedRef.current = true;
       startedRef.current = false;
       startedNetworkRef.current = null;
+      clearSessionTimer();
       return;
     }
     closedRef.current = false;
     if (startedRef.current && startedNetworkRef.current === network) return;
     void startConnection();
-  }, [open, network, startConnection]);
+  }, [open, network, startConnection, clearSessionTimer]);
+
+  useEffect(
+    () => () => {
+      if (sessionTimerRef.current) clearTimeout(sessionTimerRef.current);
+    },
+    [],
+  );
 
   const handleOpenChange = useCallback(
     (v: boolean) => {
       if (!v) {
         closedRef.current = true;
+        clearSessionTimer();
         getWalletConnectClient(network).abortInitialization();
         resetWalletConnectClient();
         setUri('');
@@ -158,7 +191,7 @@ export function WalletConnectModal({
       }
       onOpenChange(v);
     },
-    [onOpenChange, network],
+    [onOpenChange, network, clearSessionTimer],
   );
 
   const showQr =
