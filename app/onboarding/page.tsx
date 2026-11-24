@@ -171,25 +171,47 @@ export default function OnboardingPage() {
     setShowResumePrompt(false);
   }, [reset]);
 
-  // Trim string inputs upfront so form state always reflects the cleaned value.
-  // This keeps the validation logic in sync with what is actually sent to the
-  // API at submit time (and prevents inputs like "  Acme  " from being
-  // stored as-is and validated against the trimmed length in isolation).
+  // Store values exactly as typed (issue #1129). Trimming on every keystroke
+  // dropped the trailing space before the next word landed, so "Acme Corp"
+  // couldn't be typed. Whitespace is trimmed on blur, before each step's
+  // validation, at review revalidation and at submit instead.
   const updateData = (changes: Partial<OnboardingData>) => {
-    const cleaned = Object.fromEntries(
-      Object.entries(changes).map(([k, v]) => [
-        k,
-        typeof v === 'string' ? v.trim() : v,
-      ]),
-    ) as Partial<OnboardingData>;
-    (Object.keys(cleaned) as (keyof OnboardingData)[]).forEach((key) => {
-      setValue(key, cleaned[key]);
+    (Object.keys(changes) as (keyof OnboardingData)[]).forEach((key) => {
+      setValue(key, changes[key]);
     });
     saveProgress(step, getValues());
     clearErrors();
   };
 
+  /**
+   * Trim string fields in form state (all of them when `fields` is omitted)
+   * and return the cleaned values.
+   */
+  const trimFields = useCallback(
+    (fields?: (keyof OnboardingData)[]): OnboardingData => {
+      const values = getValues();
+      const keys = fields ?? (Object.keys(values) as (keyof OnboardingData)[]);
+      let changed = false;
+      for (const key of keys) {
+        const value = values[key];
+        if (typeof value === "string" && value !== value.trim()) {
+          setValue(key, value.trim());
+          changed = true;
+        }
+      }
+      const cleaned = getValues();
+      if (changed) saveProgress(step, cleaned);
+      return cleaned;
+    },
+    [getValues, setValue, step],
+  );
+
+  const handleFieldBlur = (field: keyof OnboardingData) => {
+    trimFields([field]);
+  };
+
   const revalidateData = useCallback(async () => {
+    trimFields();
     setIsValidating(true);
     setValidationError(null);
     setDriftedFields([]);
@@ -244,7 +266,7 @@ export default function OnboardingPage() {
     } finally {
       setIsValidating(false);
     }
-  }, [data.settlementCurrency, data.preferredAnchor]);
+  }, [data.settlementCurrency, data.preferredAnchor, trimFields]);
 
   useEffect(() => {
     if (step === REVIEW_STEP) {
@@ -259,6 +281,8 @@ export default function OnboardingPage() {
   const validate = async (targetStep: number) => {
     // Replace any previous step's messages so a step only ever shows its own.
     clearErrors();
+    // Validate what will actually be sent: the trimmed values.
+    trimFields();
 
     // Step 0 runs through the resolver registered on the form, so the country
     // Select validates like any other Controller-bound field.
@@ -327,17 +351,18 @@ export default function OnboardingPage() {
   const submit = async () => {
     if (!user) { router.push(ROUTES.LOGIN); return; }
     setIsSubmitting(true);
+    const values = trimFields();
     try {
       await apiClient.patch(`/api/merchants/${user.id}`, {
-        name: data.businessName.trim(), businessType: data.businessType, country: data.country,
+        name: values.businessName, businessType: values.businessType, country: values.country,
       });
       await apiClient.patch(`/api/merchants/${user.id}/settings`, {
-        defaultSettlementCurrency: data.settlementCurrency, autoConvert: data.autoConvert,
-        preferredAnchor: data.preferredAnchor, autoSettle: data.autoSettle,
-        webhookUrl: data.webhookUrl || null,
-        bankName: data.bankName || null,
-        bankCode: data.bankCode || null,
-        accountNumber: data.accountNumber || null,
+        defaultSettlementCurrency: values.settlementCurrency, autoConvert: values.autoConvert,
+        preferredAnchor: values.preferredAnchor, autoSettle: values.autoSettle,
+        webhookUrl: values.webhookUrl || null,
+        bankName: values.bankName || null,
+        bankCode: values.bankCode || null,
+        accountNumber: values.accountNumber || null,
       });
       clearSavedProgress();
       setOnboardingCompleted(true);
@@ -353,15 +378,16 @@ export default function OnboardingPage() {
     const isValid = await validate(0);
     if (!isValid) return;
     setIsSubmitting(true);
+    const values = trimFields();
     try {
       if (user?.id) {
         await apiClient.patch(`/api/merchants/${user.id}`, {
-          name: data.businessName.trim(),
-          businessType: data.businessType,
-          country: data.country || "Nigeria",
+          name: values.businessName,
+          businessType: values.businessType,
+          country: values.country || "Nigeria",
         });
         await apiClient.patch(`/api/merchants/${user.id}/settings`, {
-          defaultSettlementCurrency: data.settlementCurrency || "NGN",
+          defaultSettlementCurrency: values.settlementCurrency || "NGN",
           autoConvert: true,
           preferredAnchor: "Cowry",
           autoSettle: true,
@@ -384,7 +410,9 @@ export default function OnboardingPage() {
 
   const advanceStep = (newStep: number) => {
     setStep(newStep);
-    saveProgress(newStep, data);
+    // Read fresh values: `data` is the last render's snapshot and would miss
+    // the trim `validate` just applied.
+    saveProgress(newStep, getValues());
   };
 
   const continueToNextStep = () => {
@@ -440,10 +468,10 @@ export default function OnboardingPage() {
         </CardHeader>
         <CardContent className="space-y-8">
           <Stepper steps={steps} currentStep={step} onStepClick={goToStep} />
-          {step === 0 && <StepBusinessInfo data={data} errors={errors} onChange={updateData} control={control} />}
+          {step === 0 && <StepBusinessInfo data={data} errors={errors} onChange={updateData} onFieldBlur={handleFieldBlur} control={control} />}
           {step === 1 && <StepCurrency data={data} errors={errors} onChange={updateData} />}
-          {step === 2 && <StepSettlement data={data} errors={errors} onChange={updateData} />}
-          {step === 3 && <StepWebhook data={data} errors={errors} onChange={updateData} />}
+          {step === 2 && <StepSettlement data={data} errors={errors} onChange={updateData} onFieldBlur={handleFieldBlur} />}
+          {step === 3 && <StepWebhook data={data} errors={errors} onChange={updateData} onFieldBlur={handleFieldBlur} />}
           {step === 4 && <StepKyc merchantId={user?.id} />}
           {step === REVIEW_STEP && (
             <StepReview
