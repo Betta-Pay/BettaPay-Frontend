@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { AlertTriangle, ChevronLeft, ChevronRight, PackageCheck, RefreshCcw } from "lucide-react";
@@ -23,9 +23,11 @@ import { BatchStatusBadge } from "@/components/admin/batches/BatchStatusBadge";
 import { BatchDetailDialog } from "@/components/admin/batches/BatchDetailDialog";
 import { formatMoney } from "@/lib/batches/derive";
 import type { BatchPage } from "@/lib/batches/types";
+import { useEnabledAssets } from "@/lib/assets/hooks";
 
 const PAGE_SIZE = 10;
-const ASSETS = ["USDC", "XLM", "USDT"];
+/** Used only until the live asset list loads, or if it can't be fetched. */
+export const FALLBACK_ASSETS = ["USDC", "XLM", "USDT"];
 const STATUSES: [string, string][] = [
   ["created", "Created"],
   ["processing", "Processing"],
@@ -34,12 +36,15 @@ const STATUSES: [string, string][] = [
   ["failed", "Failed"],
 ];
 
-async function fetchBatches(params: { asset: string; status: string; cursor: string | null }): Promise<BatchPage> {
+export async function fetchBatches(
+  params: { asset: string; status: string; cursor: string | null },
+  { signal }: { signal?: AbortSignal } = {},
+): Promise<BatchPage> {
   const qs = new URLSearchParams({ limit: String(PAGE_SIZE) });
   if (params.asset) qs.set("asset", params.asset);
   if (params.status) qs.set("status", params.status);
   if (params.cursor) qs.set("cursor", params.cursor);
-  const res = await fetch(`/api/admin/batches?${qs}`, { cache: "no-store" });
+  const res = await fetch(`/api/admin/batches?${qs}`, { cache: "no-store", signal });
   if (!res.ok) throw new Error("Couldn't load batches");
   return res.json();
 }
@@ -56,9 +61,18 @@ function BatchesView() {
   const [cursors, setCursors] = useState<(string | null)[]>([null]);
   const cursor = cursors[cursors.length - 1];
 
+  const enabledAssets = useEnabledAssets();
+  const assetOptions = useMemo(() => {
+    const live = (enabledAssets.data ?? []).map((a) => a.code);
+    const codes = live.length > 0 ? live : FALLBACK_ASSETS;
+    // Keep the active filter selectable even if that asset was just disabled.
+    return asset && !codes.includes(asset) ? [...codes, asset] : codes;
+  }, [enabledAssets.data, asset]);
+
   const q = useQuery({
     queryKey: ["admin", "batches", { asset, status, cursor }],
-    queryFn: () => fetchBatches({ asset, status, cursor }),
+    // Forward the signal so a superseded request is aborted when filters change.
+    queryFn: ({ signal }) => fetchBatches({ asset, status, cursor }, { signal }),
     // Backend status is the source of truth; keep it fresh while visible.
     refetchInterval: 15_000,
     refetchIntervalInBackground: false,
@@ -103,7 +117,7 @@ function BatchesView() {
             onChange={(e) => setFilter(() => setAsset(e.target.value))}
           >
             <option value="">All assets</option>
-            {ASSETS.map((a) => (
+            {assetOptions.map((a) => (
               <option key={a} value={a}>
                 {a}
               </option>

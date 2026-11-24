@@ -10,6 +10,21 @@ import { useNotify } from '@/lib/hooks/useNotify';
 import { announce } from '@/lib/utils/announce';
 import { ROUTES } from '@/lib/navigation/routes';
 
+type RegisterResponse = {
+  token?: unknown;
+  accessToken?: unknown;
+  data?: { token?: unknown; accessToken?: unknown };
+  message?: string;
+  error?: string;
+};
+
+/** Pull the JWT out of the backend's registration response, if it sent one. */
+function extractToken(body: RegisterResponse): string | null {
+  const candidates = [body.token, body.accessToken, body.data?.token, body.data?.accessToken];
+  const token = candidates.find((t): t is string => typeof t === 'string' && t.length > 0);
+  return token ?? null;
+}
+
 export default function RegisterPage() {
   const router = useRouter();
   const notify = useNotify();
@@ -99,19 +114,49 @@ export default function RegisterPage() {
 
     setIsSubmitting(true);
     try {
-      // Create session or simulate registration
+      // Register against the backend, then open a session with the JWT it
+      // issues (issue #1128). We never fabricate a token: if the backend
+      // doesn't return one (e.g. email verification is required first), the
+      // user is sent to sign in instead of getting a cookie that fails
+      // verification on the very next API call.
       const apiBase = process.env.NEXT_PUBLIC_API_URL || '';
-      const res = await fetch(`${apiBase}/api/auth/session`, {
+      const registerRes = await fetch(`${apiBase}/api/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token: `mock_jwt_register_${Date.now()}` }),
+        body: JSON.stringify({ name: name.trim(), email: email.trim(), password }),
+      });
+      const body = (await registerRes.json().catch(() => ({}))) as RegisterResponse;
+
+      if (!registerRes.ok) {
+        notify.error(
+          registerRes.status === 409
+            ? 'An account with this email already exists. Try signing in instead.'
+            : body.message || body.error || 'Could not complete registration. Please try again.',
+        );
+        return;
+      }
+
+      const token = extractToken(body);
+      if (!token) {
+        notify.success('Account created. Check your email to verify your account, then sign in.');
+        router.push(`${ROUTES.LOGIN}?registered=1&email=${encodeURIComponent(email.trim())}`);
+        return;
+      }
+
+      // /api/auth/session is this app's own route (it sets same-origin cookies).
+      const sessionRes = await fetch('/api/auth/session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ token }),
       });
 
-      if (res.ok) {
+      if (sessionRes.ok) {
         notify.success('Account created successfully');
         router.push(ROUTES.DASHBOARD);
       } else {
-        notify.error('Could not complete registration. Please try again.');
+        notify.error('Your account was created, but we could not sign you in. Please sign in.');
+        router.push(ROUTES.LOGIN);
       }
     } catch {
       notify.error('Registration failed. Please try again.');

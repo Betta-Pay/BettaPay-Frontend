@@ -2,7 +2,7 @@ import React from "react";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import AdminBatchesPage from "../page";
+import AdminBatchesPage, { FALLBACK_ASSETS, fetchBatches } from "../page";
 import { detailBatch, summarizeBatch } from "@/lib/batches/derive";
 import { getBatchStore, membersOf, resetBatchStore } from "@/lib/batches/store";
 
@@ -14,6 +14,11 @@ jest.mock("next/navigation", () => ({
   useRouter: () => ({ replace }),
   usePathname: () => "/batches",
   useSearchParams: () => params,
+}));
+
+const mockEnabledAssets: { data: { code: string }[] | undefined } = { data: undefined };
+jest.mock("@/lib/assets/hooks", () => ({
+  useEnabledAssets: () => mockEnabledAssets,
 }));
 
 const ok = (body: unknown) => ({ ok: true, status: 200, json: async () => body });
@@ -45,6 +50,7 @@ beforeEach(() => {
   params = new URLSearchParams();
   replace.mockClear();
   resetBatchStore();
+  mockEnabledAssets.data = undefined;
   wire();
 });
 
@@ -78,5 +84,33 @@ describe("AdminBatchesPage", () => {
     const row = link.closest("tr")!;
     expect(within(row).getByText(/Superseded by/)).toHaveTextContent("stl_a2");
     expect(screen.getByRole("list", { name: "Batch progress" })).toBeInTheDocument();
+  });
+
+  it("forwards React Query's abort signal to fetch (issue #1121)", async () => {
+    renderPage();
+    await screen.findByRole("button", { name: "Open batch bat_proc" });
+    const [, init] = (global.fetch as jest.Mock).mock.calls[0];
+    expect(init.signal).toBeInstanceOf(AbortSignal);
+  });
+
+  it("fetchBatches passes the given signal through", async () => {
+    const controller = new AbortController();
+    await fetchBatches({ asset: "", status: "", cursor: null }, { signal: controller.signal });
+    expect((global.fetch as jest.Mock).mock.calls[0][1].signal).toBe(controller.signal);
+  });
+
+  it("lists live enabled assets in the asset filter", async () => {
+    mockEnabledAssets.data = [{ code: "USDC" }, { code: "EURC" }, { code: "NGNC" }];
+    renderPage();
+    const select = await screen.findByRole("combobox", { name: /Asset/ });
+    const options = within(select).getAllByRole("option").map((o) => o.textContent);
+    expect(options).toEqual(["All assets", "USDC", "EURC", "NGNC"]);
+  });
+
+  it("falls back to the default asset list while live assets are unavailable", async () => {
+    renderPage();
+    const select = await screen.findByRole("combobox", { name: /Asset/ });
+    const options = within(select).getAllByRole("option").map((o) => o.textContent);
+    expect(options).toEqual(["All assets", ...FALLBACK_ASSETS]);
   });
 });
