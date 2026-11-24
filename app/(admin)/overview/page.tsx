@@ -5,8 +5,16 @@ import { SystemHealthCard } from '@/components/admin/SystemHealthCard';
 import dynamic from 'next/dynamic';
 import { Card, CardContent, CardHeader, CardTitle, Skeleton } from '@/components/ui';
 import { CurrencyDisplay, ErrorDisplay, StatCard, ErrorBoundary } from '@/components/shared';
-import { Users, AlertTriangle, ArrowUpRight, Activity, DollarSign } from 'lucide-react';
+import { Users, AlertTriangle, ArrowUpRight, ArrowDownRight, Activity, DollarSign } from 'lucide-react';
 import { useAdminStats } from '@/lib/api/hooks';
+import {
+  formatCount,
+  formatPercent,
+  formatSignedPercent,
+  percentOf,
+  trendDirection,
+  usableNumber,
+} from '@/lib/utils/adminStats';
 
 const PlatformVolumeChart = dynamic(
   () => import('@/components/charts/PlatformVolumeChart'),
@@ -49,8 +57,25 @@ function StatCardSkeleton() {
   );
 }
 
+// A fresh or empty environment can return zero, null or missing figures. Every
+// KPI below goes through these guards so a card shows a real number, `0%` or
+// an em dash, and never `NaN%`, `Infinity`, `+undefined%` or a thrown error.
+const TREND_BY_DIRECTION = {
+  up: { icon: ArrowUpRight, color: 'text-success' },
+  down: { icon: ArrowDownRight, color: 'text-destructive' },
+  flat: { icon: undefined, color: undefined },
+} as const;
+
 export default function AdminOverviewPage() {
   const { data: stats, isLoading, error, refetch, isSampleData } = useAdminStats();
+
+  const volumeTrend = TREND_BY_DIRECTION[trendDirection(stats?.totalProcessedChangePct)];
+  // Prefer the API's rate; when it is missing, derive it from fees / volume,
+  // which is `null` (shown as an em dash) when volume is zero.
+  const feeRatePct =
+    usableNumber(stats?.feeRatePct) ?? percentOf(stats?.platformFees, stats?.totalProcessed);
+  const newMerchants = usableNumber(stats?.newMerchantsThisWeek);
+  const hasNewMerchants = newMerchants !== null && newMerchants > 0;
 
   return (
     <div className="space-y-6">
@@ -94,35 +119,35 @@ export default function AdminOverviewPage() {
             title="Total Processed (30d)"
             icon={Activity}
             color="primary"
-            value={<CurrencyDisplay amount={stats.totalProcessed} />}
+            value={<CurrencyDisplay amount={usableNumber(stats.totalProcessed)} />}
             trend={{
-              icon: ArrowUpRight,
-              label: `+${stats.totalProcessedChangePct}% from last month`,
-              color: 'text-success',
+              icon: volumeTrend.icon,
+              label: `${formatSignedPercent(stats.totalProcessedChangePct)} from last month`,
+              color: volumeTrend.color,
             }}
           />
           <StatCard
             title="Platform Fees Generated"
             icon={DollarSign}
             color="emerald"
-            value={<CurrencyDisplay amount={stats.platformFees} />}
-            trend={{ label: `${stats.feeRatePct.toFixed(1)}% flat fee across volume` }}
+            value={<CurrencyDisplay amount={usableNumber(stats.platformFees)} />}
+            trend={{ label: `${formatPercent(feeRatePct)} flat fee across volume` }}
           />
           <StatCard
             title="Active Merchants"
             icon={Users}
             color="blue"
-            value={stats.activeMerchants.toLocaleString()}
+            value={formatCount(stats.activeMerchants)}
             trend={{
-              icon: ArrowUpRight,
-              label: `+${stats.newMerchantsThisWeek} new this week`,
-              color: 'text-success',
+              icon: hasNewMerchants ? ArrowUpRight : undefined,
+              label: `${hasNewMerchants ? '+' : ''}${formatCount(newMerchants)} new this week`,
+              color: hasNewMerchants ? 'text-success' : undefined,
             }}
           />
           <StatCard
             title="Pending KYB Reviews"
             icon={AlertTriangle}
-            value={stats.pendingKyb.toLocaleString()}
+            value={formatCount(stats.pendingKyb)}
             variant="destructive"
             trend={{ label: 'Requires immediate action' }}
           />
