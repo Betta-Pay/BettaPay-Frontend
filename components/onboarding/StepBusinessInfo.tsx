@@ -9,9 +9,11 @@ type Props = {
   errors: Record<string, string>;
   onChange: (data: Partial<OnboardingData>) => void;
   control: Control<OnboardingData>;
+  /** Called when a text field loses focus so the page can trim it. */
+  onFieldBlur?: (field: keyof OnboardingData) => void;
 };
 
-export function StepBusinessInfo({ data, errors, onChange, control }: Props) {
+export function StepBusinessInfo({ data, errors, onChange, control, onFieldBlur }: Props) {
   return (
     <section className="space-y-5">
       <div>
@@ -20,7 +22,7 @@ export function StepBusinessInfo({ data, errors, onChange, control }: Props) {
       </div>
       <div className="space-y-2">
         <Label htmlFor="businessName">Business name</Label>
-        <Input id="businessName" autoFocus value={data.businessName} onChange={(event) => onChange({ businessName: event.target.value })} aria-invalid={!!errors.businessName} />
+        <Input id="businessName" autoFocus value={data.businessName} onChange={(event) => onChange({ businessName: event.target.value })} onBlur={() => onFieldBlur?.("businessName")} aria-invalid={!!errors.businessName} />
         {errors.businessName && <p className="text-sm text-destructive">{errors.businessName}</p>}
       </div>
       <fieldset className="space-y-2">
@@ -40,7 +42,7 @@ export function StepBusinessInfo({ data, errors, onChange, control }: Props) {
             Controller wrapper to be part of the form: `field` binds the value
             to React Hook Form (the wizard's single source of truth and what
             `trigger("country")` validates), while `onChange` still routes
-            through the page so the value is trimmed and persisted. */}
+            through the page so the value is persisted. */}
         <Controller
           control={control}
           name="country"

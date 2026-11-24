@@ -42,6 +42,8 @@ import type { Anchor as AnchorType, AnchorWithHealth } from "@/lib/types";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api/axios";
+import { toast } from "sonner";
+import { getErrorMessage } from "@/lib/utils/apiError";
 
 function useAnchorHealthMatrix() {
   return useQuery<{ data: AnchorWithHealth[] }, Error>({
@@ -60,10 +62,17 @@ function useToggleAnchor() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, enabled }: { id: string; enabled: boolean }) => {
-      await apiClient.patch(`/api/admin/anchors/${id}`, { enabled });
+      await apiClient.patch(`/api/admin/anchors/${encodeURIComponent(id)}`, {
+        enabled,
+      });
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["admin", "anchors"] });
+    },
+    onError: (error, { enabled }) => {
+      toast.error(`Failed to ${enabled ? "enable" : "disable"} anchor`, {
+        description: getErrorMessage(error),
+      });
     },
   });
 }
@@ -72,10 +81,15 @@ function useDeleteAnchor() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      await apiClient.delete(`/api/admin/anchors/${id}`);
+      await apiClient.delete(`/api/admin/anchors/${encodeURIComponent(id)}`);
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["admin", "anchors"] });
+    },
+    onError: (error) => {
+      toast.error("Failed to delete anchor", {
+        description: getErrorMessage(error),
+      });
     },
   });
 }
@@ -101,6 +115,11 @@ function useCreateAnchor() {
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["admin", "anchors"] });
+    },
+    onError: (error) => {
+      toast.error("Failed to create anchor", {
+        description: getErrorMessage(error),
+      });
     },
   });
 }
