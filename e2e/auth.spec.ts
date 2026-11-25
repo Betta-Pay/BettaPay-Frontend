@@ -82,6 +82,42 @@ test.describe('Wallet (Freighter) login', () => {
 test.describe('Route protection', () => {
   test('anonymous users are redirected from a protected route to login', async ({ page }) => {
     await page.goto('/dashboard');
+
+    // Bounced to (the locale-prefixed) login…
+    await expect(page).toHaveURL(/\/auth\/login/);
+
+    // …carrying the original destination so the user lands back where they
+    // intended after signing in.
+    await expect(page).toHaveURL(/redirect=.*dashboard/);
+  });
+});
+
+test.describe('Invalid credentials', () => {
+  test('shows an error and keeps the user on the login page', async ({ context, page }) => {
+    // The email form authenticates by POSTing to the session route; make it
+    // reject the attempt the way a wrong password would (issue #1151). Reads
+    // (GET) still fall through to the real handler.
+    await context.route('**/api/auth/session', async (route) => {
+      if (route.request().method() === 'POST') {
+        await route.fulfill({
+          status: 401,
+          contentType: 'application/json',
+          body: JSON.stringify({ error: 'Invalid credentials' }),
+        });
+        return;
+      }
+      await route.fallback();
+    });
+
+    await page.goto('/auth/login');
+
+    const emailForm = page.getByRole('form', { name: /sign in with email and password/i });
+    await emailForm.getByLabel(/email/i).fill('merchant@bettapay.com');
+    await emailForm.getByLabel(/password/i).fill('WrongPassword!');
+    await emailForm.getByRole('button', { name: /sign in with email/i }).click();
+
+    // The failure surfaces as an error toast and the user is *not* redirected.
+    await expect(page.getByText(/failed to sign in/i)).toBeVisible();
     await expect(page).toHaveURL(/\/auth\/login/);
   });
 });
@@ -115,16 +151,22 @@ test.describe('Logout', () => {
     await mockLogin(context, 'merchant');
   });
 
-  test('logging out clears the session and re-protects routes', async ({ page }) => {
+  test('logging out clears the session and re-protects routes', async ({ page, context }) => {
     await gotoAuthed(page, '/settings');
     await expect(page.getByRole('heading', { name: /^settings$/i })).toBeVisible();
 
+    // The session cookie is present while signed in…
+    expect((await context.cookies()).some((c) => c.name === 'auth_token')).toBe(true);
+
     await page.getByRole('button', { name: /log out/i }).click();
 
-    // Redirected to login...
+    // …redirected to login…
     await expect(page).toHaveURL(/\/auth\/login/, { timeout: 15_000 });
 
-    // ...and the session cookie is gone, so protected routes redirect again.
+    // …the session cookie is torn down…
+    expect((await context.cookies()).some((c) => c.name === 'auth_token')).toBe(false);
+
+    // …and protected routes redirect again.
     await page.goto('/dashboard');
     await expect(page).toHaveURL(/\/auth\/login/);
   });
