@@ -8,10 +8,12 @@ import type { OnboardingData } from "@/app/onboarding/page";
 type Props = { 
   data: OnboardingData; 
   errors: Record<string, string>; 
-  onChange: (data: Partial<OnboardingData>) => void 
+  onChange: (data: Partial<OnboardingData>) => void;
+  /** Called when a text field loses focus so the page can trim it. */
+  onFieldBlur?: (field: keyof OnboardingData) => void;
 };
 
-export function StepWebhook({ data, errors, onChange }: Props) { 
+export function StepWebhook({ data, errors, onChange, onFieldBlur }: Props) { 
   const [tested, setTested] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
   const [testError, setTestError] = useState("");
@@ -54,6 +56,7 @@ export function StepWebhook({ data, errors, onChange }: Props) {
             setTestError("");
             onChange({ webhookUrl: event.target.value }); 
           }} 
+          onBlur={() => onFieldBlur?.("webhookUrl")}
           aria-invalid={!!errors.webhookUrl} 
         />
         {errors.webhookUrl && <p className="text-sm text-destructive">{errors.webhookUrl}</p>}

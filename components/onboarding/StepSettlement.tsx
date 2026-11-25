@@ -7,11 +7,13 @@ type Props = {
   data: OnboardingData;
   errors: Record<string, string>;
   onChange: (data: Partial<OnboardingData>) => void;
+  /** Called when a text field loses focus so the page can trim it. */
+  onFieldBlur?: (field: keyof OnboardingData) => void;
 };
 
 const anchors = ["Cowry", "ClickPesa", "KachinTech"];
 
-export function StepSettlement({ data, errors, onChange }: Props) {
+export function StepSettlement({ data, errors, onChange, onFieldBlur }: Props) {
   return (
     <section className="space-y-6">
       <div>
@@ -68,6 +70,7 @@ export function StepSettlement({ data, errors, onChange }: Props) {
               placeholder="e.g. GTBank, Zenith Bank"
               value={data.bankName || ""}
               onChange={(e) => onChange({ bankName: e.target.value })}
+              onBlur={() => onFieldBlur?.("bankName")}
               className={cn(errors.bankName && "border-destructive focus-visible:ring-destructive")}
             />
             {errors.bankName && (
@@ -84,6 +87,7 @@ export function StepSettlement({ data, errors, onChange }: Props) {
               placeholder="e.g. 058 or GTBIGLA"
               value={data.bankCode || ""}
               onChange={(e) => onChange({ bankCode: e.target.value })}
+              onBlur={() => onFieldBlur?.("bankCode")}
               className={cn(errors.bankCode && "border-destructive focus-visible:ring-destructive")}
             />
             {errors.bankCode && (
@@ -101,6 +105,7 @@ export function StepSettlement({ data, errors, onChange }: Props) {
             placeholder="10-digit account number or IBAN"
             value={data.accountNumber || ""}
             onChange={(e) => onChange({ accountNumber: e.target.value })}
+            onBlur={() => onFieldBlur?.("accountNumber")}
             className={cn(errors.accountNumber && "border-destructive focus-visible:ring-destructive")}
           />
           {errors.accountNumber && (

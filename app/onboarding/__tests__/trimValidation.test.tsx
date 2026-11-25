@@ -12,17 +12,19 @@ jest.mock('@/components/onboarding/Stepper', () => ({
   Stepper: () => <div data-testid="mock-stepper" />,
 }));
 jest.mock('@/components/onboarding/StepBusinessInfo', () => ({
-  StepBusinessInfo: ({ data, errors, onChange }: any) => (
+  StepBusinessInfo: ({ data, errors, onChange, onFieldBlur }: any) => (
     <>
       <input
         data-testid="businessName"
         value={data.businessName}
         onChange={(e: any) => onChange({ businessName: e.target.value })}
+        onBlur={() => onFieldBlur?.('businessName')}
       />
       <input
         data-testid="country"
         value={data.country}
         onChange={(e: any) => onChange({ country: e.target.value })}
+        onBlur={() => onFieldBlur?.('country')}
       />
       {Object.entries(errors).map(([k, v]) => (
         <p key={k} data-testid={`error-${k}`}>
@@ -56,29 +58,53 @@ import OnboardingPage from '@/app/onboarding/page';
 describe('Onboarding form — input trimming and validation (issue #258)', () => {
   beforeEach(() => {
     mockPush.mockClear();
+    localStorage.clear();
   });
 
-  it('trims whitespace from businessName before stored state', () => {
+  it('preserves spaces while typing a multi-word business name (issue #1129)', async () => {
+    const user = userEvent.setup();
     render(<OnboardingPage />);
 
     const input = screen.getByTestId('businessName');
+    await user.type(input, 'Betta Pay Ltd');
 
-    // Setting the controlled input's value in one shot exercises the trim
-    // pathway cleanly. userEvent.type would also work but each intermediate
-    // keystroke also gets trimmed (so leading/trailing spaces collapse
-    // before the next character lands), which makes the assertion flaky.
+    expect(input).toHaveValue('Betta Pay Ltd');
+  });
+
+  it('keeps a trailing space mid-typing and trims it on blur', () => {
+    render(<OnboardingPage />);
+
+    const input = screen.getByTestId('businessName');
     fireEvent.change(input, { target: { value: '  Acme Co  ' } });
+    expect(input).toHaveValue('  Acme Co  ');
 
+    fireEvent.blur(input);
     expect(input).toHaveValue('Acme Co');
   });
 
-  it('trims whitespace from country input as well', () => {
+  it('trims the country input on blur as well', () => {
     render(<OnboardingPage />);
 
     const input = screen.getByTestId('country');
     fireEvent.change(input, { target: { value: '  Ghana  ' } });
+    fireEvent.blur(input);
 
     expect(input).toHaveValue('Ghana');
+  });
+
+  it('trims values when the step is validated, even without a blur', async () => {
+    const user = userEvent.setup();
+    render(<OnboardingPage />);
+
+    fireEvent.change(screen.getByTestId('businessName'), { target: { value: ' Acme Corp ' } });
+    // Leave the step before blurring so only the validate path can trim.
+    await user.click(screen.getByRole('button', { name: /Continue/i }));
+
+    const { apiClient } = require('@/lib/api/axios');
+    expect(apiClient.patch).not.toHaveBeenCalled();
+    // The value persisted for submission is the trimmed one.
+    const saved = JSON.parse(localStorage.getItem('bettapay_onboarding_progress') ?? '{}');
+    expect(saved.data.businessName).toBe('Acme Corp');
   });
 
   it('rejects a businessName that is only whitespace because trimming leaves it empty/short', async () => {

@@ -154,3 +154,70 @@ test.describe('Transactions Page', () => {
     await expect(page.getByRole('columnheader', { name: /status/i })).toBeVisible();
   });
 });
+
+// ─── 6. Route integrity across core public / marketing routes ───────────────
+
+/**
+ * Core public and marketing routes. Each is expected to render a visible
+ * primary heading without throwing an uncaught client exception or logging an
+ * unexpected console error — a status-200-only smoke check can pass even when a
+ * React client boundary crashes immediately after hydration (issue #1149/#1150).
+ */
+const PUBLIC_ROUTES: ReadonlyArray<{ name: string; path: string }> = [
+  { name: 'landing', path: '/' },
+  { name: 'pricing', path: '/pricing' },
+  { name: 'about', path: '/about' },
+  { name: 'contact', path: '/contact' },
+  { name: 'fiat-settlements', path: '/fiat-settlements' },
+  { name: 'guides', path: '/guides' },
+  { name: 'sdks', path: '/sdks' },
+  { name: 'status', path: '/status' },
+  { name: 'privacy', path: '/privacy' },
+  { name: 'terms', path: '/terms' },
+  { name: 'auth-login', path: '/auth/login' },
+  { name: 'auth-register', path: '/auth/register' },
+];
+
+/**
+ * Console errors that are environmental rather than application regressions:
+ * static assets that aren't served, the expected 4xx from the absent backend,
+ * and the dev-server HMR socket.
+ */
+const IGNORED_CONSOLE_ERRORS: readonly RegExp[] = [
+  /Failed to load resource/i,
+  /net::ERR_/i,
+  /favicon/i,
+  /Download the React DevTools/i,
+  /\[Fast Refresh\]/i,
+  /the server responded with a status of/i,
+];
+
+test.describe('Route integrity (public & marketing)', () => {
+  for (const route of PUBLIC_ROUTES) {
+    test(`${route.name} (${route.path}) renders without client errors`, async ({
+      page,
+    }) => {
+      const pageErrors: string[] = [];
+      const consoleErrors: string[] = [];
+
+      // Attach listeners *before* navigating so nothing thrown during the
+      // initial render/hydration escapes collection.
+      page.on('pageerror', (error) => pageErrors.push(error.message));
+      page.on('console', (message) => {
+        if (message.type() !== 'error') return;
+        const text = message.text();
+        if (IGNORED_CONSOLE_ERRORS.some((pattern) => pattern.test(text))) return;
+        consoleErrors.push(text);
+      });
+
+      await page.goto(route.path);
+
+      // A visible level-1 heading proves the route rendered its primary content
+      // rather than crashing into an error boundary.
+      await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible();
+
+      expect(pageErrors, `uncaught client errors on ${route.path}`).toEqual([]);
+      expect(consoleErrors, `unexpected console errors on ${route.path}`).toEqual([]);
+    });
+  }
+});
