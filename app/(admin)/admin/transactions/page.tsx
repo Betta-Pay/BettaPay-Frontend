@@ -112,7 +112,7 @@ function Ledger() {
   const parent = useRef<HTMLDivElement>(null);
   const rows = table.getRowModel().rows;
   const virtual = useVirtualizer({ count: rows.length, getScrollElement: () => parent.current, estimateSize: () => 64, overscan: 10, getItemKey: i => rows[i].id });
-  return <AdminAccess><main className="space-y-5"><h1 className="text-2xl font-bold">Platform transactions</h1>
+  return <AdminAccess><div className="space-y-5"><h1 className="text-2xl font-bold">Platform transactions</h1>
     <div className="flex flex-wrap gap-3">{['merchantId', 'status', 'asset', 'batchId'].map(k => <label key={k}>{({ merchantId: 'Merchant ID', status: 'Status', asset: 'Asset', batchId: 'Settlement batch' } as Record<string, string>)[k]}<input className="block rounded border bg-background p-2" value={drafts[k as TextFilter]} onChange={e => setDrafts(d => ({ ...d, [k as TextFilter]: e.target.value }))} /></label>)}
       {['from', 'to'].map(k => <label key={k}>{k === 'from' ? 'From (UTC)' : 'Through (UTC)'}<input className="block rounded border bg-background p-2" type="date" value={filters[k]?.slice(0, 10) || ''} onChange={e => update({ [k]: e.target.value ? `${e.target.value}T${k === 'from' ? '00:00:00.000' : '23:59:59.999'}Z` : '' })} /></label>)}
       <label>Refresh interval<select className="block rounded border bg-background p-2" value={pollMs} onChange={e => setPollMs(Number(e.target.value))}><option value={0}>Paused</option><option value={15000}>15 seconds</option><option value={30000}>30 seconds</option><option value={60000}>1 minute</option></select></label>
@@ -130,6 +130,6 @@ function Ledger() {
     {query.hasNextPage && <Button disabled={!online || query.isFetchingNextPage} onClick={() => void query.fetchNextPage()}>{query.isFetchingNextPage ? 'Loading…' : 'Load more transactions'}</Button>}
     <p className="text-sm text-muted-foreground">{rows.length} loaded. Automatic refresh pauses while this tab is hidden.</p>
     <TransactionDrawer settlementBatchHref={selected?.settlementBatch ? `/admin/transactions?batchId=${encodeURIComponent(selected.settlementBatch.id)}` : undefined} transaction={selected} isOpen={!!selected} onClose={() => setSelected(null)} />
-  </main></AdminAccess>;
+  </div></AdminAccess>;
 }
 export default function AdminTransactionsPage() { return <Suspense fallback={<p>Loading ledger…</p>}><Ledger /></Suspense>; }

@@ -39,7 +39,7 @@ export default function CompliancePage() {
     const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
     const a = document.createElement('a'); a.href = url; a.download = 'compliance-incidents.csv'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
-  return <AdminAccess><main className="space-y-8"><h1 className="text-2xl font-bold">Compliance</h1>
+  return <AdminAccess><div className="space-y-8"><h1 className="text-2xl font-bold">Compliance</h1>
     <section className="space-y-3"><h2 className="text-lg font-semibold">Merchant risk queue</h2><AdminState loading={risks.isLoading} error={risks.error} empty={!risks.data?.data.length} retry={() => void risks.refetch()} />
       <div className="overflow-x-auto"><table className="w-full text-left"><thead><tr>{['Merchant', 'Failed auths', 'Chargebacks', 'Failure rate', 'Flags'].map(h => <th key={h} className="p-2">{h}</th>)}</tr></thead><tbody>{risks.data?.data.map(r => <tr key={r.merchantId} className="border-t"><td className="p-2"><Link className="underline" href={merchantHref(r.merchantId)}>{r.businessName}</Link></td><td className="p-2">{r.failedAuthCount}</td><td className="p-2">{r.chargebackRate == null ? 'Unavailable' : `${r.chargebackRate}%`}</td><td className="p-2">{r.failureRate}%</td><td className="p-2">{r.flags.join(', ')}</td></tr>)}</tbody></table></div>
     </section>
@@ -60,5 +60,5 @@ export default function CompliancePage() {
       {incidents.data?.truncated && <p role="status">The backend returned a partial reporting window. Export includes only the rows shown below.</p>}
       <div className="overflow-x-auto"><table className="w-full text-left"><thead><tr>{['Incident', 'Merchant', 'Type', 'Severity', 'Status', 'Date', 'Summary'].map(h => <th className="p-2" key={h}>{h}</th>)}</tr></thead><tbody>{visible.map(i => <tr key={i.id} className="border-t"><td className="p-2">{i.id}</td><td className="p-2">{i.merchantId ? <Link className="underline" href={merchantHref(i.merchantId)}>{i.merchantId}</Link> : '—'}</td><td className="p-2">{i.type}</td><td className="p-2">{i.severity}</td><td className="p-2">{i.status}</td><td className="p-2">{new Date(i.createdAt).toLocaleString()}</td><td className="p-2">{i.summary}</td></tr>)}</tbody></table></div>
     </section>
-  </main></AdminAccess>;
+  </div></AdminAccess>;
 }
