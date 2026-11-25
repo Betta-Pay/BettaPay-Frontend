@@ -1,6 +1,6 @@
 "use client";
 
-import React, { Suspense } from 'react';
+import React, { Suspense, useEffect } from 'react';
 import { Loader2, Shield, Zap, Globe, ArrowRight } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
@@ -39,19 +39,22 @@ export default function LoginPage() {
   const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID?.trim();
   const googleConfigured = Boolean(googleClientId);
 
-  // Surface the missing-config situation to developers exactly once. We
-  // dedupe with a module-level flag because React 18 Strict Mode mounts
-  // useEffects twice in dev, and we don't want to spam the console.
-  if (
-    !googleConfigured &&
-    shouldWarnMissingGoogleClientId() &&
-    process.env.NODE_ENV !== 'production'
-  ) {
+  // Surface the missing-config situation to developers exactly once. The
+  // warning belongs in an effect, not the render body: render-phase logging
+  // fires twice under React 18 Strict Mode and runs on every render pass
+  // (issue #1127). The module-level sentinel in googleWarn.ts keeps it to a
+  // single log per bundle even though Strict Mode re-runs the effect and the
+  // page may remount during HMR.
+  useEffect(() => {
+    if (googleConfigured) return;
+    if (process.env.NODE_ENV === 'production') return;
+    if (!shouldWarnMissingGoogleClientId()) return;
+
     // eslint-disable-next-line no-console
     console.warn(
       '[BettaPay] Google login is not configured. Set NEXT_PUBLIC_GOOGLE_CLIENT_ID to enable Google sign-in.',
     );
-  }
+  }, [googleConfigured]);
 
   return (
     <div className="w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -154,13 +157,13 @@ export default function LoginPage() {
           ))}
         </div>
 
-        <a
+        <Link
           href={ROUTES.HOME}
           className="mt-6 inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
         >
           {t('login.learnMore')}
           <ArrowRight className="w-3 h-3" />
-        </a>
+        </Link>
       </div>
     </div>
   );
