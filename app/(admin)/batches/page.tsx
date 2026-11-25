@@ -22,12 +22,9 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { BatchStatusBadge } from "@/components/admin/batches/BatchStatusBadge";
 import { BatchDetailDialog } from "@/components/admin/batches/BatchDetailDialog";
 import { formatMoney } from "@/lib/batches/derive";
-import type { BatchPage } from "@/lib/batches/types";
 import { useEnabledAssets } from "@/lib/assets/hooks";
+import { FALLBACK_ASSETS, fetchBatches } from "@/lib/batches/fetchBatches";
 
-const PAGE_SIZE = 10;
-/** Used only until the live asset list loads, or if it can't be fetched. */
-export const FALLBACK_ASSETS = ["USDC", "XLM", "USDT"];
 const STATUSES: [string, string][] = [
   ["created", "Created"],
   ["processing", "Processing"],
@@ -35,19 +32,6 @@ const STATUSES: [string, string][] = [
   ["completed_with_failures", "Completed with failures"],
   ["failed", "Failed"],
 ];
-
-export async function fetchBatches(
-  params: { asset: string; status: string; cursor: string | null },
-  { signal }: { signal?: AbortSignal } = {},
-): Promise<BatchPage> {
-  const qs = new URLSearchParams({ limit: String(PAGE_SIZE) });
-  if (params.asset) qs.set("asset", params.asset);
-  if (params.status) qs.set("status", params.status);
-  if (params.cursor) qs.set("cursor", params.cursor);
-  const res = await fetch(`/api/admin/batches?${qs}`, { cache: "no-store", signal });
-  if (!res.ok) throw new Error("Couldn't load batches");
-  return res.json();
-}
 
 function BatchesView() {
   const router = useRouter();

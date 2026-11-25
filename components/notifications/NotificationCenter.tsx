@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { Bell, CheckCheck, ChevronRight, ShieldAlert, TrendingUp, Wallet, BellDot } from 'lucide-react';
 import {
@@ -49,6 +49,26 @@ export function NotificationCenter({ unreadNotificationCount = 0, alertUnreadCou
   const [preferences, setPreferences] = useState<NotificationPreferences>(DEFAULT_NOTIFICATION_PREFERENCES);
   const [loading, setLoading] = useState(false);
   const [hasFetched, setHasFetched] = useState(false);
+  const triggerRef = useRef<HTMLSpanElement | null>(null);
+
+  // Escape closes the popover and returns focus to the bell trigger (#1155).
+  // Listening on the document (capture) rather than the popup avoids depending
+  // on the menu primitive's internal Escape handling, which did not fire for
+  // this custom popup content.
+  useEffect(() => {
+    if (!open) return;
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      setOpen(false);
+      // The trigger is a Base UI `render` element, so reach the real DOM button
+      // through the wrapper ref instead of assuming ref forwarding.
+      triggerRef.current?.querySelector<HTMLButtonElement>('button')?.focus();
+    };
+
+    document.addEventListener('keydown', handleEscape, true);
+    return () => document.removeEventListener('keydown', handleEscape, true);
+  }, [open]);
 
   const refresh = useCallback(async () => {
     try {
@@ -153,21 +173,23 @@ export function NotificationCenter({ unreadNotificationCount = 0, alertUnreadCou
 
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
-      <DropdownMenuTrigger
-        render={
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label={notificationLabel}
-            className="relative text-muted-foreground hover:text-foreground hover:bg-muted rounded-xl min-h-[44px] min-w-[44px]"
-          >
-            <Bell className="h-4.5 w-4.5" />
-            {unreadCount > 0 && (
-              <span className="absolute top-1.5 right-1.5 flex h-2.5 w-2.5 items-center justify-center rounded-full bg-destructive border-2 border-background" aria-hidden="true" />
-            )}
-          </Button>
-        }
-      />
+      <span ref={triggerRef} className="contents">
+        <DropdownMenuTrigger
+          render={
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label={notificationLabel}
+              className="relative text-muted-foreground hover:text-foreground hover:bg-muted rounded-xl min-h-[44px] min-w-[44px]"
+            >
+              <Bell className="h-4.5 w-4.5" />
+              {unreadCount > 0 && (
+                <span className="absolute top-1.5 right-1.5 flex h-2.5 w-2.5 items-center justify-center rounded-full bg-destructive border-2 border-background" aria-hidden="true" />
+              )}
+            </Button>
+          }
+        />
+      </span>
       <DropdownMenuContent align="end" className="w-[360px] border-border shadow-lg rounded-2xl p-0">
         <div className="flex items-center justify-between px-4 py-3">
           <DropdownMenuLabel className="p-0 text-base font-semibold text-foreground">Notifications</DropdownMenuLabel>
