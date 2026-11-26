@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { CommandRole } from "@/lib/command/actions";
 
 const MAX_RECENT = 5;
@@ -24,6 +24,13 @@ export function useRecentCommands(role: CommandRole) {
   const [recent, setRecent] = useState<string[]>(() =>
     typeof window === "undefined" ? [] : read(role),
   );
+
+  // `useState` only reads once, so switching role left the previous role's list
+  // on screen until a full reload. Re-read whenever the role changes (#1163).
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    setRecent(read(role));
+  }, [role]);
 
   const push = useCallback(
     (id: string) => {

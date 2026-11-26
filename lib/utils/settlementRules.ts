@@ -23,22 +23,37 @@ export interface CalculateFeeSnapshotOptions {
   ruleSource?: 'merchant' | 'default' | 'governance';
 }
 
+/** Non-finite or negative values fall back to `fallback` (issue #1161). */
+function sanitizeNonNegative(value: number | undefined, fallback: number): number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : fallback;
+}
+
+/** Like `sanitizeNonNegative`, but keeps `undefined` meaning "no cap". */
+function sanitizeOptionalNonNegative(value: number | undefined): number | undefined {
+  if (value === undefined) return undefined;
+  return Number.isFinite(value) && value >= 0 ? value : undefined;
+}
+
 export function calculateFeeSnapshot(
   grossAmountUsdc: number,
   options?: CalculateFeeSnapshotOptions,
 ): FeeSnapshot {
-  const bps = options?.feeBps ?? 100;
-  const baseFeeUsdc = (grossAmountUsdc * bps) / 10000;
+  // Guard against negative / NaN / non-finite inputs so the UI never renders
+  // negative or `NaN` fee figures (issue #1161).
+  const gross = sanitizeNonNegative(grossAmountUsdc, 0);
+  const bps = sanitizeNonNegative(options?.feeBps, 100);
+  const baseFeeUsdc = (gross * bps) / 10000;
 
-  const discountBps = Math.min(options?.discountBps ?? 0, bps);
-  const discountAppliedUsdc = (grossAmountUsdc * discountBps) / 10000;
+  const discountBps = Math.min(sanitizeNonNegative(options?.discountBps, 0), bps);
+  const discountAppliedUsdc = (gross * discountBps) / 10000;
 
   const effectiveFeeBps = bps - discountBps;
   let totalFeeUsdc = Math.max(0, baseFeeUsdc - discountAppliedUsdc);
 
+  const capAmountUsdc = sanitizeOptionalNonNegative(options?.capAmountUsdc);
   let capApplied = false;
-  if (options?.capAmountUsdc !== undefined && totalFeeUsdc > options.capAmountUsdc) {
-    totalFeeUsdc = options.capAmountUsdc;
+  if (capAmountUsdc !== undefined && totalFeeUsdc > capAmountUsdc) {
+    totalFeeUsdc = capAmountUsdc;
     capApplied = true;
   }
 
@@ -48,7 +63,7 @@ export function calculateFeeSnapshot(
     discountBps,
     discountTier: options?.discountTier,
     discountAppliedUsdc,
-    capAmountUsdc: options?.capAmountUsdc,
+    capAmountUsdc,
     capApplied,
     effectiveFeeBps,
     totalFeeUsdc,
@@ -84,9 +99,12 @@ export function formatFeeBps(feeBps: number): string {
 }
 
 export function formatDelay(delayMinutes: number): string {
-  if (delayMinutes < 60) return `${delayMinutes}m`;
-  const hours = Math.floor(delayMinutes / 60);
-  const mins = delayMinutes % 60;
+  // Negative / NaN / non-finite delays degrade to "0m" instead of "-1m" or
+  // "NaNh NaNm" (issue #1161).
+  const total = Number.isFinite(delayMinutes) && delayMinutes > 0 ? delayMinutes : 0;
+  if (total < 60) return `${total}m`;
+  const hours = Math.floor(total / 60);
+  const mins = total % 60;
   return mins ? `${hours}h ${mins}m` : `${hours}h`;
 }
 
