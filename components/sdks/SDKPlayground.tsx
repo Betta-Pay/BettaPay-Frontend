@@ -26,6 +26,13 @@ export function SDKPlayground({ releases }: SDKPlaygroundProps) {
   const version = release?.version ?? sdk.version;
 
   const onKeyDown = (event: React.KeyboardEvent, index: number) => {
+    if (event.key === "Home" || event.key === "End") {
+      event.preventDefault();
+      const edge = event.key === "Home" ? SDKS[0] : SDKS[SDKS.length - 1];
+      setActiveId(edge.id);
+      tabRefs.current[edge.id]?.focus();
+      return;
+    }
     const step = event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0;
     if (!step) return;
     event.preventDefault();

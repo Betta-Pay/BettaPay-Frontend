@@ -13,6 +13,8 @@ import type { RumEvent, RumBatchPayload } from './types';
 
 const FLUSH_INTERVAL_MS = 30_000;
 const MAX_BATCH_SIZE = 50;
+/** Hard ceiling on queued events so an offline burst cannot grow memory without bound. */
+export const MAX_QUEUE_SIZE = 500;
 const ENDPOINT = '/api/rum';
 
 let queue: RumEvent[] = [];
@@ -30,10 +32,14 @@ async function sendBatch(events: RumEvent[]): Promise<void> {
   const body = JSON.stringify(payload);
 
   try {
+    // A refused or throwing sendBeacon falls through to a keepalive fetch.
     if (typeof navigator !== 'undefined' && typeof navigator.sendBeacon === 'function') {
-      const blob = new Blob([body], { type: 'application/json' });
-      navigator.sendBeacon(getEndpoint(), blob);
-      return;
+      try {
+        const blob = new Blob([body], { type: 'application/json' });
+        if (navigator.sendBeacon(getEndpoint(), blob)) return;
+      } catch {
+        // Fall through to fetch.
+      }
     }
 
     // Fallback: fire-and-forget fetch (best-effort)
@@ -59,8 +65,10 @@ function flush(): void {
   if (queue.length === 0) return;
 
   // Take all queued events
-  const batch = queue.splice(0, queue.length);
-  sendBatch(batch);
+  // Send in chunks no larger than MAX_BATCH_SIZE; the server rejects bigger batches.
+  while (queue.length > 0) {
+    void sendBatch(queue.splice(0, MAX_BATCH_SIZE));
+  }
 }
 
 function scheduleFlush(): void {
@@ -78,6 +86,10 @@ function scheduleFlush(): void {
 export function enqueue(event: RumEvent): void {
   if (isDestroyed) return;
 
+  if (queue.length >= MAX_QUEUE_SIZE) {
+    // Drop the oldest event rather than growing without bound.
+    queue.shift();
+  }
   queue.push(event);
 
   if (queue.length >= MAX_BATCH_SIZE) {
@@ -87,38 +99,43 @@ export function enqueue(event: RumEvent): void {
   }
 }
 
+let listenersAttached = false;
+
+const handleVisibilityChange = (): void => {
+  if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+    flush();
+  }
+};
+
+const handleUnload = (): void => {
+  flush();
+};
+
 /**
- * Set up automatic flushing on page visibility change and unload.
+ * Set up automatic flushing on page visibility change and unload. Idempotent.
  */
 export function initSender(): void {
-  if (typeof document === 'undefined') return;
-
-  const handleVisibilityChange = (): void => {
-    if (document.visibilityState === 'hidden') {
-      flush();
-    }
-  };
-
-  const handleBeforeUnload = (): void => {
-    flush();
-  };
+  if (typeof document === 'undefined' || listenersAttached) return;
 
   document.addEventListener('visibilitychange', handleVisibilityChange);
-  window.addEventListener('beforeunload', handleBeforeUnload);
-  window.addEventListener('pagehide', handleBeforeUnload);
+  window.addEventListener('beforeunload', handleUnload);
+  window.addEventListener('pagehide', handleUnload);
+  listenersAttached = true;
 }
 
 /**
- * Tear down the sender (for testing or component unmount).
+ * Tear down the sender: flush what is queued and remove exactly the listeners
+ * that initSender added.
  */
 export function destroySender(): void {
   isDestroyed = true;
   flush();
 
-  if (typeof document !== 'undefined') {
-    document.removeEventListener('visibilitychange', flush);
-    window.removeEventListener('beforeunload', flush);
-    window.removeEventListener('pagehide', flush);
+  if (typeof document !== 'undefined' && listenersAttached) {
+    document.removeEventListener('visibilitychange', handleVisibilityChange);
+    window.removeEventListener('beforeunload', handleUnload);
+    window.removeEventListener('pagehide', handleUnload);
+    listenersAttached = false;
   }
 }
 
