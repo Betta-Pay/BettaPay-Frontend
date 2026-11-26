@@ -6,6 +6,14 @@ import { sanitizeFilename } from '@/lib/utils/sanitize';
 /** Platform fee applied to settlements, matches SettlementConfirmation. */
 export const SETTLEMENT_FEE_PERCENT = 1;
 
+/**
+ * Short random suffix so two exports in the same minute get different filenames
+ * (issue #1141). Filenames carry only minute-level time, so rapid exports collided.
+ */
+function uniqueSuffix(): string {
+  return Math.random().toString(36).slice(2, 8);
+}
+
 export interface InvoiceMerchant {
   businessName: string;
   email?: string | null;
@@ -283,7 +291,7 @@ export async function generateSettlementInvoiceBlob(
   const now = new Date();
   const date = now.toISOString().slice(0, 10);
   const time = `${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}`;
-  const raw = `${buildInvoiceNumber(settlement.id)}-${date}-${time}`;
+  const raw = `${buildInvoiceNumber(settlement.id)}-${date}-${time}-${uniqueSuffix()}`;
   return { blob: doc.output('blob'), filename: `${sanitizeFilename(raw)}.pdf` };
 }
 
@@ -311,6 +319,6 @@ export async function generateSettlementInvoicesBatchBlob(
 
   const now = new Date();
   const time = `${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}`;
-  const raw = `bettapay-invoices-${range}-${settlements.length}items-${time}`;
+  const raw = `bettapay-invoices-${range}-${settlements.length}items-${time}-${uniqueSuffix()}`;
   return { blob: doc.output('blob'), filename: `${sanitizeFilename(raw)}.pdf` };
 }
