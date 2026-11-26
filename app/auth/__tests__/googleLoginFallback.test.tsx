@@ -3,7 +3,9 @@
 import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { renderToString } from 'react-dom/server';
 import LoginPage from '../login/page';
+import { __resetGoogleWarnForTests } from '@/lib/utils/googleWarn';
 
 jest.mock('next/navigation', () => ({
   useRouter: () => ({ push: jest.fn(), refresh: jest.fn() }),
@@ -11,8 +13,12 @@ jest.mock('next/navigation', () => ({
   useSearchParams: () => new URLSearchParams(),
 }));
 
+// The marker attribute lets tests tell a client-side <Link> apart from a raw
+// <a>, which is exactly what issue #1127 asks us to assert.
 jest.mock('next/link', () => {
-  return ({ children, href }: React.PropsWithChildren<{ href?: string }>) => <a href={href}>{children}</a>;
+  return ({ children, href }: React.PropsWithChildren<{ href?: string }>) => (
+    <a href={href} data-next-link="true">{children}</a>
+  );
 });
 
 // Stub i18n so we don't have to spin up react-i18next's provider tree
@@ -140,6 +146,76 @@ describe('Login page — Google OAuth fallback when client ID is missing', () =>
         'Google login not configured — set NEXT_PUBLIC_GOOGLE_CLIENT_ID',
       );
     });
+  });
+
+  it('produces zero render-time console.warn calls', () => {
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const originalNodeEnv = process.env.NODE_ENV;
+
+    // try/finally so a failed assertion can't leak the spy or the patched
+    // NODE_ENV into the tests that follow.
+    try {
+      (process.env as any).NODE_ENV = 'development';
+      // Reset the sentinel so a render-phase call would definitely show up.
+      __resetGoogleWarnForTests();
+
+      // renderToString runs the render phase only — effects never execute, so
+      // any warning observed here would necessarily be a render-phase log.
+      const html = renderToString(<LoginPage />);
+
+      expect(html).toContain('Continue with Google');
+      expect(warn).not.toHaveBeenCalled();
+    } finally {
+      warn.mockRestore();
+      (process.env as any).NODE_ENV = originalNodeEnv;
+    }
+  });
+
+  it('warns only once when StrictMode re-runs the effect and the page remounts', async () => {
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const originalNodeEnv = process.env.NODE_ENV;
+    let unmount: (() => void) | undefined;
+
+    // try/finally so an assertion failure (or a waitFor timeout) still
+    // unmounts the page and restores the spy and NODE_ENV.
+    try {
+      (process.env as any).NODE_ENV = 'development';
+      __resetGoogleWarnForTests();
+
+      ({ unmount } = render(
+        <React.StrictMode>
+          <LoginPage />
+        </React.StrictMode>,
+      ));
+
+      await waitFor(() => expect(warn).toHaveBeenCalledTimes(1));
+
+      // A remount (HMR, navigation back to the page) must not log again.
+      unmount();
+      render(<LoginPage />);
+      await new Promise((r) => setTimeout(r, 10));
+
+      expect(warn).toHaveBeenCalledTimes(1);
+    } finally {
+      unmount?.();
+      warn.mockRestore();
+      (process.env as any).NODE_ENV = originalNodeEnv;
+    }
+  });
+
+  it('navigates internal links client-side through next/link', () => {
+    render(<LoginPage />);
+
+    const registerLink = screen.getByRole('link', { name: 'Create an account' });
+    expect(registerLink).toHaveAttribute('href', '/auth/register');
+    expect(registerLink).toHaveAttribute('data-next-link', 'true');
+
+    const learnMoreLink = screen.getByRole('link', { name: 'login.learnMore' });
+    expect(learnMoreLink).toHaveAttribute('href', '/');
+    expect(learnMoreLink).toHaveAttribute('data-next-link', 'true');
+
+    // No bare <a> may remain: every internal navigation must be a <Link>.
+    expect(document.querySelectorAll('a:not([data-next-link])')).toHaveLength(0);
   });
 
   it('logs a console.warn in development exactly once per bundle', async () => {

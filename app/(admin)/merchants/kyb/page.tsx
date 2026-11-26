@@ -9,8 +9,7 @@
  */
 
 import { useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import axios from "axios";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   Card,
   CardContent,
@@ -28,6 +27,7 @@ import {
 } from "@/components/ui/select";
 import { ErrorDisplay, EmptyState } from "@/components/shared";
 import KybReviewPane from "@/components/admin/KybReviewPane";
+import { useKybMerchants, type MerchantKybProfile } from "@/lib/api/hooks";
 import {
   ClipboardCheck,
   RefreshCw,
@@ -42,21 +42,11 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { fmtRelative } from "@/lib/utils/relativeTime";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type KybStatus = "pending" | "unverified" | "approved" | "rejected";
-
-interface MerchantKybSummary {
-  merchantId: string;
-  businessName: string;
-  businessType: string;
-  country: string;
-  industry: string;
-  contactEmail: string;
-  kybStatus: KybStatus;
-  submittedAt: string | null;
-}
+type KybStatus = MerchantKybProfile["kybStatus"];
 
 // ─── Status badge ─────────────────────────────────────────────────────────────
 
@@ -100,19 +90,6 @@ function KybStatusBadge({ status }: { status: KybStatus }) {
   );
 }
 
-// ─── Date helper ──────────────────────────────────────────────────────────────
-
-function fmtRelative(iso: string | null): string {
-  if (!iso) return "—";
-  const diff = Date.now() - new Date(iso).getTime();
-  const minutes = Math.floor(diff / 60000);
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(diff / 3600000);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(diff / 86400000);
-  return `${days}d ago`;
-}
-
 // ─── Row skeleton ─────────────────────────────────────────────────────────────
 
 function RowSkeleton() {
@@ -131,7 +108,7 @@ function RowSkeleton() {
 
 // ─── Stats row ────────────────────────────────────────────────────────────────
 
-function StatsRow({ merchants }: { merchants: MerchantKybSummary[] }) {
+function StatsRow({ merchants }: { merchants: MerchantKybProfile[] }) {
   const pending = merchants.filter((m) => m.kybStatus === "pending").length;
   const unverified = merchants.filter((m) => m.kybStatus === "unverified").length;
 
@@ -187,23 +164,15 @@ export default function MerchantsKybPage() {
 
   // ── Data fetch ───────────────────────────────────────────────────────────────
 
+  // Goes through the shared `apiClient`, so the auth, CSRF and token-refresh
+  // interceptors apply. The hook's query key is ["admin", "kyb-list", status],
+  // which is the key `handleDecision` updates below.
   const {
-    data: rawData,
+    data: merchants,
     isLoading,
     error: fetchError,
     refetch,
-  } = useQuery<MerchantKybSummary[]>({
-    queryKey: ["admin", "kyb-list", statusFilter],
-    queryFn: async () => {
-      const params = statusFilter !== "all" ? `?status=${statusFilter}` : "";
-      const res = await axios.get<{
-        data: MerchantKybSummary[];
-      }>(`/api/admin/merchants/kyb${params}`, { withCredentials: true });
-      return res.data.data ?? [];
-    },
-  });
-
-  const merchants: MerchantKybSummary[] = rawData ?? [];
+  } = useKybMerchants(statusFilter);
 
   // ── Optimistic update after decision ────────────────────────────────────────
 
@@ -212,7 +181,7 @@ export default function MerchantsKybPage() {
     newStatus: "approved" | "rejected"
   ) => {
     // Update the list cache optimistically — no full reload needed.
-    queryClient.setQueryData<MerchantKybSummary[]>(
+    queryClient.setQueryData<MerchantKybProfile[]>(
       ["admin", "kyb-list", statusFilter],
       (old) =>
         (old ?? []).map((m) =>

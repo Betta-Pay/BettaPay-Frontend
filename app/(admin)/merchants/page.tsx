@@ -41,7 +41,7 @@ function MerchantsConsole() {
         : 'Merchant action completed.');
     } catch { /* Mutation error remains visible with the confirmation. */ }
   }
-  return <AdminAccess><main className="space-y-6">
+  return <AdminAccess><div className="space-y-6">
     <h1 className="text-2xl font-bold">Merchants</h1>
     <Link className="underline" href="/merchants/kyb">Review KYB submissions</Link>
     <div className="flex flex-wrap gap-3">
@@ -77,7 +77,7 @@ function MerchantsConsole() {
         <h2 className="font-semibold">Audit trail</h2>{!detail.data.data.auditLog?.length && <p>No audit entries.</p>}{detail.data.data.auditLog?.map(a => <article className="border-t py-2" key={a.id}><p>{a.action}</p><p>{a.reviewerEmail || a.actorId} · {new Date(a.createdAt).toLocaleString()}</p>{a.note && <p>{a.note}</p>}</article>)}
       </>}
     </DialogContent></Dialog>
-  </main></AdminAccess>;
+  </div></AdminAccess>;
 }
 
 export default function MerchantsPage() {

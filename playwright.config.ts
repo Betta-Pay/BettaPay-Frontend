@@ -64,9 +64,13 @@ export default defineConfig({
     reuseExistingServer: !process.env.CI,
     timeout: 120 * 1000,
     // Point the API client at the same origin so route mocks are same-origin
-    // (no CORS) and payment-link URLs resolve to the running app.
+    // (no CORS) and payment-link URLs resolve to the running app. The merchant
+    // address is required for the checkout to build a SEP-0007 QR / deep link
+    // (#1152); without it the mobile tab renders a "not configured" notice.
     env: {
       NEXT_PUBLIC_API_URL: 'http://localhost:3000',
+      NEXT_PUBLIC_MERCHANT_ADDRESS:
+        'GCCHHKNI7GRA5QWC7RCTT3OHO7SKAUMKQA6IBWEQEO2SXI3GF376UHDD',
     },
   },
 });
