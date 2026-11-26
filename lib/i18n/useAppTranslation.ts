@@ -4,6 +4,8 @@ import { useTranslation } from "react-i18next";
 
 import en from "./en.json";
 
+type TranslateOptions = Record<string, unknown>;
+
 /**
  * Walk a dot-separated key path into a nested object and return the string
  * value at that path, or the key itself as a controlled fallback if the path
@@ -20,6 +22,18 @@ function englishFallback(key: string): string {
 }
 
 /**
+ * Replace `{{name}}` placeholders with the matching option value. Placeholders
+ * without a supplied value are left as written, so a missing variable is visible
+ * rather than silently blank.
+ */
+function interpolate(template: string, options?: TranslateOptions): string {
+  if (!options) return template;
+  return template.replace(/\{\{\s*([\w.-]+)\s*\}\}/g, (match, name: string) =>
+    name in options ? String(options[name]) : match,
+  );
+}
+
+/**
  * Application-level translation hook.
  *
  * The namespace is pinned to "translation" so that `t()` always resolves
@@ -29,15 +43,17 @@ function englishFallback(key: string): string {
  * the raw key string instead of the translated text.
  *
  * When i18next has not yet finished initialising (e.g. during SSR hydration),
- * `englishFallback` is used so the UI always renders real text rather than
- * raw key strings.
+ * the English dictionary is used instead, with the same `{{variable}}`
+ * substitution, so the UI always renders real text rather than raw key strings.
  */
 export function useAppTranslation() {
   // Pin the namespace explicitly — never rely on i18next's internal defaultNS
   // being set at call time, which can be undefined before init() resolves.
   const translation = useTranslation("translation");
+  const fallbackT = (key: string, options?: TranslateOptions) =>
+    interpolate(englishFallback(key), options);
   return {
     ...translation,
-    t: translation.i18n.isInitialized ? translation.t : englishFallback,
+    t: translation.i18n.isInitialized ? translation.t : fallbackT,
   };
 }

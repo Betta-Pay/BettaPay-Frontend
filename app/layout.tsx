@@ -6,7 +6,7 @@ import { ConditionalAppProviders } from "@/components/providers/ConditionalAppPr
 import "./globals.css";
 import { cn } from "@/lib/utils";
 import { SITE_URL } from "@/lib/config";
-import { defaultLocale, getLocaleDirection, isSupportedLocale } from "@/lib/i18n/locales";
+import { getLocaleDirection, isSupportedLocale } from "@/lib/i18n/locales";
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { I18nProvider } from '@/components/i18n/I18nProvider';
 import { TranslationCoveragePanel } from '@/components/i18n/TranslationCoveragePanel';
@@ -50,11 +50,9 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  // Issue #744: seed the document direction from the default locale for SSR.
   // The active locale is persisted in localStorage (client-only), so
   // `I18nProvider`/`LanguageSelector` re-sync `dir` after mount / on change;
   // `suppressHydrationWarning` covers the SSR->client transition for RTL.
-  const documentDirection = getLocaleDirection(defaultLocale);
   // CSRF cookie is now seeded in `middleware.ts` via `ensureCsrfCookieInMiddleware`
   // (using NextResponse.cookies.set, which is allowed in middleware). The
   // previous `await ensureCsrfCookie()` call here triggered
@@ -72,6 +70,9 @@ export default async function RootLayout({
   const cookieStore = await cookies();
   const rawLocale = cookieStore.get('NEXT_LOCALE')?.value;
   const htmlLang = rawLocale && isSupportedLocale(rawLocale) ? rawLocale : 'en';
+  // Issue #1140: derive `dir` from the same request locale as `lang`. Using the
+  // default locale forced `dir="ltr"` on every page, including RTL locales.
+  const documentDirection = getLocaleDirection(htmlLang);
 
   const inner = (
     <I18nProvider>
@@ -80,7 +81,8 @@ export default async function RootLayout({
         <Toaster />
         <div id="announcer" aria-live="polite" aria-atomic="true" className="sr-only" />
       </ThemeProvider>
-      <TranslationCoveragePanel />
+      {/* Issue #1140: the i18n debug widget is development-only. */}
+      {process.env.NODE_ENV !== "production" ? <TranslationCoveragePanel /> : null}
     </I18nProvider>
   );
 
