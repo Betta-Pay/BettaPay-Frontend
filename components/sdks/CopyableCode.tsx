@@ -19,14 +19,20 @@ interface CopyableCodeProps {
  */
 export function CopyableCode({ code, label }: CopyableCodeProps) {
   const [copied, setCopied] = useState(false);
+  const [failed, setFailed] = useState(false);
 
+  // Clipboard writes are refused in some browsers and contexts. Report that
+  // instead of leaving a rejected promise unhandled.
   const handleCopy = async () => {
     try {
       await copyToClipboard(code);
+      setFailed(false);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
       setCopied(false);
+      setFailed(true);
+      setTimeout(() => setFailed(false), 4000);
     }
   };
 
@@ -63,8 +69,13 @@ export function CopyableCode({ code, label }: CopyableCodeProps) {
         {code}
       </pre>
       <span role="status" className="sr-only">
-        {copied ? `${label} copied` : ""}
+        {copied ? `${label} copied` : failed ? `Could not copy ${label}. Select the code and press Control or Command plus C.` : ""}
       </span>
+      {failed && (
+        <p role="alert" className="px-4 pb-3 text-xs text-destructive">
+          Copy failed. Select the code and press Control or Command plus C.
+        </p>
+      )}
     </div>
   );
 }

@@ -61,8 +61,10 @@ export function flush(): void {
 
   if (queue.length === 0) return;
 
-  const batch = queue.splice(0, queue.length);
-  void sendBatch(batch);
+  // Send in chunks no larger than MAX_BATCH_SIZE; the server rejects bigger batches.
+  while (queue.length > 0) {
+    void sendBatch(queue.splice(0, MAX_BATCH_SIZE));
+  }
 }
 
 function scheduleFlush(): void {
@@ -77,8 +79,20 @@ function scheduleFlush(): void {
 /**
  * Enqueue a report for batched delivery, collapsing repeats by fingerprint.
  */
+/**
+ * Reports about `/api/errors` itself. A failed error POST is reported as an
+ * `api` error whose message names the endpoint, so letting it through would
+ * queue another POST to the same endpoint, and so on.
+ */
+const ERRORS_ENDPOINT_PATTERN = /\/api\/errors(?:[/?#\s]|$)/;
+
+export function isErrorsEndpointFailure(report: ErrorReport): boolean {
+  return report.source === 'api' && ERRORS_ENDPOINT_PATTERN.test(report.message);
+}
+
 export function enqueue(report: ErrorReport): void {
   if (isDestroyed) return;
+  if (isErrorsEndpointFailure(report)) return;
 
   const existing = queue.find((r) => r.fingerprint === report.fingerprint);
   if (existing) {

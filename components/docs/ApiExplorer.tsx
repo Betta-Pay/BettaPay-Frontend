@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import {
   ChevronRight,
@@ -32,6 +32,28 @@ interface TryItResult {
   body: string;
   durationMs: number;
   url: string;
+}
+
+/** Syntax error for a JSON request body, or null when the body is valid or not JSON. */
+function jsonBodyError(text: string, contentType: string): string | null {
+  if (!contentType.includes("json") || text.trim().length === 0) return null;
+  try {
+    JSON.parse(text);
+    return null;
+  } catch (caught) {
+    return caught instanceof SyntaxError ? `Invalid JSON: ${caught.message}` : "Invalid JSON.";
+  }
+}
+
+/** Human-readable reason a try-it request failed. */
+function describeRequestError(caught: unknown, timedOut: boolean): string {
+  if (timedOut) return "Request timed out after 30 seconds.";
+  // fetch rejects with a TypeError when the network is down or CORS blocks the call.
+  if (caught instanceof TypeError) {
+    return "Network error: could not reach the API. Check the base URL and your connection.";
+  }
+  if (caught instanceof Error) return caught.message;
+  return "Request failed.";
 }
 
 function paramKey(location: "path" | "query" | "header", name: string): string {
@@ -126,6 +148,13 @@ function TryItPanel({
   const [isSending, setIsSending] = useState(false);
   const [result, setResult] = useState<TryItResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // The in-flight request. A new send, or unmounting, aborts it so late responses cannot overwrite newer ones.
+  const abortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => () => abortRef.current?.abort(), []);
+
+  const sendsBody = !["GET", "DELETE"].includes(endpoint.method);
+  const bodyError = sendsBody ? jsonBodyError(body, endpoint.requestContentType) : null;
 
   const updateValue = useCallback((key: string, value: string) => {
     setValues((current) => ({ ...current, [key]: value }));
@@ -134,6 +163,11 @@ function TryItPanel({
   const send = useCallback(async () => {
     setError(null);
     setResult(null);
+
+    if (bodyError) {
+      setError(`Fix the request body before sending. ${bodyError}`);
+      return;
+    }
 
     if (endpoint.auth && !apiKey.trim()) {
       setError("Add a dev API key in the Try-it configuration above to call an authenticated endpoint.");
@@ -164,7 +198,9 @@ function TryItPanel({
     const hasBody = body.trim().length > 0 && !["GET", "DELETE"].includes(endpoint.method);
     if (hasBody) headers["Content-Type"] = endpoint.requestContentType;
 
+    abortRef.current?.abort();
     const controller = new AbortController();
+    abortRef.current = controller;
     const timeout = setTimeout(() => controller.abort(), 30_000);
     const startedAt = performance.now();
     setIsSending(true);
@@ -183,6 +219,7 @@ function TryItPanel({
       });
 
       const text = await response.text();
+      if (controller.signal.aborted) return;
       setResult({
         status: response.status,
         statusText: response.statusText,
@@ -192,18 +229,14 @@ function TryItPanel({
         url,
       });
     } catch (caught) {
-      setError(
-        caught instanceof Error
-          ? caught.name === "AbortError"
-            ? "Request timed out after 30 seconds."
-            : caught.message
-          : "Request failed.",
-      );
+      // A superseded request was aborted on purpose; the newer request owns the UI.
+      if (abortRef.current !== controller) return;
+      setError(describeRequestError(caught, controller.signal.aborted));
     } finally {
       clearTimeout(timeout);
-      setIsSending(false);
+      if (abortRef.current === controller) setIsSending(false);
     }
-  }, [apiKey, baseUrl, body, endpoint, values]);
+  }, [apiKey, baseUrl, body, bodyError, endpoint, values]);
 
   return (
     <div className="space-y-4 rounded-xl border border-border bg-background/60 p-4">
@@ -218,7 +251,7 @@ function TryItPanel({
         <button
           type="button"
           onClick={() => void send()}
-          disabled={isSending}
+          disabled={isSending || Boolean(bodyError)}
           className="inline-flex h-9 items-center justify-center rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
         >
           {isSending ? (
@@ -264,6 +297,8 @@ function TryItPanel({
             id={`${endpoint.id}-body`}
             value={body}
             onChange={(event) => setBody(event.target.value)}
+            aria-invalid={bodyError ? true : undefined}
+            aria-describedby={bodyError ? `${endpoint.id}-body-error` : undefined}
             rows={8}
             spellCheck={false}
             className="w-full rounded-lg border border-border bg-muted p-3 font-mono text-xs text-foreground outline-none focus:ring-2 focus:ring-primary/40"
@@ -271,6 +306,11 @@ function TryItPanel({
           <p className="text-xs text-muted-foreground">
             Prefilled from the OpenAPI schema. Edit it freely — the raw text is sent as-is.
           </p>
+          {bodyError && (
+            <p id={`${endpoint.id}-body-error`} role="alert" className="text-xs text-destructive">
+              {bodyError}
+            </p>
+          )}
         </div>
       )}
 

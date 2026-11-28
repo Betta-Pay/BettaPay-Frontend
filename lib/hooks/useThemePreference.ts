@@ -25,7 +25,15 @@ const VALID_THEMES = new Set(["light", "dark", "system"]);
 export function useThemePreference(): void {
   const { theme, setTheme } = useTheme();
   const userId = useAuthStore((s) => s.user?.id ?? null);
-  const prevUserIdRef = useRef<string | null>(userId);
+  // The store starts empty on the server (and on the first client paint before
+  // zustand-persist has rehydrated), so `userId` is briefly `null`. Acting on
+  // that transient value would read the *guest* theme key and can flash the
+  // wrong theme (issue #1148).
+  const hasHydrated = useAuthStore((s) => s._hasHydrated);
+  const prevUserIdRef = useRef<string | null>(null);
+  // Distinguishes the identity observed at rehydration (the current session)
+  // from a genuine later login/logout transition.
+  const identityInitialisedRef = useRef(false);
 
   // ── 1. Restore preference on mount (Hydration Safe) ─────────────────────
   const getSnapshot = () => {
@@ -38,14 +46,28 @@ export function useThemePreference(): void {
   const storedTheme = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 
   useEffect(() => {
+    // Wait for rehydration so we read the theme for the *real* user rather than
+    // the guest fallback (issue #1148).
+    if (!hasHydrated) return;
     if (storedTheme && VALID_THEMES.has(storedTheme)) {
       setTheme(storedTheme);
     }
-  }, [storedTheme, setTheme]);
+  }, [hasHydrated, storedTheme, setTheme]);
 
   // ── 2. Handle user identity transitions (login / logout) ─────────────────
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (!hasHydrated || typeof window === "undefined") return;
+
+    // The first identity seen once rehydration has completed is simply the
+    // current session — not a login. Record it and skip, otherwise every reload
+    // re-runs the guest→user migration and can overwrite the saved theme with a
+    // stale guest value (issue #1148).
+    if (!identityInitialisedRef.current) {
+      identityInitialisedRef.current = true;
+      prevUserIdRef.current = userId;
+      return;
+    }
+
     const prev = prevUserIdRef.current;
     prevUserIdRef.current = userId;
 
@@ -72,15 +94,17 @@ export function useThemePreference(): void {
       const userKey = getThemeStorageKey(prev);
       localStorage.removeItem(userKey);
     }
-  }, [userId, setTheme]);
+  }, [hasHydrated, userId, setTheme]);
 
   // ── 3. Persist on every theme change ─────────────────────────────────────
   useEffect(() => {
-    if (typeof window === "undefined" || !theme) return;
+    // Don't persist until rehydration settles, otherwise the resolved theme is
+    // written to the guest key while the real user is still unknown (#1148).
+    if (!hasHydrated || typeof window === "undefined" || !theme) return;
     if (!VALID_THEMES.has(theme)) return;
     const key = getThemeStorageKey(userId);
     localStorage.setItem(key, theme);
-  }, [theme, userId]);
+  }, [hasHydrated, theme, userId]);
 
   // ── 4. Live OS colour-scheme sync while in "system" mode ─────────────────
   useEffect(() => {
