@@ -60,14 +60,96 @@ const FxRateChart = dynamic(() => import("@/components/charts/FxRateChart"), {
   loading: () => <Skeleton className="h-[240px] w-full rounded-xl" />,
 });
 
+function FxRatesSkeleton() {
+  return (
+    <div
+      role="status"
+      aria-busy="true"
+      aria-label="Loading live FX rates"
+      data-testid="fx-rates-skeleton"
+      className="space-y-6"
+    >
+      <div className="grid gap-6 lg:grid-cols-12">
+        <Card
+          data-testid="fx-rate-skeleton-card"
+          className="lg:col-span-7 border border-border bg-card shadow-sm rounded-2xl overflow-hidden"
+        >
+          <CardContent className="p-6 space-y-6">
+            <div className="flex items-center justify-between">
+              <Skeleton className="h-3 w-52" />
+              <Skeleton className="h-4 w-24 rounded" />
+            </div>
+            <Skeleton className="h-12 w-64 max-w-full" />
+            <div className="grid grid-cols-3 gap-3 pt-4 border-t border-border/60">
+              {[0, 1, 2].map((i) => (
+                <Skeleton key={i} className="h-16 w-full rounded-xl" />
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+        <Card
+          data-testid="fx-rate-skeleton-card"
+          className="lg:col-span-5 border border-border bg-card shadow-sm rounded-2xl"
+        >
+          <CardHeader className="pb-3 space-y-2">
+            <Skeleton className="h-5 w-48" />
+            <Skeleton className="h-3 w-56" />
+          </CardHeader>
+          <CardContent className="space-y-4 pt-0">
+            <div className="space-y-2">
+              <Skeleton className="h-3 w-24" />
+              <div className="flex gap-2">
+                <Skeleton className="h-11 flex-1 rounded-xl" />
+                <Skeleton className="h-11 w-[110px] rounded-xl" />
+              </div>
+            </div>
+            <Skeleton className="h-28 w-full rounded-xl" />
+            <Skeleton className="h-11 w-full rounded-xl" />
+          </CardContent>
+        </Card>
+      </div>
+      <div className="grid gap-6 lg:grid-cols-7">
+        <Card
+          data-testid="fx-rate-skeleton-card"
+          className="lg:col-span-4 border border-border bg-card shadow-sm rounded-2xl"
+        >
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <Skeleton className="h-5 w-56" />
+            <Skeleton className="h-8 w-40 rounded-xl" />
+          </CardHeader>
+          <CardContent>
+            <Skeleton className="h-[240px] w-full rounded-xl" />
+          </CardContent>
+        </Card>
+        <Card
+          data-testid="fx-rate-skeleton-card"
+          className="lg:col-span-3 border border-border bg-card shadow-sm rounded-2xl"
+        >
+          <CardHeader className="space-y-2">
+            <Skeleton className="h-5 w-48" />
+            <Skeleton className="h-3 w-56" />
+          </CardHeader>
+          <CardContent className="space-y-2.5">
+            {[0, 1, 2, 3].map((i) => (
+              <Skeleton key={i} className="h-14 w-full rounded-xl" />
+            ))}
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
 export default function FxRatesPage() {
   const {
+    data: ratesData,
     primaryRate,
     isLoading: ratesLoading,
+    isFetching: ratesFetching,
+    error: ratesError,
     refetch,
   } = useRates();
   const [lastRefresh] = useState("Just now");
-  const [fxError, setFxError] = useState(false);
   const notify = useNotify();
   const {
     alerts,
@@ -83,6 +165,8 @@ export default function FxRatesPage() {
     typeof primaryRate === "number" && Number.isFinite(primaryRate)
       ? primaryRate
       : 1585;
+  const hasRates = Array.isArray(ratesData) && ratesData.length > 0;
+  const showRatesSkeleton = ratesLoading || (ratesFetching && !hasRates);
 
   // Selected active chart pair
   const [activeChartPair, setActiveChartPair] = useState<"USDC/NGN" | "EURC/NGN">("USDC/NGN");
@@ -222,27 +306,22 @@ export default function FxRatesPage() {
           <Button
             variant="outline"
             onClick={refetch}
+            disabled={showRatesSkeleton}
             className="border-border rounded-xl h-9 px-3.5 text-xs font-semibold text-muted-foreground hover:text-foreground"
           >
             <RefreshCcw className="w-3.5 h-3.5 mr-1.5" /> Refresh Rates
           </Button>
-          <Button
-            variant="outline"
-            className="border-border rounded-xl h-9 px-3.5 text-xs font-semibold text-muted-foreground"
-            onClick={() => setFxError(!fxError)}
-          >
-            {fxError ? "Reset Feed" : "Simulate Error"}
-          </Button>
         </div>
       </div>
 
-      {fxError ? (
-        <div className="py-12">
-          <ErrorDisplay
-            message="Failed to load real-time exchange rates"
-            onRetry={() => setFxError(false)}
-          />
-        </div>
+      {ratesError ? (
+        <ErrorDisplay
+          message={`Failed to load live FX rates. ${ratesError}`}
+          onRetry={refetch}
+          retryLabel="Retry"
+        />
+      ) : showRatesSkeleton ? (
+        <FxRatesSkeleton />
       ) : (
         <>
           {/* Primary Rate & Instant Conversion Studio */}
